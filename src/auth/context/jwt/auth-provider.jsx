@@ -1,11 +1,9 @@
 import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
 
-import axios, { endpoints } from 'src/lib/axios';
-
 import { JWT_STORAGE_KEY } from './constant';
 import { AuthContext } from '../auth-context';
-import { setSession, isValidToken } from './utils';
+import { setSession, isValidToken, jwtDecode } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -25,9 +23,15 @@ export function AuthProvider({ children }) {
       if (accessToken && isValidToken(accessToken)) {
         setSession(accessToken);
 
-        const res = await axios.get(endpoints.auth.me);
-
-        const { user } = res.data;
+        // Extraemos los datos del usuario directamente del JWT
+        // Payload contiene: { sub: email, id, role, exp }
+        const decoded = jwtDecode(accessToken);
+        const user = {
+          id: decoded.id,
+          email: decoded.sub,
+          role: decoded.role,
+          displayName: decoded.sub,
+        };
 
         setState({ user: { ...user, accessToken }, loading: false });
       } else {

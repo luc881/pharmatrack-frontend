@@ -1,7 +1,7 @@
 import axios, { endpoints } from 'src/lib/axios';
 
 import { setSession } from './utils';
-import { JWT_STORAGE_KEY } from './constant';
+import { JWT_STORAGE_KEY, JWT_REFRESH_KEY } from './constant';
 
 // ----------------------------------------------------------------------
 
@@ -10,17 +10,26 @@ import { JWT_STORAGE_KEY } from './constant';
  *************************************** */
 export const signInWithPassword = async ({ email, password }) => {
   try {
-    const params = { email, password };
+    // FastAPI OAuth2 requiere form-data con campo "username"
+    const formData = new URLSearchParams();
+    formData.append('username', email);
+    formData.append('password', password);
 
-    const res = await axios.post(endpoints.auth.signIn, params);
+    const res = await axios.post(endpoints.auth.signIn, formData, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
 
-    const { accessToken } = res.data;
+    const { access_token, refresh_token } = res.data;
 
-    if (!accessToken) {
+    if (!access_token) {
       throw new Error('Access token not found in response');
     }
 
-    setSession(accessToken);
+    setSession(access_token);
+
+    if (refresh_token) {
+      sessionStorage.setItem(JWT_REFRESH_KEY, refresh_token);
+    }
   } catch (error) {
     console.error('Error during sign in:', error);
     throw error;
@@ -59,7 +68,11 @@ export const signUp = async ({ email, password, firstName, lastName }) => {
  *************************************** */
 export const signOut = async () => {
   try {
+    await axios.post(endpoints.auth.signOut).catch(() => {
+      // Si el servidor falla, continuamos con el logout local
+    });
     await setSession(null);
+    sessionStorage.removeItem(JWT_REFRESH_KEY);
   } catch (error) {
     console.error('Error during sign out:', error);
     throw error;
