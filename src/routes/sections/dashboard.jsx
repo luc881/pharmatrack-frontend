@@ -22,6 +22,10 @@ const OverviewBankingPage = lazy(() => import('src/pages/dashboard/banking'));
 const OverviewBookingPage = lazy(() => import('src/pages/dashboard/booking'));
 const OverviewFilePage = lazy(() => import('src/pages/dashboard/file'));
 const OverviewCoursePage = lazy(() => import('src/pages/dashboard/course'));
+// Role
+const RoleListPage = lazy(() => import('src/pages/dashboard/role/list'));
+const RoleCreatePage = lazy(() => import('src/pages/dashboard/role/new'));
+const RoleEditPage = lazy(() => import('src/pages/dashboard/role/edit'));
 // Sale
 const SaleListPage = lazy(() => import('src/pages/dashboard/sale/list'));
 const SaleCreatePage = lazy(() => import('src/pages/dashboard/sale/new'));
@@ -147,6 +151,15 @@ export const dashboardRoutes = [
               { path: 'change-password', element: <AccountChangePasswordPage /> },
             ],
           },
+        ],
+      },
+      {
+        path: 'role',
+        children: [
+          { index: true, element: <RoleListPage /> },
+          { path: 'list', element: <RoleListPage /> },
+          { path: 'new', element: <RoleCreatePage /> },
+          { path: ':id/edit', element: <RoleEditPage /> },
         ],
       },
       {

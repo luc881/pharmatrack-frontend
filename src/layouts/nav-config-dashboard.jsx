@@ -93,6 +93,24 @@ export const navData = [
         ],
       },
       {
+        title: 'Usuarios',
+        path: paths.dashboard.user.list,
+        icon: ICONS.user,
+        children: [
+          { title: 'Lista', path: paths.dashboard.user.list },
+          { title: 'Nuevo', path: paths.dashboard.user.new },
+        ],
+      },
+      {
+        title: 'Roles',
+        path: paths.dashboard.role.root,
+        icon: ICONS.lock,
+        children: [
+          { title: 'Lista', path: paths.dashboard.role.root },
+          { title: 'Nuevo', path: paths.dashboard.role.new },
+        ],
+      },
+      {
         title: 'Productos',
         path: paths.dashboard.product.root,
         icon: ICONS.product,

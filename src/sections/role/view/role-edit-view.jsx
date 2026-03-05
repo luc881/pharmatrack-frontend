@@ -4,25 +4,25 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { UserCreateEditForm } from '../user-create-edit-form';
+import { RoleCreateEditForm } from '../role-create-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function UserEditView({ user: currentUser }) {
+export function RoleEditView({ role }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Editar usuario"
-        backHref={paths.dashboard.user.list}
+        heading="Editar rol"
+        backHref={paths.dashboard.role.root}
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Usuarios', href: paths.dashboard.user.list },
-          { name: currentUser?.name },
+          { name: 'Roles', href: paths.dashboard.role.root },
+          { name: role?.name },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <UserCreateEditForm currentUser={currentUser} />
+      <RoleCreateEditForm currentRole={role} />
     </DashboardContent>
   );
 }

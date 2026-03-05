@@ -89,6 +89,23 @@ export const endpoints = {
   branch: {
     list: '/api/v1/branches/',
   },
+  user: {
+    list: '/api/v1/users/',
+    details: (id) => `/api/v1/users/${id}`,
+    create: '/api/v1/users/',
+    update: (id) => `/api/v1/users/${id}`,
+    delete: (id) => `/api/v1/users/${id}`,
+  },
+  role: {
+    list: '/api/v1/roles/',
+    details: (id) => `/api/v1/roles/${id}`,
+    create: '/api/v1/roles/',
+    update: (id) => `/api/v1/roles/${id}`,
+    delete: (id) => `/api/v1/roles/${id}`,
+  },
+  permission: {
+    list: '/api/v1/permissions/',
+  },
   sale: {
     list: '/api/v1/sales/',
     details: (id) => `/api/v1/sales/${id}`,

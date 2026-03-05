@@ -1,22 +1,22 @@
 import { useParams } from 'src/routes/hooks';
 
 import { CONFIG } from 'src/global-config';
-import { useGetUser } from 'src/actions/user';
+import { useGetRole } from 'src/actions/role';
 
-import { UserEditView } from 'src/sections/user/view';
+import { RoleEditView } from 'src/sections/role/view';
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Editar usuario | Dashboard - ${CONFIG.appName}` };
+const metadata = { title: `Editar rol | Dashboard - ${CONFIG.appName}` };
 
 export default function Page() {
   const { id = '' } = useParams();
-  const { user } = useGetUser(id);
+  const { role } = useGetRole(id);
 
   return (
     <>
       <title>{metadata.title}</title>
-      <UserEditView user={user} />
+      <RoleEditView role={role} />
     </>
   );
 }

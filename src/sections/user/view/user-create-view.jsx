@@ -12,11 +12,11 @@ export function UserCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Create a new user"
+        heading="Nuevo usuario"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'User', href: paths.dashboard.user.root },
-          { name: 'Create' },
+          { name: 'Usuarios', href: paths.dashboard.user.list },
+          { name: 'Nuevo' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

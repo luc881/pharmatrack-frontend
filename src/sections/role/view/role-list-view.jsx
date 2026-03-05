@@ -1,8 +1,7 @@
 import { useBoolean } from 'minimal-shared/hooks';
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
-import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import { useTheme } from '@mui/material/styles';
 import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
@@ -10,11 +9,11 @@ import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useGetRoles } from 'src/actions/role';
-import { DashboardContent } from 'src/layouts/dashboard';
-import { deleteUser, useGetUsers } from 'src/actions/user';
+import { fDate } from 'src/utils/format-time';
 
-import { Label } from 'src/components/label';
+import { DashboardContent } from 'src/layouts/dashboard';
+import { deleteRole, useGetRoles } from 'src/actions/role';
+
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
@@ -27,35 +26,21 @@ import {
   useToolbarSettings,
   CustomToolbarQuickFilter,
   CustomGridActionsCellItem,
-  CustomToolbarExportButton,
   CustomToolbarColumnsButton,
   CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
 
 // ----------------------------------------------------------------------
 
-export function UserListView() {
+export function RoleListView() {
   const theme = useTheme();
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
 
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
 
-  const { users, usersTotal, usersLoading, usersMutate } = useGetUsers({
-    page: paginationModel.page + 1,
-    pageSize: paginationModel.pageSize,
-  });
-
-  const { roles } = useGetRoles();
-  const roleMap = useMemo(
-    () => Object.fromEntries(roles.map((r) => [r.id, r.name])),
-    [roles]
-  );
-
-  const rowCountRef = useRef(usersTotal);
-  if (usersTotal > 0) rowCountRef.current = usersTotal;
+  const { roles, rolesLoading, rolesMutate } = useGetRoles();
 
   const handleDeleteRow = useCallback(
     (id) => {
@@ -68,11 +53,11 @@ export function UserListView() {
   const handleConfirmDelete = useCallback(async () => {
     try {
       if (rowToDelete) {
-        await deleteUser(rowToDelete);
+        await deleteRole(rowToDelete);
       } else {
-        await Promise.all([...selectedRows.ids].map((id) => deleteUser(id)));
+        await Promise.all([...selectedRows.ids].map((id) => deleteRole(id)));
       }
-      await usersMutate();
+      await rolesMutate();
       toast.success('Eliminado correctamente');
     } catch {
       toast.error('Error al eliminar');
@@ -80,7 +65,7 @@ export function UserListView() {
       setRowToDelete(null);
       confirmDialog.onFalse();
     }
-  }, [rowToDelete, selectedRows.ids, usersMutate, confirmDialog]);
+  }, [rowToDelete, selectedRows.ids, rolesMutate, confirmDialog]);
 
   const deleteCount = rowToDelete ? 1 : selectedRows.ids?.size ?? 0;
 
@@ -88,43 +73,17 @@ export function UserListView() {
     () => [
       {
         field: 'name',
-        headerName: 'Usuario',
+        headerName: 'Nombre',
         flex: 1,
-        minWidth: 220,
+        minWidth: 200,
         hideable: false,
-        renderCell: (params) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <Avatar
-              src={params.row.avatar || ''}
-              sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}
-            >
-              {params.row.name?.[0]?.toUpperCase()}
-            </Avatar>
-            <div>
-              <div style={{ fontWeight: 500 }}>
-                {params.row.name} {params.row.surname ?? ''}
-              </div>
-              <div style={{ fontSize: 12, color: theme.vars.palette.text.secondary }}>
-                {params.row.email}
-              </div>
-            </div>
-          </div>
-        ),
       },
       {
-        field: 'role_id',
-        headerName: 'Rol',
-        width: 140,
-        renderCell: (params) =>
-          params.row.role_id ? (
-            <Label variant="soft" color="primary">
-              {roleMap[params.row.role_id] ?? `ID ${params.row.role_id}`}
-            </Label>
-          ) : (
-            '—'
-          ),
+        field: 'created_at',
+        headerName: 'Creado',
+        width: 160,
+        valueGetter: (value) => (value ? fDate(value) : '—'),
       },
-      { field: 'phone', headerName: 'Teléfono', width: 150, valueGetter: (v) => v ?? '—' },
       {
         type: 'actions',
         field: 'actions',
@@ -140,7 +99,7 @@ export function UserListView() {
             showInMenu
             label="Editar"
             icon={<Iconify icon="solar:pen-bold" />}
-            href={paths.dashboard.user.edit(params.row.id)}
+            href={paths.dashboard.role.edit(params.row.id)}
           />,
           <CustomGridActionsCellItem
             showInMenu
@@ -152,26 +111,26 @@ export function UserListView() {
         ],
       },
     ],
-    [handleDeleteRow, roleMap, theme.vars.palette.error.main, theme.vars.palette.text.secondary]
+    [handleDeleteRow, theme.vars.palette.error.main]
   );
 
   return (
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
-          heading="Usuarios"
+          heading="Roles"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Usuarios' },
+            { name: 'Roles' },
           ]}
           action={
             <Button
               component={RouterLink}
-              href={paths.dashboard.user.new}
+              href={paths.dashboard.role.new}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Nuevo usuario
+              Nuevo rol
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -179,10 +138,10 @@ export function UserListView() {
 
         <Card
           sx={{
-            minHeight: 480,
+            minHeight: 360,
             flexGrow: { md: 1 },
             display: { md: 'flex' },
-            height: { xs: 640, md: '1px' },
+            height: { xs: 480, md: '1px' },
             flexDirection: { md: 'column' },
           }}
         >
@@ -190,15 +149,11 @@ export function UserListView() {
             {...toolbarOptions.settings}
             checkboxSelection
             disableRowSelectionOnClick
-            rows={users}
+            rows={roles}
             columns={columns}
-            loading={usersLoading}
-            rowCount={rowCountRef.current}
-            paginationMode="server"
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            getRowHeight={() => 'auto'}
-            pageSizeOptions={[10, 25, 50]}
+            loading={rolesLoading}
+            pageSizeOptions={[10, 25]}
+            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
               noRowsOverlay: () => <EmptyContent />,
@@ -224,7 +179,6 @@ export function UserListView() {
                         </Button>
                       )}
                       <CustomToolbarColumnsButton />
-                      <CustomToolbarExportButton />
                       <CustomToolbarSettingsButton
                         settings={toolbarOptions.settings}
                         onChangeSettings={toolbarOptions.onChangeSettings}
@@ -246,7 +200,7 @@ export function UserListView() {
         content={
           <>
             ¿Estás seguro de eliminar <strong>{deleteCount}</strong>{' '}
-            {deleteCount === 1 ? 'usuario' : 'usuarios'}?
+            {deleteCount === 1 ? 'rol' : 'roles'}?
           </>
         }
         action={

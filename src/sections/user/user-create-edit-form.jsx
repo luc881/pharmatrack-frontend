@@ -1,237 +1,228 @@
-import * as z from 'zod';
+import { z as zod } from 'zod';
+import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
-import { isValidPhoneNumber } from 'react-phone-number-input/input';
+import { useForm, FormProvider } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import Switch from '@mui/material/Switch';
+import Avatar from '@mui/material/Avatar';
+import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
-import FormControlLabel from '@mui/material/FormControlLabel';
+import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hooks';
 
-import { fData } from 'src/utils/format-number';
+import { useGetRoles } from 'src/actions/role';
+import { useGetBranches } from 'src/actions/sale';
+import { createUser, updateUser } from 'src/actions/user';
 
-import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
+import { Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
-export const UserCreateSchema = z.object({
-  avatarUrl: schemaUtils.file({ error: 'Avatar is required!' }),
-  name: z.string().min(1, { error: 'Name is required!' }),
-  email: schemaUtils.email(),
-  phoneNumber: schemaUtils.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: schemaUtils.nullableInput(z.string().min(1, { error: 'Country is required!' }), {
-    error: 'Country is required!',
-  }),
-  address: z.string().min(1, { error: 'Address is required!' }),
-  company: z.string().min(1, { error: 'Company is required!' }),
-  state: z.string().min(1, { error: 'State is required!' }),
-  city: z.string().min(1, { error: 'City is required!' }),
-  role: z.string().min(1, { error: 'Role is required!' }),
-  zipCode: z.string().min(1, { error: 'Zip code is required!' }),
-  // Not required
-  status: z.string(),
-  isVerified: z.boolean(),
+const GENDER_OPTIONS = [
+  { value: 'M', label: 'Masculino' },
+  { value: 'F', label: 'Femenino' },
+];
+
+const DOC_TYPE_OPTIONS = ['CURP', 'RFC', 'INE', 'Pasaporte', 'Otro'];
+
+// ----------------------------------------------------------------------
+
+const baseSchema = zod.object({
+  name: zod.string().min(1, 'El nombre es requerido'),
+  surname: zod.string().optional(),
+  email: zod.string().email('Email inválido'),
+  role_id: zod.union([zod.string(), zod.number()]).optional().nullable(),
+  branch_id: zod.union([zod.string(), zod.number()]).optional().nullable(),
+  phone: zod.string().optional(),
+  gender: zod.string().optional(),
+  type_document: zod.string().optional(),
+  n_document: zod.string().optional(),
+  avatar: zod.string().optional(),
+});
+
+const createSchema = baseSchema.extend({
+  password: zod.string().min(8, 'Mínimo 8 caracteres'),
+});
+
+const editSchema = baseSchema.extend({
+  password: zod.string().optional(),
 });
 
 // ----------------------------------------------------------------------
 
 export function UserCreateEditForm({ currentUser }) {
-  const router = useRouter();
+  const navigate = useNavigate();
+  const { roles } = useGetRoles();
+  const { branches } = useGetBranches();
+
+  const isEdit = !!currentUser;
+  const schema = isEdit ? editSchema : createSchema;
 
   const defaultValues = {
-    status: '',
-    avatarUrl: null,
-    isVerified: true,
-    name: '',
-    email: '',
-    phoneNumber: '',
-    country: '',
-    state: '',
-    city: '',
-    address: '',
-    zipCode: '',
-    company: '',
-    role: '',
+    name: currentUser?.name ?? '',
+    surname: currentUser?.surname ?? '',
+    email: currentUser?.email ?? '',
+    password: '',
+    role_id: currentUser?.role_id ?? '',
+    branch_id: currentUser?.branch_id ?? '',
+    phone: currentUser?.phone ?? '',
+    gender: currentUser?.gender ?? '',
+    type_document: currentUser?.type_document ?? '',
+    n_document: currentUser?.n_document ?? '',
+    avatar: currentUser?.avatar ?? '',
   };
 
-  const methods = useForm({
-    mode: 'onSubmit',
-    resolver: zodResolver(UserCreateSchema),
-    defaultValues,
-    values: currentUser,
-  });
+  const methods = useForm({ resolver: zodResolver(schema), defaultValues });
 
   const {
-    reset,
     watch,
-    control,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
-  const values = watch();
+  const avatarUrl = watch('avatar');
+  const nameValue = watch('name');
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      reset();
-      toast.success(currentUser ? 'Update success!' : 'Create success!');
-      router.push(paths.dashboard.user.list);
-      console.info('DATA', data);
-    } catch (error) {
-      console.error(error);
+      const payload = {
+        name: data.name,
+        surname: data.surname || null,
+        email: data.email,
+        role_id: data.role_id ? Number(data.role_id) : null,
+        branch_id: data.branch_id ? Number(data.branch_id) : null,
+        phone: data.phone || null,
+        gender: data.gender || null,
+        type_document: data.type_document || null,
+        n_document: data.n_document || null,
+        avatar: data.avatar || null,
+      };
+
+      if (!isEdit) {
+        payload.password = data.password;
+        await createUser(payload);
+      } else {
+        if (data.password) payload.password = data.password;
+        await updateUser(currentUser.id, payload);
+      }
+
+      toast.success(isEdit ? 'Usuario actualizado' : 'Usuario creado');
+      navigate(paths.dashboard.user.list);
+    } catch {
+      toast.error('Error al guardar el usuario');
     }
   });
 
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ pt: 10, pb: 5, px: 3 }}>
-            {currentUser && (
-              <Label
-                color={
-                  (values.status === 'active' && 'success') ||
-                  (values.status === 'banned' && 'error') ||
-                  'warning'
-                }
-                sx={{ position: 'absolute', top: 24, right: 24 }}
-              >
-                {values.status}
-              </Label>
-            )}
-
-            <Box sx={{ mb: 5 }}>
-              <Field.UploadAvatar
-                name="avatarUrl"
-                maxSize={3145728}
-                helperText={
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      mt: 3,
-                      mx: 'auto',
-                      display: 'block',
-                      textAlign: 'center',
-                      color: 'text.disabled',
-                    }}
-                  >
-                    Allowed *.jpeg, *.jpg, *.png, *.gif
-                    <br /> max size of {fData(3145728)}
-                  </Typography>
-                }
-              />
+    <FormProvider {...methods}>
+      <form onSubmit={onSubmit}>
+        <Stack spacing={3}>
+          {/* Avatar preview */}
+          <Card sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
+            <Avatar src={avatarUrl || ''} sx={{ width: 72, height: 72, fontSize: 28 }}>
+              {nameValue?.[0]?.toUpperCase()}
+            </Avatar>
+            <Box>
+              <Typography variant="subtitle1">{nameValue || 'Nuevo usuario'}</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Ingresa la URL del avatar abajo
+              </Typography>
             </Box>
-
-            {currentUser && (
-              <FormControlLabel
-                labelPlacement="start"
-                control={
-                  <Controller
-                    name="status"
-                    control={control}
-                    render={({ field }) => (
-                      <Switch
-                        {...field}
-                        checked={field.value !== 'active'}
-                        onChange={(event) =>
-                          field.onChange(event.target.checked ? 'banned' : 'active')
-                        }
-                      />
-                    )}
-                  />
-                }
-                label={
-                  <>
-                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                      Banned
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      Apply disable account
-                    </Typography>
-                  </>
-                }
-                sx={{
-                  mx: 0,
-                  mb: 3,
-                  width: 1,
-                  justifyContent: 'space-between',
-                }}
-              />
-            )}
-
-            <Field.Switch
-              name="isVerified"
-              labelPlacement="start"
-              label={
-                <>
-                  <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                    Email verified
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Disabling this will automatically send the user a verification email
-                  </Typography>
-                </>
-              }
-              sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
-            />
-
-            {currentUser && (
-              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                <Button variant="soft" color="error">
-                  Delete user
-                </Button>
-              </Stack>
-            )}
           </Card>
-        </Grid>
 
-        <Grid size={{ xs: 12, md: 8 }}>
+          {/* Personal info */}
           <Card sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ mb: 3 }}>
+              Información personal
+            </Typography>
+
             <Box
               sx={{
-                rowGap: 3,
-                columnGap: 2,
+                gap: 2,
                 display: 'grid',
-                gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
               }}
             >
-              <Field.Text name="name" label="Full name" />
-              <Field.Text name="email" label="Email address" />
-              <Field.Phone name="phoneNumber" label="Phone number" defaultCountry="US" />
-
-              <Field.CountrySelect
-                fullWidth
-                name="country"
-                label="Country"
-                placeholder="Choose a country"
+              <Field.Text name="name" label="Nombre *" />
+              <Field.Text name="surname" label="Apellido" />
+              <Field.Text name="email" label="Email *" type="email" />
+              <Field.Text
+                name="password"
+                label={isEdit ? 'Nueva contraseña (vacío = sin cambio)' : 'Contraseña *'}
+                type="password"
               />
-
-              <Field.Text name="state" label="State/region" />
-              <Field.Text name="city" label="City" />
-              <Field.Text name="address" label="Address" />
-              <Field.Text name="zipCode" label="Zip/code" />
-              <Field.Text name="company" label="Company" />
-              <Field.Text name="role" label="Role" />
+              <Field.Text name="phone" label="Teléfono" />
+              <Field.Select name="gender" label="Género">
+                <MenuItem value="">Sin especificar</MenuItem>
+                {GENDER_OPTIONS.map((g) => (
+                  <MenuItem key={g.value} value={g.value}>
+                    {g.label}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+              <Field.Select name="type_document" label="Tipo de documento">
+                <MenuItem value="">Sin especificar</MenuItem>
+                {DOC_TYPE_OPTIONS.map((d) => (
+                  <MenuItem key={d} value={d}>
+                    {d}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+              <Field.Text name="n_document" label="N° de documento" />
             </Box>
-
-            <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentUser ? 'Create user' : 'Save changes'}
-              </Button>
-            </Stack>
           </Card>
-        </Grid>
-      </Grid>
-    </Form>
+
+          {/* Role & Branch */}
+          <Card sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ mb: 3 }}>
+              Acceso y sucursal
+            </Typography>
+
+            <Box
+              sx={{
+                gap: 2,
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+              }}
+            >
+              <Field.Select name="role_id" label="Rol">
+                <MenuItem value="">Sin rol</MenuItem>
+                {roles.map((r) => (
+                  <MenuItem key={r.id} value={r.id}>
+                    {r.name}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+
+              <Field.Select name="branch_id" label="Sucursal">
+                <MenuItem value="">Sin sucursal</MenuItem>
+                {branches.map((b) => (
+                  <MenuItem key={b.id} value={b.id}>
+                    {b.name}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+
+              <Field.Text
+                name="avatar"
+                label="URL del avatar"
+                slotProps={{ inputLabel: { shrink: true } }}
+                sx={{ gridColumn: { sm: 'span 2' } }}
+              />
+            </Box>
+          </Card>
+
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+              {isEdit ? 'Guardar cambios' : 'Crear usuario'}
+            </LoadingButton>
+          </Box>
+        </Stack>
+      </form>
+    </FormProvider>
   );
 }
