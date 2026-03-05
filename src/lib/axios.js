@@ -86,6 +86,26 @@ export const endpoints = {
     update: (id) => `/api/v1/suppliers/${id}`,
     delete: (id) => `/api/v1/suppliers/${id}`,
   },
+  branch: {
+    list: '/api/v1/branches/',
+  },
+  sale: {
+    list: '/api/v1/sales/',
+    details: (id) => `/api/v1/sales/${id}`,
+    create: '/api/v1/sales/',
+    update: (id) => `/api/v1/sales/${id}`,
+    delete: (id) => `/api/v1/sales/${id}`,
+  },
+  saleDetail: {
+    list: '/api/v1/saledetails/',
+    create: '/api/v1/saledetails/',
+    delete: (id) => `/api/v1/saledetails/${id}`,
+  },
+  salePayment: {
+    list: '/api/v1/salepayments/',
+    create: '/api/v1/salepayments/',
+    delete: (id) => `/api/v1/salepayments/${id}`,
+  },
   purchase: {
     list: '/api/v1/purchases/',
     details: (id) => `/api/v1/purchases/${id}`,

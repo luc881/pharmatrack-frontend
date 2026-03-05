@@ -120,6 +120,15 @@ export const navData = [
         ],
       },
       {
+        title: 'Ventas',
+        path: paths.dashboard.sale.root,
+        icon: ICONS.ecommerce,
+        children: [
+          { title: 'Lista', path: paths.dashboard.sale.root },
+          { title: 'Nueva', path: paths.dashboard.sale.new },
+        ],
+      },
+      {
         title: 'Order',
         path: paths.dashboard.order.root,
         icon: ICONS.order,
