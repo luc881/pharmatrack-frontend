@@ -3,7 +3,7 @@ import { useMemo, useEffect, useCallback } from 'react';
 
 import { JWT_STORAGE_KEY } from './constant';
 import { AuthContext } from '../auth-context';
-import { setSession, isValidToken, jwtDecode } from './utils';
+import { jwtDecode, setSession, isValidToken } from './utils';
 
 // ----------------------------------------------------------------------
 

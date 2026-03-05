@@ -1,32 +1,26 @@
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
-import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Switch from '@mui/material/Switch';
+import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
 import Collapse from '@mui/material/Collapse';
+import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import CardHeader from '@mui/material/CardHeader';
-import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import {
-  _tags,
-  PRODUCT_SIZE_OPTIONS,
-  PRODUCT_GENDER_OPTIONS,
-  PRODUCT_COLOR_NAME_OPTIONS,
-  PRODUCT_CATEGORY_GROUP_OPTIONS,
-} from 'src/_mock';
+import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -34,70 +28,57 @@ import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
-export const ProductCreateSchema = z.object({
-  name: z.string().min(1, { error: 'Name is required!' }),
-  description: schemaUtils
-    .editor({ error: 'Description is required!' })
-    .min(100, { error: 'Description must be at least 100 characters' }),
-  images: schemaUtils.files({ error: 'Images is required!' }).min(2, {
-    error: 'Must have at least 2 items!',
-  }),
-  code: z.string().min(1, { error: 'Product code is required!' }),
-  sku: z.string().min(1, { error: 'Product sku is required!' }),
-  quantity: schemaUtils.nullableInput(
-    z.coerce.number().min(1, { error: 'Quantity is required!' }),
-    { error: 'Quantity is required!' }
+const ProductSchema = z.object({
+  title: z.string().min(1, { error: 'El nombre es requerido' }),
+  description: z.string(),
+  sku: z.string().min(1, { error: 'El SKU es requerido' }),
+  product_category_id: schemaUtils.nullableInput(
+    z.coerce.number().min(1, { error: 'La categoría es requerida' }),
+    { error: 'La categoría es requerida' }
   ),
-  colors: z.string().array().min(1, { error: 'Choose at least one option!' }),
-  sizes: z.string().array().min(1, { error: 'Choose at least one option!' }),
-  tags: z.string().array().min(2, { error: 'Must have at least 2 items!' }),
-  gender: z.array(z.string()).min(1, { error: 'Choose at least one option!' }),
-  price: schemaUtils.nullableInput(z.coerce.number().min(1, { error: 'Price is required!' }), {
-    error: 'Price is required!',
-  }),
-  // Not required
-  category: z.string(),
-  subDescription: z.string(),
-  taxes: z.coerce.number().nullable(),
-  priceSale: z.coerce.number().nullable(),
-  saleLabel: z.object({ enabled: z.boolean(), content: z.string() }),
-  newLabel: z.object({ enabled: z.boolean(), content: z.string() }),
+  brand_id: z.coerce.number().nullable(),
+  unit_name: z.string().min(1, { error: 'La unidad es requerida' }),
+  is_unit_sale: z.boolean(),
+  price_retail: schemaUtils.nullableInput(
+    z.coerce.number().min(0, { error: 'El precio de venta es requerido' }),
+    { error: 'El precio de venta es requerido' }
+  ),
+  price_cost: z.coerce.number().nullable(),
+  allow_warranty: z.boolean(),
+  warranty_days: z.coerce.number().nullable(),
+  is_active: z.boolean(),
+  image: z.string().nullable(),
 });
 
 // ----------------------------------------------------------------------
 
 export function ProductCreateEditForm({ currentProduct }) {
   const router = useRouter();
-
   const openDetails = useBoolean(true);
   const openProperties = useBoolean(true);
   const openPricing = useBoolean(true);
 
-  const [includeTaxes, setIncludeTaxes] = useState(false);
+  const { categories } = useGetProductCategories();
+  const { brands } = useGetProductBrands();
 
   const defaultValues = {
-    name: '',
+    title: '',
     description: '',
-    subDescription: '',
-    images: [],
-    /********/
-    code: '',
     sku: '',
-    price: null,
-    taxes: null,
-    priceSale: null,
-    quantity: null,
-    tags: [],
-    gender: [],
-    category: PRODUCT_CATEGORY_GROUP_OPTIONS[0].classify[1],
-    colors: [],
-    sizes: [],
-    newLabel: { enabled: false, content: '' },
-    saleLabel: { enabled: false, content: '' },
+    product_category_id: null,
+    brand_id: null,
+    unit_name: 'pieza',
+    is_unit_sale: true,
+    price_retail: null,
+    price_cost: null,
+    allow_warranty: false,
+    warranty_days: null,
+    is_active: true,
+    image: null,
   };
 
   const methods = useForm({
-    resolver: zodResolver(ProductCreateSchema),
+    resolver: zodResolver(ProductSchema),
     defaultValues,
     values: currentProduct,
   });
@@ -105,84 +86,88 @@ export function ProductCreateEditForm({ currentProduct }) {
   const {
     reset,
     watch,
-    setValue,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
-  const values = watch();
+  const allowWarranty = watch('allow_warranty');
 
   const onSubmit = handleSubmit(async (data) => {
-    const updatedData = {
+    // Limpiar campos nulos opcionales
+    const payload = {
       ...data,
-      taxes: includeTaxes ? defaultValues.taxes : data.taxes,
+      brand_id: data.brand_id || null,
+      price_cost: data.price_cost || null,
+      warranty_days: data.allow_warranty ? data.warranty_days : null,
     };
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      reset();
-      toast.success(currentProduct ? 'Update success!' : 'Create success!');
+      if (currentProduct) {
+        await updateProduct(currentProduct.id, payload);
+        toast.success('Producto actualizado');
+      } else {
+        await createProduct(payload);
+        toast.success('Producto creado');
+        reset();
+      }
       router.push(paths.dashboard.product.root);
-      console.info('DATA', updatedData);
     } catch (error) {
       console.error(error);
+      toast.error('Error al guardar el producto');
     }
   });
 
-  const handleRemoveFile = useCallback(
-    (inputFile) => {
-      const filtered = values.images && values.images?.filter((file) => file !== inputFile);
-      setValue('images', filtered);
-    },
-    [setValue, values.images]
-  );
-
-  const handleRemoveAllFiles = useCallback(() => {
-    setValue('images', [], { shouldValidate: true });
-  }, [setValue]);
-
-  const handleChangeIncludeTaxes = useCallback((event) => {
-    setIncludeTaxes(event.target.checked);
-  }, []);
-
-  const renderCollapseButton = (value, onToggle) => (
+  const renderCollapseButton = (isOpen, onToggle) => (
     <IconButton onClick={onToggle}>
-      <Iconify icon={value ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'} />
+      <Iconify icon={isOpen ? 'eva:arrow-ios-downward-fill' : 'eva:arrow-ios-forward-fill'} />
     </IconButton>
   );
+
+  const imageUrl = watch('image');
 
   const renderDetails = () => (
     <Card>
       <CardHeader
-        title="Details"
-        subheader="Title, short description, image..."
+        title="Información general"
+        subheader="Nombre, descripción e imagen"
         action={renderCollapseButton(openDetails.value, openDetails.onToggle)}
         sx={{ mb: 3 }}
       />
 
       <Collapse in={openDetails.value}>
         <Divider />
-
         <Stack spacing={3} sx={{ p: 3 }}>
-          <Field.Text name="name" label="Product name" />
-
-          <Field.Text name="subDescription" label="Sub description" multiline rows={4} />
-
-          <Stack spacing={1.5}>
-            <Typography variant="subtitle2">Content</Typography>
-            <Field.Editor name="description" sx={{ maxHeight: 480 }} />
-          </Stack>
+          <Field.Text name="title" label="Nombre del producto" />
+          <Field.Text name="description" label="Descripción" multiline rows={4} />
 
           <Stack spacing={1.5}>
-            <Typography variant="subtitle2">Images</Typography>
-            <Field.Upload
-              multiple
-              name="images"
-              maxSize={3145728}
-              onRemove={handleRemoveFile}
-              onRemoveAll={handleRemoveAllFiles}
-              onUpload={() => console.info('ON UPLOAD')}
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                src={imageUrl || ''}
+                alt="preview"
+                variant="rounded"
+                sx={{ width: 72, height: 72, bgcolor: 'background.neutral' }}
+              >
+                <Iconify icon="solar:gallery-bold" width={32} sx={{ color: 'text.disabled' }} />
+              </Avatar>
+
+              <Box sx={{ flexGrow: 1 }}>
+                <Field.Text
+                  name="image"
+                  label="URL de imagen"
+                  placeholder="https://ejemplo.com/imagen.jpg"
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Iconify icon="solar:link-bold" width={18} sx={{ color: 'text.disabled' }} />
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              </Box>
+            </Box>
           </Stack>
         </Stack>
       </Collapse>
@@ -192,15 +177,14 @@ export function ProductCreateEditForm({ currentProduct }) {
   const renderProperties = () => (
     <Card>
       <CardHeader
-        title="Properties"
-        subheader="Additional functions and attributes..."
+        title="Propiedades"
+        subheader="SKU, categoría, marca y unidades"
         action={renderCollapseButton(openProperties.value, openProperties.onToggle)}
         sx={{ mb: 3 }}
       />
 
       <Collapse in={openProperties.value}>
         <Divider />
-
         <Stack spacing={3} sx={{ p: 3 }}>
           <Box
             sx={{
@@ -210,92 +194,52 @@ export function ProductCreateEditForm({ currentProduct }) {
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' },
             }}
           >
-            <Field.Text name="code" label="Product code" />
-
-            <Field.Text name="sku" label="Product SKU" />
-
-            <Field.Text
-              name="quantity"
-              label="Quantity"
-              placeholder="0"
-              type="number"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
+            <Field.Text name="sku" label="SKU / Código de barras" />
 
             <Field.Select
-              name="category"
-              label="Category"
-              slotProps={{
-                select: { native: true },
-                inputLabel: { shrink: true },
-              }}
+              name="product_category_id"
+              label="Categoría"
+              slotProps={{ inputLabel: { shrink: true } }}
             >
-              {PRODUCT_CATEGORY_GROUP_OPTIONS.map((category) => (
-                <optgroup key={category.group} label={category.group}>
-                  {category.classify.map((classify) => (
-                    <option key={classify} value={classify}>
-                      {classify}
-                    </option>
-                  ))}
-                </optgroup>
+              <MenuItem value="">Sin categoría</MenuItem>
+              {categories.map((cat) => (
+                <MenuItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </MenuItem>
               ))}
             </Field.Select>
 
-            <Field.MultiSelect
-              checkbox
-              name="colors"
-              label="Colors"
-              options={PRODUCT_COLOR_NAME_OPTIONS}
-            />
+            <Field.Select
+              name="brand_id"
+              label="Marca"
+              slotProps={{ inputLabel: { shrink: true } }}
+            >
+              <MenuItem value="">Sin marca</MenuItem>
+              {brands.map((brand) => (
+                <MenuItem key={brand.id} value={brand.id}>
+                  {brand.name}
+                </MenuItem>
+              ))}
+            </Field.Select>
 
-            <Field.MultiSelect checkbox name="sizes" label="Sizes" options={PRODUCT_SIZE_OPTIONS} />
+            <Field.Text name="unit_name" label="Unidad de venta" placeholder="pieza, caja, ml…" />
           </Box>
 
-          <Field.Autocomplete
-            name="tags"
-            label="Tags"
-            placeholder="+ Tags"
-            multiple
-            freeSolo
-            disableCloseOnSelect
-            options={_tags.map((option) => option)}
-            getOptionLabel={(option) => option}
-            slotProps={{
-              chip: { color: 'info' },
-            }}
-          />
-
-          <Stack spacing={1}>
-            <Typography variant="subtitle2">Gender</Typography>
-            <Field.MultiCheckbox
-              row
-              name="gender"
-              options={PRODUCT_GENDER_OPTIONS}
-              sx={{ gap: 2 }}
-            />
-          </Stack>
+          <Field.Switch name="is_unit_sale" label="Venta por unidad individual" />
 
           <Divider sx={{ borderStyle: 'dashed' }} />
 
-          <Box sx={{ gap: 3, display: 'flex', alignItems: 'center' }}>
-            <Field.Switch name="saleLabel.enabled" label={null} sx={{ m: 0 }} />
-            <Field.Text
-              name="saleLabel.content"
-              label="Sale label"
-              fullWidth
-              disabled={!values.saleLabel.enabled}
-            />
-          </Box>
+          <Field.Switch name="allow_warranty" label="Tiene garantía" />
 
-          <Box sx={{ gap: 3, display: 'flex', alignItems: 'center' }}>
-            <Field.Switch name="newLabel.enabled" label={null} sx={{ m: 0 }} />
+          {allowWarranty && (
             <Field.Text
-              name="newLabel.content"
-              label="New label"
-              fullWidth
-              disabled={!values.newLabel.enabled}
+              name="warranty_days"
+              label="Días de garantía"
+              type="number"
+              placeholder="0"
+              slotProps={{ inputLabel: { shrink: true } }}
             />
-          </Box>
+          )}
         </Stack>
       </Collapse>
     </Card>
@@ -304,69 +248,25 @@ export function ProductCreateEditForm({ currentProduct }) {
   const renderPricing = () => (
     <Card>
       <CardHeader
-        title="Pricing"
-        subheader="Price related inputs"
+        title="Precios"
+        subheader="Precio de venta y costo"
         action={renderCollapseButton(openPricing.value, openPricing.onToggle)}
         sx={{ mb: 3 }}
       />
 
       <Collapse in={openPricing.value}>
         <Divider />
-
         <Stack spacing={3} sx={{ p: 3 }}>
-          <Field.Text
-            name="price"
-            label="Regular price"
-            placeholder="0.00"
-            type="number"
-            slotProps={{
-              inputLabel: { shrink: true },
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start" sx={{ mr: 0.75 }}>
-                    <Box component="span" sx={{ color: 'text.disabled' }}>
-                      $
-                    </Box>
-                  </InputAdornment>
-                ),
-              },
+          <Box
+            sx={{
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' },
             }}
-          />
-
-          <Field.Text
-            name="priceSale"
-            label="Sale price"
-            placeholder="0.00"
-            type="number"
-            slotProps={{
-              inputLabel: { shrink: true },
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start" sx={{ mr: 0.75 }}>
-                    <Box component="span" sx={{ color: 'text.disabled' }}>
-                      $
-                    </Box>
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
-
-          <FormControlLabel
-            control={
-              <Switch
-                id="toggle-taxes"
-                checked={includeTaxes}
-                onChange={handleChangeIncludeTaxes}
-              />
-            }
-            label="Price includes taxes"
-          />
-
-          {!includeTaxes && (
+          >
             <Field.Text
-              name="taxes"
-              label="Tax (%)"
+              name="price_retail"
+              label="Precio de venta"
               placeholder="0.00"
               type="number"
               slotProps={{
@@ -375,36 +275,54 @@ export function ProductCreateEditForm({ currentProduct }) {
                   startAdornment: (
                     <InputAdornment position="start" sx={{ mr: 0.75 }}>
                       <Box component="span" sx={{ color: 'text.disabled' }}>
-                        %
+                        $
                       </Box>
                     </InputAdornment>
                   ),
                 },
               }}
             />
-          )}
+
+            <Field.Text
+              name="price_cost"
+              label="Precio de costo"
+              placeholder="0.00"
+              type="number"
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ mr: 0.75 }}>
+                      <Box component="span" sx={{ color: 'text.disabled' }}>
+                        $
+                      </Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </Box>
         </Stack>
       </Collapse>
     </Card>
   );
 
   const renderActions = () => (
-    <Box
-      sx={{
-        gap: 3,
-        display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-      }}
-    >
+    <Box sx={{ gap: 3, display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
       <FormControlLabel
-        label="Publish"
-        control={<Switch defaultChecked slotProps={{ input: { id: 'publish-switch' } }} />}
+        label="Activo"
+        control={
+          <Switch
+            defaultChecked
+            slotProps={{ input: { id: 'is-active-switch' } }}
+            {...methods.register('is_active')}
+          />
+        }
         sx={{ pl: 3, flexGrow: 1 }}
       />
 
       <Button type="submit" variant="contained" size="large" loading={isSubmitting}>
-        {!currentProduct ? 'Create product' : 'Save changes'}
+        {currentProduct ? 'Guardar cambios' : 'Crear producto'}
       </Button>
     </Box>
   );

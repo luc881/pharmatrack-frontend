@@ -1,7 +1,7 @@
 import useSWR from 'swr';
 import { useMemo } from 'react';
 
-import { fetcher, endpoints } from 'src/lib/axios';
+import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
 
 // ----------------------------------------------------------------------
 
@@ -13,69 +13,119 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
-export function useGetProducts() {
-  const url = endpoints.product.list;
+/**
+ * Trae TODOS los registros de un endpoint paginado.
+ * Hace una primera petición para saber el total real,
+ * luego trae las páginas restantes en paralelo.
+ */
+const PAGE_SIZE = 100;
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
-    ...swrOptions,
-  });
+async function fetchAllPages(url) {
+  const first = await axiosInstance
+    .get(url, { params: { page: 1, page_size: PAGE_SIZE } })
+    .then((r) => r.data);
 
-  const memoizedValue = useMemo(
-    () => ({
-      products: data?.products || [],
-      productsLoading: isLoading,
-      productsError: error,
-      productsValidating: isValidating,
-      productsEmpty: !isLoading && !isValidating && !data?.products.length,
-    }),
-    [data?.products, error, isLoading, isValidating]
+  const items = first.data;
+  if (first.total <= PAGE_SIZE) return items;
+
+  const remaining = Math.ceil(first.total / PAGE_SIZE) - 1;
+  const pages = await Promise.all(
+    Array.from({ length: remaining }, (_, i) =>
+      axiosInstance
+        .get(url, { params: { page: i + 2, page_size: PAGE_SIZE } })
+        .then((r) => r.data.data)
+    )
   );
 
-  return memoizedValue;
+  return [...items, ...pages.flat()];
 }
 
 // ----------------------------------------------------------------------
 
-export function useGetProduct(productId) {
-  const url = productId ? [endpoints.product.details, { params: { productId } }] : '';
+export function useGetProducts({ page = 1, pageSize = 10 } = {}) {
+  const url = [endpoints.product.list, { params: { page, page_size: pageSize } }];
 
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
-    ...swrOptions,
-  });
-
-  const memoizedValue = useMemo(
-    () => ({
-      product: data?.product,
-      productLoading: isLoading,
-      productError: error,
-      productValidating: isValidating,
-    }),
-    [data?.product, error, isLoading, isValidating]
-  );
-
-  return memoizedValue;
-}
-
-// ----------------------------------------------------------------------
-
-export function useSearchProducts(query) {
-  const url = query ? [endpoints.product.search, { params: { query } }] : '';
-
-  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, {
+  const { data, isLoading, error, isValidating, mutate } = useSWR(url, fetcher, {
     ...swrOptions,
     keepPreviousData: true,
   });
 
   const memoizedValue = useMemo(
     () => ({
-      searchResults: data?.results || [],
-      searchLoading: isLoading,
-      searchError: error,
-      searchValidating: isValidating,
-      searchEmpty: !isLoading && !isValidating && !data?.results.length,
+      products: data?.data || [],
+      productsTotal: data?.total || 0,
+      productsLoading: isLoading,
+      productsError: error,
+      productsValidating: isValidating,
     }),
-    [data?.results, error, isLoading, isValidating]
+    [data, error, isLoading, isValidating]
   );
 
-  return memoizedValue;
+  return { ...memoizedValue, productsMutate: mutate };
 }
+
+// ----------------------------------------------------------------------
+
+export function useGetProduct(productId) {
+  const url = productId ? endpoints.product.details(productId) : null;
+
+  const { data, isLoading, error, isValidating } = useSWR(url, fetcher, swrOptions);
+
+  return useMemo(
+    () => ({
+      product: data || null,
+      productLoading: isLoading,
+      productError: error,
+      productValidating: isValidating,
+    }),
+    [data, error, isLoading, isValidating]
+  );
+}
+
+// ----------------------------------------------------------------------
+
+export function useGetProductCategories() {
+  const { data, isLoading } = useSWR(
+    endpoints.productCategories.list,
+    fetchAllPages,
+    swrOptions
+  );
+
+  return useMemo(
+    () => ({ categories: data || [], categoriesLoading: isLoading }),
+    [data, isLoading]
+  );
+}
+
+// ----------------------------------------------------------------------
+
+export function useGetProductBrands() {
+  const { data, isLoading } = useSWR(
+    endpoints.productBrands.list,
+    fetchAllPages,
+    swrOptions
+  );
+
+  return useMemo(
+    () => ({ brands: data || [], brandsLoading: isLoading }),
+    [data, isLoading]
+  );
+}
+
+// ----------------------------------------------------------------------
+
+// Stub para el buscador del shop (no usado en el dashboard)
+export function useSearchProducts() {
+  return { searchResults: [], searchLoading: false, searchError: null, searchEmpty: true };
+}
+
+// ----------------------------------------------------------------------
+
+export const createProduct = (data) =>
+  axiosInstance.post(endpoints.product.create, data).then((res) => res.data);
+
+export const updateProduct = (id, data) =>
+  axiosInstance.put(endpoints.product.update(id), data).then((res) => res.data);
+
+export const deleteProduct = (id) =>
+  axiosInstance.delete(endpoints.product.delete(id)).then((res) => res.data);

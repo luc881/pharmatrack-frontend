@@ -73,8 +73,16 @@ export const endpoints = {
     search: '/api/post/search',
   },
   product: {
-    list: '/api/product/list',
-    details: '/api/product/details',
-    search: '/api/product/search',
+    list: '/api/v1/products/',
+    details: (id) => `/api/v1/products/${id}`,
+    create: '/api/v1/products/',
+    update: (id) => `/api/v1/products/${id}`,
+    delete: (id) => `/api/v1/products/${id}`,
+  },
+  productCategories: {
+    list: '/api/v1/productscategories/',
+  },
+  productBrands: {
+    list: '/api/v1/productsbrand/',
   },
 };
