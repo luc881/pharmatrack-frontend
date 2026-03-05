@@ -22,6 +22,18 @@ const OverviewBankingPage = lazy(() => import('src/pages/dashboard/banking'));
 const OverviewBookingPage = lazy(() => import('src/pages/dashboard/booking'));
 const OverviewFilePage = lazy(() => import('src/pages/dashboard/file'));
 const OverviewCoursePage = lazy(() => import('src/pages/dashboard/course'));
+// Product Batch
+const ProductBatchListPage = lazy(() => import('src/pages/dashboard/product-batch/list'));
+const ProductBatchCreatePage = lazy(() => import('src/pages/dashboard/product-batch/new'));
+const ProductBatchEditPage = lazy(() => import('src/pages/dashboard/product-batch/edit'));
+// Product Category
+const ProductCategoryListPage = lazy(() => import('src/pages/dashboard/product-category/list'));
+const ProductCategoryCreatePage = lazy(() => import('src/pages/dashboard/product-category/new'));
+const ProductCategoryEditPage = lazy(() => import('src/pages/dashboard/product-category/edit'));
+// Product Brand
+const ProductBrandListPage = lazy(() => import('src/pages/dashboard/product-brand/list'));
+const ProductBrandCreatePage = lazy(() => import('src/pages/dashboard/product-brand/new'));
+const ProductBrandEditPage = lazy(() => import('src/pages/dashboard/product-brand/edit'));
 // Role
 const RoleListPage = lazy(() => import('src/pages/dashboard/role/list'));
 const RoleCreatePage = lazy(() => import('src/pages/dashboard/role/new'));
@@ -151,6 +163,33 @@ export const dashboardRoutes = [
               { path: 'change-password', element: <AccountChangePasswordPage /> },
             ],
           },
+        ],
+      },
+      {
+        path: 'product-batch',
+        children: [
+          { index: true, element: <ProductBatchListPage /> },
+          { path: 'list', element: <ProductBatchListPage /> },
+          { path: 'new', element: <ProductBatchCreatePage /> },
+          { path: ':id/edit', element: <ProductBatchEditPage /> },
+        ],
+      },
+      {
+        path: 'product-category',
+        children: [
+          { index: true, element: <ProductCategoryListPage /> },
+          { path: 'list', element: <ProductCategoryListPage /> },
+          { path: 'new', element: <ProductCategoryCreatePage /> },
+          { path: ':id/edit', element: <ProductCategoryEditPage /> },
+        ],
+      },
+      {
+        path: 'product-brand',
+        children: [
+          { index: true, element: <ProductBrandListPage /> },
+          { path: 'list', element: <ProductBrandListPage /> },
+          { path: 'new', element: <ProductBrandCreatePage /> },
+          { path: ':id/edit', element: <ProductBrandEditPage /> },
         ],
       },
       {

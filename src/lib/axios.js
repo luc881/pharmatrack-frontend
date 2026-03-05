@@ -135,6 +135,28 @@ export const endpoints = {
     create: '/api/v1/purchase-details/',
     delete: (id) => `/api/v1/purchase-details/${id}`,
   },
+  productBatch: {
+    list: '/api/v1/productsbatches/',
+    details: (id) => `/api/v1/productsbatches/${id}`,
+    create: '/api/v1/productsbatches/',
+    update: (id) => `/api/v1/productsbatches/${id}`,
+    delete: (id) => `/api/v1/productsbatches/${id}`,
+  },
+  productCategory: {
+    list: '/api/v1/productscategories/',
+    details: (id) => `/api/v1/productscategories/${id}`,
+    create: '/api/v1/productscategories/',
+    update: (id) => `/api/v1/productscategories/${id}`,
+    delete: (id) => `/api/v1/productscategories/${id}`,
+  },
+  productBrand: {
+    list: '/api/v1/productsbrand/',
+    details: (id) => `/api/v1/productsbrand/${id}`,
+    create: '/api/v1/productsbrand/',
+    update: (id) => `/api/v1/productsbrand/${id}`,
+    delete: (id) => `/api/v1/productsbrand/${id}`,
+  },
+  // Legacy aliases used by fetchAllPages in product.js
   productCategories: {
     list: '/api/v1/productscategories/',
   },

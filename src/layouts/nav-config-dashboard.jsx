@@ -117,6 +117,9 @@ export const navData = [
         children: [
           { title: 'Lista', path: paths.dashboard.product.root },
           { title: 'Nuevo', path: paths.dashboard.product.new },
+          { title: 'Categorías', path: paths.dashboard.productCategory.root },
+          { title: 'Marcas', path: paths.dashboard.productBrand.root },
+          { title: 'Lotes', path: paths.dashboard.productBatch.root },
         ],
       },
       {

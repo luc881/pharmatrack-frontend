@@ -122,6 +122,21 @@ export const paths = {
       new: `${ROOTS.DASHBOARD}/supplier/new`,
       edit: (id) => `${ROOTS.DASHBOARD}/supplier/${id}/edit`,
     },
+    productBatch: {
+      root: `${ROOTS.DASHBOARD}/product-batch`,
+      new: `${ROOTS.DASHBOARD}/product-batch/new`,
+      edit: (id) => `${ROOTS.DASHBOARD}/product-batch/${id}/edit`,
+    },
+    productCategory: {
+      root: `${ROOTS.DASHBOARD}/product-category`,
+      new: `${ROOTS.DASHBOARD}/product-category/new`,
+      edit: (id) => `${ROOTS.DASHBOARD}/product-category/${id}/edit`,
+    },
+    productBrand: {
+      root: `${ROOTS.DASHBOARD}/product-brand`,
+      new: `${ROOTS.DASHBOARD}/product-brand/new`,
+      edit: (id) => `${ROOTS.DASHBOARD}/product-brand/${id}/edit`,
+    },
     role: {
       root: `${ROOTS.DASHBOARD}/role`,
       new: `${ROOTS.DASHBOARD}/role/new`,
