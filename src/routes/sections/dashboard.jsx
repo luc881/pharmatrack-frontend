@@ -22,6 +22,10 @@ const OverviewBankingPage = lazy(() => import('src/pages/dashboard/banking'));
 const OverviewBookingPage = lazy(() => import('src/pages/dashboard/booking'));
 const OverviewFilePage = lazy(() => import('src/pages/dashboard/file'));
 const OverviewCoursePage = lazy(() => import('src/pages/dashboard/course'));
+// Purchase
+const PurchaseListPage = lazy(() => import('src/pages/dashboard/purchase/list'));
+const PurchaseCreatePage = lazy(() => import('src/pages/dashboard/purchase/new'));
+const PurchaseEditPage = lazy(() => import('src/pages/dashboard/purchase/edit'));
 // Supplier
 const SupplierListPage = lazy(() => import('src/pages/dashboard/supplier/list'));
 const SupplierCreatePage = lazy(() => import('src/pages/dashboard/supplier/new'));
@@ -139,6 +143,15 @@ export const dashboardRoutes = [
               { path: 'change-password', element: <AccountChangePasswordPage /> },
             ],
           },
+        ],
+      },
+      {
+        path: 'purchase',
+        children: [
+          { index: true, element: <PurchaseListPage /> },
+          { path: 'list', element: <PurchaseListPage /> },
+          { path: 'new', element: <PurchaseCreatePage /> },
+          { path: ':id/edit', element: <PurchaseEditPage /> },
         ],
       },
       {

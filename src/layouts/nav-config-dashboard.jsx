@@ -111,6 +111,15 @@ export const navData = [
         ],
       },
       {
+        title: 'Compras',
+        path: paths.dashboard.purchase.root,
+        icon: ICONS.invoice,
+        children: [
+          { title: 'Lista', path: paths.dashboard.purchase.root },
+          { title: 'Nueva', path: paths.dashboard.purchase.new },
+        ],
+      },
+      {
         title: 'Order',
         path: paths.dashboard.order.root,
         icon: ICONS.order,

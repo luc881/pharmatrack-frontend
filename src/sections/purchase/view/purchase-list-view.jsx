@@ -1,19 +1,21 @@
 import { useBoolean } from 'minimal-shared/hooks';
-import { useMemo, useState, useCallback } from 'react';
+import { useRef, useMemo, useState, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
 import { useTheme } from '@mui/material/styles';
 import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { DashboardContent } from 'src/layouts/dashboard';
-import { deleteSupplier, useGetSuppliers } from 'src/actions/supplier';
+import { fDate } from 'src/utils/format-time';
+import { fCurrency } from 'src/utils/format-number';
 
-import { Label } from 'src/components/label';
+import { useGetSuppliers } from 'src/actions/supplier';
+import { DashboardContent } from 'src/layouts/dashboard';
+import { deletePurchase, useGetPurchases } from 'src/actions/purchase';
+
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
@@ -33,15 +35,28 @@ import {
 
 // ----------------------------------------------------------------------
 
-export function SupplierListView() {
+export function PurchaseListView() {
   const theme = useTheme();
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
 
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
 
-  const { suppliers, suppliersLoading, suppliersMutate } = useGetSuppliers();
+  const { purchases, purchasesTotal, purchasesLoading, purchasesMutate } = useGetPurchases({
+    page: paginationModel.page + 1,
+    pageSize: paginationModel.pageSize,
+  });
+
+  const { suppliers } = useGetSuppliers();
+  const supplierMap = useMemo(
+    () => Object.fromEntries(suppliers.map((s) => [s.id, s.name])),
+    [suppliers]
+  );
+
+  const rowCountRef = useRef(purchasesTotal);
+  if (purchasesTotal > 0) rowCountRef.current = purchasesTotal;
 
   const handleDeleteRow = useCallback(
     (id) => {
@@ -54,11 +69,11 @@ export function SupplierListView() {
   const handleConfirmDelete = useCallback(async () => {
     try {
       if (rowToDelete) {
-        await deleteSupplier(rowToDelete);
+        await deletePurchase(rowToDelete);
       } else {
-        await Promise.all([...selectedRows.ids].map((id) => deleteSupplier(id)));
+        await Promise.all([...selectedRows.ids].map((id) => deletePurchase(id)));
       }
-      await suppliersMutate();
+      await purchasesMutate();
       toast.success('Eliminado correctamente');
     } catch {
       toast.error('Error al eliminar');
@@ -66,44 +81,38 @@ export function SupplierListView() {
       setRowToDelete(null);
       confirmDialog.onFalse();
     }
-  }, [rowToDelete, selectedRows.ids, suppliersMutate, confirmDialog]);
+  }, [rowToDelete, selectedRows.ids, purchasesMutate, confirmDialog]);
 
   const deleteCount = rowToDelete ? 1 : selectedRows.ids?.size ?? 0;
 
   const columns = useMemo(
     () => [
+      { field: 'id', headerName: '# Compra', width: 100 },
       {
-        field: 'name',
+        field: 'supplier_id',
         headerName: 'Proveedor',
         flex: 1,
-        minWidth: 260,
-        hideable: false,
-        renderCell: (params) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-            <Avatar
-              src={params.row.logo || ''}
-              alt={params.row.name}
-              variant="rounded"
-              sx={{ width: 40, height: 40, bgcolor: 'background.neutral' }}
-            >
-              {params.row.name?.[0]}
-            </Avatar>
-            <span>{params.row.name}</span>
-          </div>
-        ),
+        minWidth: 200,
+        valueGetter: (value) => supplierMap[value] ?? `ID ${value}`,
       },
-      { field: 'rfc', headerName: 'RFC', width: 140 },
-      { field: 'email', headerName: 'Email', width: 220 },
-      { field: 'phone', headerName: 'Teléfono', width: 140 },
       {
-        field: 'is_active',
-        headerName: 'Estado',
-        width: 110,
-        renderCell: (params) => (
-          <Label variant="soft" color={params.row.is_active ? 'success' : 'default'}>
-            {params.row.is_active ? 'Activo' : 'Inactivo'}
-          </Label>
-        ),
+        field: 'date_emision',
+        headerName: 'Fecha',
+        width: 140,
+        valueGetter: (value) => (value ? fDate(value) : '—'),
+      },
+      {
+        field: 'total',
+        headerName: 'Total',
+        width: 130,
+        valueGetter: (value) => fCurrency(value),
+      },
+      {
+        field: 'description',
+        headerName: 'Observaciones',
+        flex: 1,
+        minWidth: 180,
+        valueGetter: (value) => value ?? '—',
       },
       {
         type: 'actions',
@@ -120,7 +129,7 @@ export function SupplierListView() {
             showInMenu
             label="Editar"
             icon={<Iconify icon="solar:pen-bold" />}
-            href={paths.dashboard.supplier.edit(params.row.id)}
+            href={paths.dashboard.purchase.edit(params.row.id)}
           />,
           <CustomGridActionsCellItem
             showInMenu
@@ -132,26 +141,26 @@ export function SupplierListView() {
         ],
       },
     ],
-    [handleDeleteRow, theme.vars.palette.error.main]
+    [handleDeleteRow, supplierMap, theme.vars.palette.error.main]
   );
 
   return (
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
-          heading="Proveedores"
+          heading="Compras"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Proveedores' },
+            { name: 'Compras' },
           ]}
           action={
             <Button
               component={RouterLink}
-              href={paths.dashboard.supplier.new}
+              href={paths.dashboard.purchase.new}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Nuevo proveedor
+              Nueva compra
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -170,12 +179,14 @@ export function SupplierListView() {
             {...toolbarOptions.settings}
             checkboxSelection
             disableRowSelectionOnClick
-            rows={suppliers}
+            rows={purchases}
             columns={columns}
-            loading={suppliersLoading}
-            getRowHeight={() => 'auto'}
+            loading={purchasesLoading}
+            rowCount={rowCountRef.current}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
             pageSizeOptions={[10, 25, 50]}
-            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
               noRowsOverlay: () => <EmptyContent />,
@@ -223,7 +234,7 @@ export function SupplierListView() {
         content={
           <>
             ¿Estás seguro de eliminar <strong>{deleteCount}</strong>{' '}
-            {deleteCount === 1 ? 'proveedor' : 'proveedores'}?
+            {deleteCount === 1 ? 'compra' : 'compras'}?
           </>
         }
         action={
