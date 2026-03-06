@@ -88,6 +88,23 @@ export const endpoints = {
   },
   branch: {
     list: '/api/v1/branches/',
+    details: (id) => `/api/v1/branches/${id}`,
+    create: '/api/v1/branches/',
+    update: (id) => `/api/v1/branches/${id}`,
+    delete: (id) => `/api/v1/branches/${id}`,
+  },
+  productMaster: {
+    list: '/api/v1/productsmaster/',
+    details: (id) => `/api/v1/productsmaster/${id}`,
+    create: '/api/v1/productsmaster/',
+    update: (id) => `/api/v1/productsmaster/${id}`,
+    delete: (id) => `/api/v1/productsmaster/${id}`,
+  },
+  refundProduct: {
+    list: '/api/v1/refundproducts/',
+    details: (id) => `/api/v1/refundproducts/${id}`,
+    create: '/api/v1/refundproducts/',
+    delete: (id) => `/api/v1/refundproducts/${id}`,
   },
   user: {
     list: '/api/v1/users/',
@@ -155,6 +172,13 @@ export const endpoints = {
     create: '/api/v1/productsbrand/',
     update: (id) => `/api/v1/productsbrand/${id}`,
     delete: (id) => `/api/v1/productsbrand/${id}`,
+  },
+  ingredient: {
+    list: '/api/v1/ingredients/',
+    details: (id) => `/api/v1/ingredients/${id}`,
+    create: '/api/v1/ingredients/',
+    update: (id) => `/api/v1/ingredients/${id}`,
+    delete: (id) => `/api/v1/ingredients/${id}`,
   },
   // Legacy aliases used by fetchAllPages in product.js
   productCategories: {

@@ -1,5 +1,5 @@
 import { useBoolean } from 'minimal-shared/hooks';
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
@@ -10,11 +10,9 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { fDate } from 'src/utils/format-time';
-import { fCurrency } from 'src/utils/format-number';
 
-import { useGetSuppliers } from 'src/actions/supplier';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { deletePurchase, useGetPurchases } from 'src/actions/purchase';
+import { deleteRefundProduct, useGetRefundProducts } from 'src/actions/refund-product';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -28,35 +26,29 @@ import {
   useToolbarSettings,
   CustomToolbarQuickFilter,
   CustomGridActionsCellItem,
-  CustomToolbarExportButton,
   CustomToolbarColumnsButton,
   CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
 
+import { useAllProducts } from '../../product-batch/use-all-products';
+
 // ----------------------------------------------------------------------
 
-export function PurchaseListView() {
+export function RefundProductListView() {
   const theme = useTheme();
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
 
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
 
-  const { purchases, purchasesTotal, purchasesLoading, purchasesMutate } = useGetPurchases({
-    page: paginationModel.page + 1,
-    pageSize: paginationModel.pageSize,
-  });
+  const { refunds, refundsLoading, refundsMutate } = useGetRefundProducts();
+  const products = useAllProducts();
 
-  const { suppliers } = useGetSuppliers();
-  const supplierMap = useMemo(
-    () => Object.fromEntries(suppliers.map((s) => [s.id, s.name])),
-    [suppliers]
+  const productMap = useMemo(
+    () => Object.fromEntries(products.map((p) => [p.id, p.title])),
+    [products]
   );
-
-  const rowCountRef = useRef(purchasesTotal);
-  if (purchasesTotal > 0) rowCountRef.current = purchasesTotal;
 
   const handleDeleteRow = useCallback(
     (id) => {
@@ -69,11 +61,11 @@ export function PurchaseListView() {
   const handleConfirmDelete = useCallback(async () => {
     try {
       if (rowToDelete) {
-        await deletePurchase(rowToDelete);
+        await deleteRefundProduct(rowToDelete);
       } else {
-        await Promise.all([...selectedRows.ids].map((id) => deletePurchase(id)));
+        await Promise.all([...selectedRows.ids].map((id) => deleteRefundProduct(id)));
       }
-      await purchasesMutate();
+      await refundsMutate();
       toast.success('Eliminado correctamente');
     } catch {
       toast.error('Error al eliminar');
@@ -81,38 +73,33 @@ export function PurchaseListView() {
       setRowToDelete(null);
       confirmDialog.onFalse();
     }
-  }, [rowToDelete, selectedRows.ids, purchasesMutate, confirmDialog]);
+  }, [rowToDelete, selectedRows.ids, refundsMutate, confirmDialog]);
 
   const deleteCount = rowToDelete ? 1 : selectedRows.ids?.size ?? 0;
 
   const columns = useMemo(
     () => [
-      { field: 'id', headerName: '# Compra', width: 100 },
       {
-        field: 'supplier_id',
-        headerName: 'Proveedor',
+        field: 'product_id',
+        headerName: 'Producto',
         flex: 1,
         minWidth: 200,
-        valueGetter: (value) => supplierMap[value] ?? `ID ${value}`,
+        hideable: false,
+        valueGetter: (value) => productMap[value] ?? `ID ${value}`,
+      },
+      { field: 'quantity', headerName: 'Cantidad', width: 110 },
+      {
+        field: 'reason',
+        headerName: 'Motivo',
+        flex: 1,
+        minWidth: 200,
+        valueGetter: (v) => v ?? '—',
       },
       {
-        field: 'date_emision',
+        field: 'created_at',
         headerName: 'Fecha',
         width: 140,
-        valueGetter: (value) => (value ? fDate(value) : '—'),
-      },
-      {
-        field: 'total',
-        headerName: 'Total',
-        width: 130,
-        valueGetter: (value) => fCurrency(value),
-      },
-      {
-        field: 'description',
-        headerName: 'Observaciones',
-        flex: 1,
-        minWidth: 180,
-        valueGetter: (value) => value ?? '—',
+        valueGetter: (v) => (v ? fDate(v) : '—'),
       },
       {
         type: 'actions',
@@ -127,18 +114,6 @@ export function PurchaseListView() {
         getActions: (params) => [
           <CustomGridActionsCellItem
             showInMenu
-            label="Ver detalle"
-            icon={<Iconify icon="solar:eye-bold" />}
-            href={paths.dashboard.purchase.details(params.row.id)}
-          />,
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Editar"
-            icon={<Iconify icon="solar:pen-bold" />}
-            href={paths.dashboard.purchase.edit(params.row.id)}
-          />,
-          <CustomGridActionsCellItem
-            showInMenu
             label="Eliminar"
             icon={<Iconify icon="solar:trash-bin-trash-bold" />}
             onClick={() => handleDeleteRow(params.row.id)}
@@ -147,26 +122,26 @@ export function PurchaseListView() {
         ],
       },
     ],
-    [handleDeleteRow, supplierMap, theme.vars.palette.error.main]
+    [productMap, handleDeleteRow, theme.vars.palette.error.main]
   );
 
   return (
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
-          heading="Compras"
+          heading="Devoluciones"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Compras' },
+            { name: 'Devoluciones' },
           ]}
           action={
             <Button
               component={RouterLink}
-              href={paths.dashboard.purchase.new}
+              href={paths.dashboard.refundProduct.new}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Nueva compra
+              Nueva devolución
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -185,14 +160,11 @@ export function PurchaseListView() {
             {...toolbarOptions.settings}
             checkboxSelection
             disableRowSelectionOnClick
-            rows={purchases}
+            rows={refunds}
             columns={columns}
-            loading={purchasesLoading}
-            rowCount={rowCountRef.current}
-            paginationMode="server"
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            pageSizeOptions={[10, 25, 50]}
+            loading={refundsLoading}
+            pageSizeOptions={[25, 50, 100]}
+            initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
               noRowsOverlay: () => <EmptyContent />,
@@ -218,7 +190,6 @@ export function PurchaseListView() {
                         </Button>
                       )}
                       <CustomToolbarColumnsButton />
-                      <CustomToolbarExportButton />
                       <CustomToolbarSettingsButton
                         settings={toolbarOptions.settings}
                         onChangeSettings={toolbarOptions.onChangeSettings}
@@ -240,7 +211,7 @@ export function PurchaseListView() {
         content={
           <>
             ¿Estás seguro de eliminar <strong>{deleteCount}</strong>{' '}
-            {deleteCount === 1 ? 'compra' : 'compras'}?
+            {deleteCount === 1 ? 'devolución' : 'devoluciones'}?
           </>
         }
         action={

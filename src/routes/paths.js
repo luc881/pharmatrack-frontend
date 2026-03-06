@@ -122,6 +122,25 @@ export const paths = {
       new: `${ROOTS.DASHBOARD}/supplier/new`,
       edit: (id) => `${ROOTS.DASHBOARD}/supplier/${id}/edit`,
     },
+    branch: {
+      root: `${ROOTS.DASHBOARD}/branch`,
+      new: `${ROOTS.DASHBOARD}/branch/new`,
+      edit: (id) => `${ROOTS.DASHBOARD}/branch/${id}/edit`,
+    },
+    productMaster: {
+      root: `${ROOTS.DASHBOARD}/product-master`,
+      new: `${ROOTS.DASHBOARD}/product-master/new`,
+      edit: (id) => `${ROOTS.DASHBOARD}/product-master/${id}/edit`,
+    },
+    refundProduct: {
+      root: `${ROOTS.DASHBOARD}/refund-product`,
+      new: `${ROOTS.DASHBOARD}/refund-product/new`,
+    },
+    ingredient: {
+      root: `${ROOTS.DASHBOARD}/ingredient`,
+      new: `${ROOTS.DASHBOARD}/ingredient/new`,
+      edit: (id) => `${ROOTS.DASHBOARD}/ingredient/${id}/edit`,
+    },
     productBatch: {
       root: `${ROOTS.DASHBOARD}/product-batch`,
       new: `${ROOTS.DASHBOARD}/product-batch/new`,
@@ -145,6 +164,7 @@ export const paths = {
     sale: {
       root: `${ROOTS.DASHBOARD}/sale`,
       new: `${ROOTS.DASHBOARD}/sale/new`,
+      details: (id) => `${ROOTS.DASHBOARD}/sale/${id}`,
       edit: (id) => `${ROOTS.DASHBOARD}/sale/${id}/edit`,
     },
     purchase: {

@@ -22,6 +22,25 @@ const OverviewBankingPage = lazy(() => import('src/pages/dashboard/banking'));
 const OverviewBookingPage = lazy(() => import('src/pages/dashboard/booking'));
 const OverviewFilePage = lazy(() => import('src/pages/dashboard/file'));
 const OverviewCoursePage = lazy(() => import('src/pages/dashboard/course'));
+// Ingredient
+const IngredientListPage = lazy(() => import('src/pages/dashboard/ingredient/list'));
+const IngredientCreatePage = lazy(() => import('src/pages/dashboard/ingredient/new'));
+const IngredientEditPage = lazy(() => import('src/pages/dashboard/ingredient/edit'));
+// Sale detail
+const SaleDetailsPage = lazy(() => import('src/pages/dashboard/sale/details'));
+// Purchase detail
+const PurchaseDetailsPage = lazy(() => import('src/pages/dashboard/purchase/details'));
+// Branch
+const BranchListPage = lazy(() => import('src/pages/dashboard/branch/list'));
+const BranchCreatePage = lazy(() => import('src/pages/dashboard/branch/new'));
+const BranchEditPage = lazy(() => import('src/pages/dashboard/branch/edit'));
+// Product Master
+const ProductMasterListPage = lazy(() => import('src/pages/dashboard/product-master/list'));
+const ProductMasterCreatePage = lazy(() => import('src/pages/dashboard/product-master/new'));
+const ProductMasterEditPage = lazy(() => import('src/pages/dashboard/product-master/edit'));
+// Refund Product
+const RefundProductListPage = lazy(() => import('src/pages/dashboard/refund-product/list'));
+const RefundProductCreatePage = lazy(() => import('src/pages/dashboard/refund-product/new'));
 // Product Batch
 const ProductBatchListPage = lazy(() => import('src/pages/dashboard/product-batch/list'));
 const ProductBatchCreatePage = lazy(() => import('src/pages/dashboard/product-batch/new'));
@@ -166,6 +185,41 @@ export const dashboardRoutes = [
         ],
       },
       {
+        path: 'ingredient',
+        children: [
+          { index: true, element: <IngredientListPage /> },
+          { path: 'list', element: <IngredientListPage /> },
+          { path: 'new', element: <IngredientCreatePage /> },
+          { path: ':id/edit', element: <IngredientEditPage /> },
+        ],
+      },
+      {
+        path: 'branch',
+        children: [
+          { index: true, element: <BranchListPage /> },
+          { path: 'list', element: <BranchListPage /> },
+          { path: 'new', element: <BranchCreatePage /> },
+          { path: ':id/edit', element: <BranchEditPage /> },
+        ],
+      },
+      {
+        path: 'product-master',
+        children: [
+          { index: true, element: <ProductMasterListPage /> },
+          { path: 'list', element: <ProductMasterListPage /> },
+          { path: 'new', element: <ProductMasterCreatePage /> },
+          { path: ':id/edit', element: <ProductMasterEditPage /> },
+        ],
+      },
+      {
+        path: 'refund-product',
+        children: [
+          { index: true, element: <RefundProductListPage /> },
+          { path: 'list', element: <RefundProductListPage /> },
+          { path: 'new', element: <RefundProductCreatePage /> },
+        ],
+      },
+      {
         path: 'product-batch',
         children: [
           { index: true, element: <ProductBatchListPage /> },
@@ -207,6 +261,7 @@ export const dashboardRoutes = [
           { index: true, element: <SaleListPage /> },
           { path: 'list', element: <SaleListPage /> },
           { path: 'new', element: <SaleCreatePage /> },
+          { path: ':id', element: <SaleDetailsPage /> },
           { path: ':id/edit', element: <SaleEditPage /> },
         ],
       },
@@ -216,6 +271,7 @@ export const dashboardRoutes = [
           { index: true, element: <PurchaseListPage /> },
           { path: 'list', element: <PurchaseListPage /> },
           { path: 'new', element: <PurchaseCreatePage /> },
+          { path: ':id', element: <PurchaseDetailsPage /> },
           { path: ':id/edit', element: <PurchaseEditPage /> },
         ],
       },

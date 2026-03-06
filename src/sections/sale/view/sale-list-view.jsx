@@ -150,6 +150,12 @@ export function SaleListView() {
         getActions: (params) => [
           <CustomGridActionsCellItem
             showInMenu
+            label="Ver detalle"
+            icon={<Iconify icon="solar:eye-bold" />}
+            href={paths.dashboard.sale.details(params.row.id)}
+          />,
+          <CustomGridActionsCellItem
+            showInMenu
             label="Editar"
             icon={<Iconify icon="solar:pen-bold" />}
             href={paths.dashboard.sale.edit(params.row.id)}

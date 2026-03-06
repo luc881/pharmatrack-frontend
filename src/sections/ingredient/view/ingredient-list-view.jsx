@@ -1,5 +1,5 @@
 import { useBoolean } from 'minimal-shared/hooks';
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
@@ -9,13 +9,10 @@ import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { fDate } from 'src/utils/format-time';
-import { fCurrency } from 'src/utils/format-number';
-
-import { useGetSuppliers } from 'src/actions/supplier';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { deletePurchase, useGetPurchases } from 'src/actions/purchase';
+import { deleteIngredient, useGetIngredients } from 'src/actions/ingredient';
 
+import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
@@ -28,35 +25,29 @@ import {
   useToolbarSettings,
   CustomToolbarQuickFilter,
   CustomGridActionsCellItem,
-  CustomToolbarExportButton,
   CustomToolbarColumnsButton,
   CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
 
 // ----------------------------------------------------------------------
 
-export function PurchaseListView() {
+export function IngredientListView() {
   const theme = useTheme();
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
 
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 });
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
 
-  const { purchases, purchasesTotal, purchasesLoading, purchasesMutate } = useGetPurchases({
-    page: paginationModel.page + 1,
-    pageSize: paginationModel.pageSize,
-  });
+  const { ingredients, ingredientsTotal, ingredientsLoading, ingredientsMutate } =
+    useGetIngredients({
+      page: paginationModel.page + 1,
+      pageSize: paginationModel.pageSize,
+    });
 
-  const { suppliers } = useGetSuppliers();
-  const supplierMap = useMemo(
-    () => Object.fromEntries(suppliers.map((s) => [s.id, s.name])),
-    [suppliers]
-  );
-
-  const rowCountRef = useRef(purchasesTotal);
-  if (purchasesTotal > 0) rowCountRef.current = purchasesTotal;
+  const rowCountRef = useRef(ingredientsTotal);
+  if (ingredientsTotal > 0) rowCountRef.current = ingredientsTotal;
 
   const handleDeleteRow = useCallback(
     (id) => {
@@ -69,11 +60,11 @@ export function PurchaseListView() {
   const handleConfirmDelete = useCallback(async () => {
     try {
       if (rowToDelete) {
-        await deletePurchase(rowToDelete);
+        await deleteIngredient(rowToDelete);
       } else {
-        await Promise.all([...selectedRows.ids].map((id) => deletePurchase(id)));
+        await Promise.all([...selectedRows.ids].map((id) => deleteIngredient(id)));
       }
-      await purchasesMutate();
+      await ingredientsMutate();
       toast.success('Eliminado correctamente');
     } catch {
       toast.error('Error al eliminar');
@@ -81,92 +72,74 @@ export function PurchaseListView() {
       setRowToDelete(null);
       confirmDialog.onFalse();
     }
-  }, [rowToDelete, selectedRows.ids, purchasesMutate, confirmDialog]);
+  }, [rowToDelete, selectedRows.ids, ingredientsMutate, confirmDialog]);
 
   const deleteCount = rowToDelete ? 1 : selectedRows.ids?.size ?? 0;
 
-  const columns = useMemo(
-    () => [
-      { field: 'id', headerName: '# Compra', width: 100 },
-      {
-        field: 'supplier_id',
-        headerName: 'Proveedor',
-        flex: 1,
-        minWidth: 200,
-        valueGetter: (value) => supplierMap[value] ?? `ID ${value}`,
-      },
-      {
-        field: 'date_emision',
-        headerName: 'Fecha',
-        width: 140,
-        valueGetter: (value) => (value ? fDate(value) : '—'),
-      },
-      {
-        field: 'total',
-        headerName: 'Total',
-        width: 130,
-        valueGetter: (value) => fCurrency(value),
-      },
-      {
-        field: 'description',
-        headerName: 'Observaciones',
-        flex: 1,
-        minWidth: 180,
-        valueGetter: (value) => value ?? '—',
-      },
-      {
-        type: 'actions',
-        field: 'actions',
-        headerName: ' ',
-        width: 64,
-        align: 'right',
-        headerAlign: 'right',
-        sortable: false,
-        filterable: false,
-        disableColumnMenu: true,
-        getActions: (params) => [
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Ver detalle"
-            icon={<Iconify icon="solar:eye-bold" />}
-            href={paths.dashboard.purchase.details(params.row.id)}
-          />,
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Editar"
-            icon={<Iconify icon="solar:pen-bold" />}
-            href={paths.dashboard.purchase.edit(params.row.id)}
-          />,
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Eliminar"
-            icon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={() => handleDeleteRow(params.row.id)}
-            style={{ color: theme.vars.palette.error.main }}
-          />,
-        ],
-      },
-    ],
-    [handleDeleteRow, supplierMap, theme.vars.palette.error.main]
-  );
+  const columns = [
+    { field: 'name', headerName: 'Nombre', flex: 1, minWidth: 200, hideable: false },
+    {
+      field: 'description',
+      headerName: 'Descripción',
+      flex: 1,
+      minWidth: 200,
+      valueGetter: (v) => v ?? '—',
+    },
+    {
+      field: 'is_active',
+      headerName: 'Estado',
+      width: 110,
+      renderCell: (params) => (
+        <Label variant="soft" color={params.row.is_active ? 'success' : 'default'}>
+          {params.row.is_active ? 'Activo' : 'Inactivo'}
+        </Label>
+      ),
+    },
+    {
+      type: 'actions',
+      field: 'actions',
+      headerName: ' ',
+      width: 64,
+      align: 'right',
+      headerAlign: 'right',
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
+      getActions: (params) => [
+        <CustomGridActionsCellItem
+          showInMenu
+          label="Editar"
+          icon={<Iconify icon="solar:pen-bold" />}
+          href={paths.dashboard.ingredient.edit(params.row.id)}
+        />,
+        <CustomGridActionsCellItem
+          showInMenu
+          label="Eliminar"
+          icon={<Iconify icon="solar:trash-bin-trash-bold" />}
+          onClick={() => handleDeleteRow(params.row.id)}
+          style={{ color: theme.vars.palette.error.main }}
+        />,
+      ],
+    },
+  ];
 
   return (
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
-          heading="Compras"
+          heading="Ingredientes"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Compras' },
+            { name: 'Ingredientes' },
           ]}
           action={
             <Button
               component={RouterLink}
-              href={paths.dashboard.purchase.new}
+              href={paths.dashboard.ingredient.new}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Nueva compra
+              Nuevo ingrediente
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -185,14 +158,14 @@ export function PurchaseListView() {
             {...toolbarOptions.settings}
             checkboxSelection
             disableRowSelectionOnClick
-            rows={purchases}
-            columns={columns}
-            loading={purchasesLoading}
-            rowCount={rowCountRef.current}
             paginationMode="server"
+            rows={ingredients}
+            columns={columns}
+            loading={ingredientsLoading}
+            rowCount={rowCountRef.current}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
-            pageSizeOptions={[10, 25, 50]}
+            pageSizeOptions={[25, 50, 100]}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
               noRowsOverlay: () => <EmptyContent />,
@@ -218,7 +191,6 @@ export function PurchaseListView() {
                         </Button>
                       )}
                       <CustomToolbarColumnsButton />
-                      <CustomToolbarExportButton />
                       <CustomToolbarSettingsButton
                         settings={toolbarOptions.settings}
                         onChangeSettings={toolbarOptions.onChangeSettings}
@@ -240,7 +212,7 @@ export function PurchaseListView() {
         content={
           <>
             ¿Estás seguro de eliminar <strong>{deleteCount}</strong>{' '}
-            {deleteCount === 1 ? 'compra' : 'compras'}?
+            {deleteCount === 1 ? 'ingrediente' : 'ingredientes'}?
           </>
         }
         action={

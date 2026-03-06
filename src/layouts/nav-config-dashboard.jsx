@@ -120,6 +120,8 @@ export const navData = [
           { title: 'Categorías', path: paths.dashboard.productCategory.root },
           { title: 'Marcas', path: paths.dashboard.productBrand.root },
           { title: 'Lotes', path: paths.dashboard.productBatch.root },
+          { title: 'Principios activos', path: paths.dashboard.productMaster.root },
+          { title: 'Ingredientes', path: paths.dashboard.ingredient.root },
         ],
       },
       {
@@ -147,6 +149,24 @@ export const navData = [
         children: [
           { title: 'Lista', path: paths.dashboard.sale.root },
           { title: 'Nueva', path: paths.dashboard.sale.new },
+        ],
+      },
+      {
+        title: 'Devoluciones',
+        path: paths.dashboard.refundProduct.root,
+        icon: ICONS.label,
+        children: [
+          { title: 'Lista', path: paths.dashboard.refundProduct.root },
+          { title: 'Nueva', path: paths.dashboard.refundProduct.new },
+        ],
+      },
+      {
+        title: 'Sucursales',
+        path: paths.dashboard.branch.root,
+        icon: ICONS.banking,
+        children: [
+          { title: 'Lista', path: paths.dashboard.branch.root },
+          { title: 'Nueva', path: paths.dashboard.branch.new },
         ],
       },
       {
