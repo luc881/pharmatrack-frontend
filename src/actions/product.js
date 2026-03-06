@@ -42,8 +42,11 @@ async function fetchAllPages(url) {
 
 // ----------------------------------------------------------------------
 
-export function useGetProducts({ page = 1, pageSize = 10 } = {}) {
-  const url = [endpoints.product.list, { params: { page, page_size: pageSize } }];
+export function useGetProducts({ page = 1, pageSize = 10, search = '' } = {}) {
+  const params = { page, page_size: pageSize };
+  // Cambia 'search' por el nombre del query param que use tu backend (ej: 'q', 'name')
+  if (search) params.search = search;
+  const url = [endpoints.product.list, { params }];
 
   const { data, isLoading, error, isValidating, mutate } = useSWR(url, fetcher, {
     ...swrOptions,

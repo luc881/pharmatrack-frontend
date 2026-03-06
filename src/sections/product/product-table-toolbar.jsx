@@ -1,12 +1,15 @@
+import { useState } from 'react';
+
 import Button from '@mui/material/Button';
 import { Toolbar } from '@mui/x-data-grid';
+import TextField from '@mui/material/TextField';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { Iconify } from 'src/components/iconify';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
   ToolbarRightPanel,
-  CustomToolbarQuickFilter,
   CustomToolbarExportButton,
   CustomToolbarFilterButton,
   CustomToolbarColumnsButton,
@@ -16,17 +19,36 @@ import {
 // ----------------------------------------------------------------------
 
 export function ProductTableToolbar({
+  onSearchSubmit,
   selectedRowCount,
   onOpenConfirmDeleteRows,
   /********/
   settings,
   onChangeSettings,
 }) {
+  const [localSearch, setLocalSearch] = useState('');
+
   return (
     <Toolbar>
       <ToolbarContainer>
         <ToolbarLeftPanel>
-          <CustomToolbarQuickFilter />
+          <TextField
+            size="small"
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && onSearchSubmit(localSearch)}
+            placeholder="Buscar y presiona Enter..."
+            sx={{ width: 1, maxWidth: { md: 260 } }}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
         </ToolbarLeftPanel>
 
         <ToolbarRightPanel>

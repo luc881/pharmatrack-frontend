@@ -8,8 +8,10 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -43,6 +45,7 @@ export function JwtSignInView() {
   const { checkUserSession } = useAuthContext();
 
   const [errorMessage, setErrorMessage] = useState(null);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const defaultValues = {
     email: 'demo@minimals.cc',
@@ -61,7 +64,7 @@ export function JwtSignInView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await signInWithPassword({ email: data.email, password: data.password });
+      await signInWithPassword({ email: data.email, password: data.password, rememberMe });
       await checkUserSession?.();
 
       router.refresh();
@@ -108,6 +111,16 @@ export function JwtSignInView() {
           }}
         />
       </Box>
+
+      <FormControlLabel
+        label="Recordarme"
+        control={
+          <Checkbox
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+          />
+        }
+      />
 
       <Button
         fullWidth

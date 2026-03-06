@@ -43,6 +43,12 @@ export function ProductListView() {
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
   const [rowToDelete, setRowToDelete] = useState(null);
+  const [appliedSearch, setAppliedSearch] = useState('');
+
+  const handleSearchSubmit = useCallback((value) => {
+    setAppliedSearch(value);
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+  }, []);
 
   const { brands } = useGetProductBrands();
   const brandsMap = useMemo(() => Object.fromEntries(brands.map((b) => [b.id, b.name])), [brands]);
@@ -56,6 +62,7 @@ export function ProductListView() {
   const { products, productsTotal, productsLoading, productsMutate } = useGetProducts({
     page: paginationModel.page + 1,
     pageSize: paginationModel.pageSize,
+    search: appliedSearch,
   });
 
   // Evita que el DataGrid resetee la paginación cuando rowCount cae a 0 durante el fetch
@@ -131,7 +138,8 @@ export function ProductListView() {
             rows={products}
             columns={columns}
             loading={productsLoading}
-            getRowHeight={() => 'auto'}
+            rowHeight={72}
+            rowBufferPx={4000}
             // Paginación server-side
             paginationMode="server"
             rowCount={stableRowCount}
@@ -144,19 +152,19 @@ export function ProductListView() {
             slots={{
               noRowsOverlay: () => <EmptyContent />,
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
-              toolbar: () => (
-                <ProductTableToolbar
-                  selectedRowCount={selectedRows.ids?.size ?? 0}
-                  onOpenConfirmDeleteRows={() => {
-                    setRowToDelete(null);
-                    confirmDialog.onTrue();
-                  }}
-                  settings={toolbarOptions.settings}
-                  onChangeSettings={toolbarOptions.onChangeSettings}
-                />
-              ),
+              toolbar: ProductTableToolbar,
             }}
             slotProps={{
+              toolbar: {
+                onSearchSubmit: handleSearchSubmit,
+                selectedRowCount: selectedRows.ids?.size ?? 0,
+                onOpenConfirmDeleteRows: () => {
+                  setRowToDelete(null);
+                  confirmDialog.onTrue();
+                },
+                settings: toolbarOptions.settings,
+                onChangeSettings: toolbarOptions.onChangeSettings,
+              },
               columnsManagement: {
                 getTogglableColumns: () =>
                   columns

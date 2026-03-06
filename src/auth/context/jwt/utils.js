@@ -1,8 +1,8 @@
 import { paths } from 'src/routes/paths';
 
-import axios from 'src/lib/axios';
+import axios, { endpoints } from 'src/lib/axios';
 
-import { JWT_STORAGE_KEY } from './constant';
+import { JWT_STORAGE_KEY, JWT_REFRESH_KEY, JWT_REMEMBER_KEY } from './constant';
 
 // ----------------------------------------------------------------------
 
@@ -51,40 +51,70 @@ export function isValidToken(accessToken) {
 
 // ----------------------------------------------------------------------
 
-export function tokenExpired(exp) {
-  const currentTime = Date.now();
-  const timeLeft = exp * 1000 - currentTime;
+let refreshTimer = null;
 
-  setTimeout(() => {
+function getStoredRefreshToken() {
+  return sessionStorage.getItem(JWT_REFRESH_KEY) || localStorage.getItem(JWT_REFRESH_KEY);
+}
+
+function storeRefreshToken(token) {
+  const rememberMe = localStorage.getItem(JWT_REMEMBER_KEY) === 'true';
+  if (rememberMe) {
+    localStorage.setItem(JWT_REFRESH_KEY, token);
+  } else {
+    sessionStorage.setItem(JWT_REFRESH_KEY, token);
+  }
+}
+
+async function doRefresh() {
+  const refreshToken = getStoredRefreshToken();
+  if (!refreshToken) throw new Error('No refresh token');
+
+  const res = await axios.post(endpoints.auth.refresh, { refresh_token: refreshToken });
+  return res.data;
+}
+
+function scheduleTokenRefresh(exp) {
+  if (refreshTimer) clearTimeout(refreshTimer);
+
+  // Renovar 60 segundos antes de que expire
+  const delay = Math.max(exp * 1000 - Date.now() - 60_000, 0);
+
+  refreshTimer = setTimeout(async () => {
     try {
-      alert('Token expired!');
-      sessionStorage.removeItem(JWT_STORAGE_KEY);
+      const { access_token, refresh_token } = await doRefresh();
+      if (refresh_token) storeRefreshToken(refresh_token);
+      await setSession(access_token);
+    } catch {
+      await setSession(null);
       window.location.href = paths.auth.jwt.signIn;
-    } catch (error) {
-      console.error('Error during token expiration:', error);
-      throw error;
     }
-  }, timeLeft);
+  }, delay);
 }
 
 // ----------------------------------------------------------------------
 
 export async function setSession(accessToken) {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
+
   try {
     if (accessToken) {
       sessionStorage.setItem(JWT_STORAGE_KEY, accessToken);
-
       axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
-      const decodedToken = jwtDecode(accessToken); // ~3 days by minimals server
-
-      if (decodedToken && 'exp' in decodedToken) {
-        tokenExpired(decodedToken.exp);
+      const decoded = jwtDecode(accessToken);
+      if (decoded?.exp) {
+        scheduleTokenRefresh(decoded.exp);
       } else {
         throw new Error('Invalid access token!');
       }
     } else {
       sessionStorage.removeItem(JWT_STORAGE_KEY);
+      sessionStorage.removeItem(JWT_REFRESH_KEY);
+      localStorage.removeItem(JWT_REFRESH_KEY);
       delete axios.defaults.headers.common.Authorization;
     }
   } catch (error) {

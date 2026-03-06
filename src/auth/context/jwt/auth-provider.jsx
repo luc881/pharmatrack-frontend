@@ -1,7 +1,9 @@
 import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
 
-import { JWT_STORAGE_KEY } from './constant';
+import axios, { endpoints } from 'src/lib/axios';
+
+import { JWT_STORAGE_KEY, JWT_REFRESH_KEY, JWT_REMEMBER_KEY } from './constant';
 import { AuthContext } from '../auth-context';
 import { jwtDecode, setSession, isValidToken } from './utils';
 
@@ -21,10 +23,8 @@ export function AuthProvider({ children }) {
       const accessToken = sessionStorage.getItem(JWT_STORAGE_KEY);
 
       if (accessToken && isValidToken(accessToken)) {
-        setSession(accessToken);
+        await setSession(accessToken);
 
-        // Extraemos los datos del usuario directamente del JWT
-        // Payload contiene: { sub: email, id, role, exp }
         const decoded = jwtDecode(accessToken);
         const user = {
           id: decoded.id,
@@ -32,11 +32,41 @@ export function AuthProvider({ children }) {
           role: decoded.role,
           displayName: decoded.sub,
         };
-
         setState({ user: { ...user, accessToken }, loading: false });
-      } else {
-        setState({ user: null, loading: false });
+        return;
       }
+
+      // Sin access token válido: intentar renovar con refresh token (remember me)
+      const refreshToken =
+        sessionStorage.getItem(JWT_REFRESH_KEY) || localStorage.getItem(JWT_REFRESH_KEY);
+
+      if (refreshToken) {
+        const res = await axios.post(endpoints.auth.refresh, { refresh_token: refreshToken });
+        const { access_token, refresh_token: newRefreshToken } = res.data;
+
+        const rememberMe = localStorage.getItem(JWT_REMEMBER_KEY) === 'true';
+        if (newRefreshToken) {
+          if (rememberMe) {
+            localStorage.setItem(JWT_REFRESH_KEY, newRefreshToken);
+          } else {
+            sessionStorage.setItem(JWT_REFRESH_KEY, newRefreshToken);
+          }
+        }
+
+        await setSession(access_token);
+
+        const decoded = jwtDecode(access_token);
+        const user = {
+          id: decoded.id,
+          email: decoded.sub,
+          role: decoded.role,
+          displayName: decoded.sub,
+        };
+        setState({ user: { ...user, accessToken: access_token }, loading: false });
+        return;
+      }
+
+      setState({ user: null, loading: false });
     } catch (error) {
       console.error(error);
       setState({ user: null, loading: false });
