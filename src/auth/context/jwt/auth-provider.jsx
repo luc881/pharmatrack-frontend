@@ -3,9 +3,9 @@ import { useMemo, useEffect, useCallback } from 'react';
 
 import axios, { endpoints } from 'src/lib/axios';
 
-import { JWT_STORAGE_KEY, JWT_REFRESH_KEY, JWT_REMEMBER_KEY } from './constant';
 import { AuthContext } from '../auth-context';
 import { jwtDecode, setSession, isValidToken } from './utils';
+import { JWT_STORAGE_KEY, JWT_REFRESH_KEY, JWT_REMEMBER_KEY } from './constant';
 
 // ----------------------------------------------------------------------
 

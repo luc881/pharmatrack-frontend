@@ -1,29 +1,33 @@
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
+import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import CardHeader from '@mui/material/CardHeader';
+import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { UploadAvatar } from 'src/components/upload';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -65,8 +69,8 @@ export function ProductCreateEditForm({ currentProduct }) {
     title: '',
     description: '',
     sku: '',
-    product_category_id: null,
-    brand_id: null,
+    product_category_id: '',
+    brand_id: '',
     unit_name: 'pieza',
     is_unit_sale: true,
     price_retail: null,
@@ -80,23 +84,62 @@ export function ProductCreateEditForm({ currentProduct }) {
   const methods = useForm({
     resolver: zodResolver(ProductSchema),
     defaultValues,
-    values: currentProduct,
+    values: currentProduct
+      ? {
+          ...currentProduct,
+          brand_id: currentProduct.brand_id ?? '',
+          product_category_id: currentProduct.product_category_id ?? '',
+        }
+      : undefined,
   });
 
   const {
     reset,
     watch,
+    setValue,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
   const allowWarranty = watch('allow_warranty');
 
+  const [imageLoading, setImageLoading] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+
+  const handleUpload = useCallback(
+    async (source) => {
+      setImageLoading(true);
+      try {
+        const url = await uploadToCloudinary(source);
+        setValue('image', url, { shouldValidate: true });
+        setUrlInput('');
+      } catch {
+        toast.error('Error al subir la imagen');
+      } finally {
+        setImageLoading(false);
+      }
+    },
+    [setValue]
+  );
+
+  const handleImageDrop = useCallback(
+    (acceptedFiles) => {
+      const file = acceptedFiles[0];
+      if (file) handleUpload(file);
+    },
+    [handleUpload]
+  );
+
+  const handleUrlSubmit = useCallback(() => {
+    if (urlInput.trim()) handleUpload(urlInput.trim());
+  }, [urlInput, handleUpload]);
+
   const onSubmit = handleSubmit(async (data) => {
     // Limpiar campos nulos opcionales
     const payload = {
       ...data,
       brand_id: data.brand_id || null,
+      product_category_id: data.product_category_id || null,
       price_cost: data.price_cost || null,
       warranty_days: data.allow_warranty ? data.warranty_days : null,
     };
@@ -105,12 +148,13 @@ export function ProductCreateEditForm({ currentProduct }) {
       if (currentProduct) {
         await updateProduct(currentProduct.id, payload);
         toast.success('Producto actualizado');
+        router.back();
       } else {
         await createProduct(payload);
         toast.success('Producto creado');
         reset();
+        router.push(paths.dashboard.product.root);
       }
-      router.push(paths.dashboard.product.root);
     } catch (error) {
       console.error(error);
       toast.error('Error al guardar el producto');
@@ -140,34 +184,48 @@ export function ProductCreateEditForm({ currentProduct }) {
           <Field.Text name="title" label="Nombre del producto" />
           <Field.Text name="description" label="Descripción" multiline rows={4} />
 
-          <Stack spacing={1.5}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar
-                src={imageUrl || ''}
-                alt="preview"
-                variant="rounded"
-                sx={{ width: 72, height: 72, bgcolor: 'background.neutral' }}
-              >
-                <Iconify icon="solar:gallery-bold" width={32} sx={{ color: 'text.disabled' }} />
-              </Avatar>
+          <Stack spacing={1.5} alignItems="center">
+            <UploadAvatar
+              value={imageUrl}
+              loading={imageLoading}
+              onDrop={handleImageDrop}
+              maxSize={3145728}
+            />
 
-              <Box sx={{ flexGrow: 1 }}>
-                <Field.Text
-                  name="image"
-                  label="URL de imagen"
-                  placeholder="https://ejemplo.com/imagen.jpg"
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Iconify icon="solar:link-bold" width={18} sx={{ color: 'text.disabled' }} />
-                        </InputAdornment>
-                      ),
-                    },
-                  }}
-                />
-              </Box>
-            </Box>
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              O sube desde una URL
+            </Typography>
+
+            <TextField
+              size="small"
+              fullWidth
+              disabled={imageLoading}
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleUrlSubmit()}
+              placeholder="https://ejemplo.com/imagen.jpg"
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Iconify icon="solar:link-bold" width={18} sx={{ color: 'text.disabled' }} />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Button
+                        size="small"
+                        variant="soft"
+                        disabled={!urlInput.trim() || imageLoading}
+                        onClick={handleUrlSubmit}
+                      >
+                        Subir
+                      </Button>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
           </Stack>
         </Stack>
       </Collapse>

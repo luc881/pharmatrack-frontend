@@ -19,6 +19,7 @@ import {
 // ----------------------------------------------------------------------
 
 export function ProductTableToolbar({
+  initialSearch = '',
   onSearchSubmit,
   selectedRowCount,
   onOpenConfirmDeleteRows,
@@ -26,7 +27,7 @@ export function ProductTableToolbar({
   settings,
   onChangeSettings,
 }) {
-  const [localSearch, setLocalSearch] = useState('');
+  const [localSearch, setLocalSearch] = useState(initialSearch);
 
   return (
     <Toolbar>

@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useCallback } from 'react';
 
@@ -43,12 +44,13 @@ export function ProductListView() {
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
   const [rowToDelete, setRowToDelete] = useState(null);
-  const [appliedSearch, setAppliedSearch] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const appliedSearch = searchParams.get('search') ?? '';
 
   const handleSearchSubmit = useCallback((value) => {
-    setAppliedSearch(value);
+    setSearchParams(value ? { search: value } : {}, { replace: true });
     setPaginationModel((prev) => ({ ...prev, page: 0 }));
-  }, []);
+  }, [setSearchParams]);
 
   const { brands } = useGetProductBrands();
   const brandsMap = useMemo(() => Object.fromEntries(brands.map((b) => [b.id, b.name])), [brands]);
@@ -156,6 +158,7 @@ export function ProductListView() {
             }}
             slotProps={{
               toolbar: {
+                initialSearch: appliedSearch,
                 onSearchSubmit: handleSearchSubmit,
                 selectedRowCount: selectedRows.ids?.size ?? 0,
                 onOpenConfirmDeleteRows: () => {
