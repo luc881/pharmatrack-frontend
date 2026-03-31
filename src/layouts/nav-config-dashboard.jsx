@@ -80,25 +80,13 @@ export const navData = [
     subheader: 'Management',
     items: [
       {
-        title: 'User',
-        path: paths.dashboard.user.root,
-        icon: ICONS.user,
-        children: [
-          { title: 'Profile', path: paths.dashboard.user.root },
-          { title: 'Cards', path: paths.dashboard.user.cards },
-          { title: 'List', path: paths.dashboard.user.list },
-          { title: 'Create', path: paths.dashboard.user.new },
-          { title: 'Edit', path: paths.dashboard.user.demo.edit },
-          { title: 'Account', path: paths.dashboard.user.account, deepMatch: true },
-        ],
-      },
-      {
         title: 'Usuarios',
         path: paths.dashboard.user.list,
         icon: ICONS.user,
         children: [
           { title: 'Lista', path: paths.dashboard.user.list },
           { title: 'Nuevo', path: paths.dashboard.user.new },
+          { title: 'Mi cuenta', path: paths.dashboard.user.account, deepMatch: true },
         ],
       },
       {

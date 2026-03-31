@@ -1,138 +1,133 @@
 import * as z from 'zod';
+import { useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 
 import { fData } from 'src/utils/format-number';
 
-import { toast } from 'src/components/snackbar';
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
+import { uploadToCloudinary } from 'src/lib/cloudinary';
+import { updateUser, useGetUser } from 'src/actions/user';
 
-import { useMockedUser } from 'src/auth/hooks';
+import { toast } from 'src/components/snackbar';
+import { Form, Field } from 'src/components/hook-form';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
-export const UpdateUserSchema = z.object({
-  displayName: z.string().min(1, { error: 'Name is required!' }),
-  email: schemaUtils.email(),
-  photoURL: schemaUtils.file({ error: 'Avatar is required!' }),
-  phoneNumber: schemaUtils.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: schemaUtils.nullableInput(z.string().min(1, { error: 'Country is required!' }), {
-    error: 'Country is required!',
-  }),
-  address: z.string().min(1, { error: 'Address is required!' }),
-  state: z.string().min(1, { error: 'State is required!' }),
-  city: z.string().min(1, { error: 'City is required!' }),
-  zipCode: z.string().min(1, { error: 'Zip code is required!' }),
-  about: z.string().min(1, { error: 'About is required!' }),
-  // Not required
-  isPublic: z.boolean(),
+const GENDER_OPTIONS = [
+  { value: 'M', label: 'Masculino' },
+  { value: 'F', label: 'Femenino' },
+];
+
+const schema = z.object({
+  name: z.string().min(1, 'El nombre es requerido'),
+  surname: z.string().optional(),
+  phone: z.string().optional(),
+  gender: z.string().optional(),
+  avatar: z.any().optional(),
 });
 
 // ----------------------------------------------------------------------
 
 export function AccountGeneral() {
-  const { user } = useMockedUser();
-
-  const currentUser = {
-    displayName: user?.displayName,
-    email: user?.email,
-    photoURL: user?.photoURL,
-    phoneNumber: user?.phoneNumber,
-    country: user?.country,
-    address: user?.address,
-    state: user?.state,
-    city: user?.city,
-    zipCode: user?.zipCode,
-    about: user?.about,
-    isPublic: user?.isPublic,
-  };
-
-  const defaultValues = {
-    displayName: '',
-    email: '',
-    photoURL: null,
-    phoneNumber: '',
-    country: null,
-    address: '',
-    state: '',
-    city: '',
-    zipCode: '',
-    about: '',
-    isPublic: false,
-  };
+  const { user: authUser } = useAuthContext();
+  const { user, userLoading } = useGetUser(authUser?.id);
 
   const methods = useForm({
-    mode: 'all',
-    resolver: zodResolver(UpdateUserSchema),
-    defaultValues,
-    values: currentUser,
+    resolver: zodResolver(schema),
+    defaultValues: {
+      name: '',
+      surname: '',
+      phone: '',
+      gender: '',
+      avatar: null,
+    },
+    values: user
+      ? {
+          name: user.name ?? '',
+          surname: user.surname ?? '',
+          phone: user.phone ?? '',
+          gender: user.gender ?? '',
+          avatar: user.avatar ?? null,
+        }
+      : undefined,
   });
 
   const {
+    watch,
+    setValue,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
+  const avatarValue = watch('avatar');
+
+  const handleDropAvatar = useCallback(
+    async (acceptedFiles) => {
+      const file = acceptedFiles[0];
+      if (!file) return;
+      try {
+        const url = await uploadToCloudinary(file);
+        setValue('avatar', url, { shouldValidate: true });
+      } catch {
+        toast.error('Error al subir la imagen');
+      }
+    },
+    [setValue]
+  );
+
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      toast.success('Update success!');
-      console.info('DATA', data);
-    } catch (error) {
-      console.error(error);
+      await updateUser(authUser.id, {
+        name: data.name,
+        surname: data.surname || null,
+        phone: data.phone || null,
+        gender: data.gender || null,
+        avatar: typeof data.avatar === 'string' ? data.avatar : null,
+      });
+      toast.success('Perfil actualizado');
+    } catch {
+      toast.error('Error al actualizar el perfil');
     }
   });
+
+  if (userLoading) return null;
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card
-            sx={{
-              pt: 10,
-              pb: 5,
-              px: 3,
-              textAlign: 'center',
-            }}
-          >
+          <Card sx={{ pt: 10, pb: 5, px: 3, textAlign: 'center' }}>
             <Field.UploadAvatar
-              name="photoURL"
+              name="avatar"
+              value={avatarValue}
+              onDrop={handleDropAvatar}
               maxSize={3145728}
               helperText={
                 <Typography
                   variant="caption"
-                  sx={{
-                    mt: 3,
-                    mx: 'auto',
-                    display: 'block',
-                    textAlign: 'center',
-                    color: 'text.disabled',
-                  }}
+                  sx={{ mt: 3, mx: 'auto', display: 'block', textAlign: 'center', color: 'text.disabled' }}
                 >
-                  Allowed *.jpeg, *.jpg, *.png, *.gif
-                  <br /> max size of {fData(3145728)}
+                  *.jpeg, *.jpg, *.png
+                  <br /> máx. {fData(3145728)}
                 </Typography>
               }
             />
 
-            <Field.Switch
-              name="isPublic"
-              labelPlacement="start"
-              label="Public profile"
-              sx={{ mt: 5 }}
-            />
-
-            <Button variant="soft" color="error" sx={{ mt: 3 }}>
-              Delete user
-            </Button>
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="subtitle2">{user?.email}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {authUser?.role}
+              </Typography>
+            </Box>
           </Card>
         </Grid>
 
@@ -146,25 +141,24 @@ export function AccountGeneral() {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="displayName" label="Name" />
-              <Field.Text name="email" label="Email address" />
-              <Field.Phone name="phoneNumber" label="Phone number" />
-              <Field.Text name="address" label="Address" />
-
-              <Field.CountrySelect name="country" label="Country" placeholder="Choose a country" />
-
-              <Field.Text name="state" label="State/region" />
-              <Field.Text name="city" label="City" />
-              <Field.Text name="zipCode" label="Zip/code" />
+              <Field.Text name="name" label="Nombre *" />
+              <Field.Text name="surname" label="Apellido" />
+              <Field.Text name="phone" label="Teléfono" />
+              <Field.Select name="gender" label="Género">
+                <MenuItem value="">Sin especificar</MenuItem>
+                {GENDER_OPTIONS.map((o) => (
+                  <MenuItem key={o.value} value={o.value}>
+                    {o.label}
+                  </MenuItem>
+                ))}
+              </Field.Select>
             </Box>
 
-            <Stack spacing={3} sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Field.Text name="about" multiline rows={4} label="About" />
-
+            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>
-                Save changes
+                Guardar cambios
               </Button>
-            </Stack>
+            </Box>
           </Card>
         </Grid>
       </Grid>
