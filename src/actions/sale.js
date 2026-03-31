@@ -115,3 +115,9 @@ export const createSalePayment = (data) =>
 
 export const deleteSalePayment = (id) =>
   axiosInstance.delete(endpoints.salePayment.delete(id)).then((r) => r.data);
+
+export const createSaleBatchUsage = (data) =>
+  axiosInstance.post(endpoints.saleBatchUsage.create, data).then((r) => r.data);
+
+export const deleteSaleBatchUsage = (id) =>
+  axiosInstance.delete(endpoints.saleBatchUsage.delete(id)).then((r) => r.data);

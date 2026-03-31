@@ -1,7 +1,7 @@
 import { z as zod } from 'zod';
 import { useNavigate } from 'react-router';
-import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm, FormProvider, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -25,6 +25,7 @@ import {
   deleteSaleDetail,
   createSalePayment,
   deleteSalePayment,
+  createSaleBatchUsage,
 } from 'src/actions/sale';
 
 import { toast } from 'src/components/snackbar';
@@ -80,7 +81,7 @@ const PAYMENT_METHODS = [
   { value: 'transfer', label: 'Transferencia' },
 ];
 
-const defaultItem = { product_id: '', quantity: 1, discount: 0, description: '' };
+const defaultItem = { product_id: '', batch_id: '', quantity: 1, discount: 0, description: '' };
 
 const defaultPayment = { method_payment: 'cash', amount: 0, transaction_number: '', bank: '' };
 
@@ -88,6 +89,10 @@ const itemSchema = zod.object({
   product_id: zod
     .union([zod.string(), zod.number()])
     .refine((v) => v !== '' && Number(v) > 0, { message: 'Selecciona un producto' }),
+  batch_id: zod
+    .union([zod.string(), zod.number()])
+    .optional()
+    .nullable(),
   quantity: zod.number({ coerce: true }).positive('La cantidad debe ser mayor a 0'),
   discount: zod.number({ coerce: true }).nonnegative().default(0),
   description: zod.string().optional(),
@@ -174,7 +179,7 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
         saleId = created.id;
       }
 
-      await Promise.all(
+      const createdDetails = await Promise.all(
         data.items.map((item) =>
           createSaleDetail({
             sale_id: saleId,
@@ -185,6 +190,19 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
           })
         )
       );
+
+      // Registrar qué lote se usó en cada línea (si se seleccionó uno)
+      const batchUsages = data.items
+        .map((item, i) => ({
+          sale_detail_id: createdDetails[i].id,
+          batch_id: item.batch_id ? Number(item.batch_id) : null,
+          quantity: Number(item.quantity),
+        }))
+        .filter((u) => u.batch_id);
+
+      if (batchUsages.length > 0) {
+        await Promise.all(batchUsages.map((u) => createSaleBatchUsage(u)));
+      }
 
       await Promise.all(
         data.payments.map((payment) =>
@@ -313,7 +331,9 @@ function SaleItems({ products }) {
 // ----------------------------------------------------------------------
 
 function SaleItem({ index, products, onRemove }) {
-  const { watch } = useFormContext();
+  const { watch, setValue } = useFormContext();
+  const [batches, setBatches] = useState([]);
+  const [batchesLoading, setBatchesLoading] = useState(false);
 
   const productId = watch(`items[${index}].product_id`);
   const quantity = watch(`items[${index}].quantity`);
@@ -323,13 +343,47 @@ function SaleItem({ index, products, onRemove }) {
   const priceRetail = product?.price_retail ?? 0;
   const lineTotal = (Number(quantity) || 0) * priceRetail - (Number(discount) || 0);
 
+  // Cargar lotes disponibles cuando cambia el producto y auto-seleccionar el más próximo a vencer
+  const loadBatches = useCallback(async (pid) => {
+    if (!pid) {
+      setBatches([]);
+      setValue(`items[${index}].batch_id`, '');
+      return;
+    }
+    setBatchesLoading(true);
+    try {
+      const res = await axiosInstance.get(endpoints.productBatch.list, {
+        params: { product_id: pid, page: 1, page_size: 50 },
+      });
+      const available = (res.data?.data ?? [])
+        .filter((b) => Number(b.quantity) > 0)
+        .sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date));
+      setBatches(available);
+      // Auto-seleccionar el lote más próximo a vencer (FEFO)
+      if (available.length > 0) {
+        setValue(`items[${index}].batch_id`, available[0].id);
+      } else {
+        setValue(`items[${index}].batch_id`, '');
+      }
+    } catch {
+      setBatches([]);
+    } finally {
+      setBatchesLoading(false);
+    }
+  }, [index, setValue]);
+
+  useEffect(() => {
+    loadBatches(productId ? Number(productId) : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
+
   return (
     <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
       <Box
         sx={{
           gap: 2,
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '3fr 1fr 1fr 2fr' },
+          gridTemplateColumns: { xs: '1fr', md: '2fr 2fr 1fr 1fr' },
           alignItems: 'start',
         }}
       >
@@ -337,6 +391,21 @@ function SaleItem({ index, products, onRemove }) {
           {products.map((p) => (
             <MenuItem key={p.id} value={p.id}>
               {p.title}
+            </MenuItem>
+          ))}
+        </Field.Select>
+
+        <Field.Select
+          name={`items[${index}].batch_id`}
+          label="Lote"
+          size="small"
+          disabled={!productId || batchesLoading}
+        >
+          <MenuItem value="">Sin lote</MenuItem>
+          {batches.map((b) => (
+            <MenuItem key={b.id} value={b.id}>
+              {b.expiration_date ? `Vence: ${b.expiration_date}` : `Lote #${b.id}`}
+              {` — Stock: ${b.quantity}`}
             </MenuItem>
           ))}
         </Field.Select>
@@ -365,34 +434,43 @@ function SaleItem({ index, products, onRemove }) {
             },
           }}
         />
+      </Box>
 
+      <Box
+        sx={{
+          gap: 2,
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '3fr 1fr' },
+          alignItems: 'start',
+        }}
+      >
         <Field.Text
           name={`items[${index}].description`}
           label="Nota"
           size="small"
           slotProps={{ inputLabel: { shrink: true } }}
         />
+
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
+          <Button
+            size="small"
+            color="error"
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={onRemove}
+          >
+            Eliminar
+          </Button>
+        </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Button
-          size="small"
-          color="error"
-          startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-          onClick={onRemove}
-        >
-          Eliminar
-        </Button>
-
-        {product && (
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Precio unitario: <strong>${priceRetail}</strong> · Subtotal estimado:{' '}
-            <Box component="span" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-              ${lineTotal.toFixed(2)}
-            </Box>
-          </Typography>
-        )}
-      </Box>
+      {product && (
+        <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'right' }}>
+          Precio unitario: <strong>${priceRetail}</strong> · Subtotal estimado:{' '}
+          <Box component="span" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+            ${lineTotal.toFixed(2)}
+          </Box>
+        </Typography>
+      )}
     </Box>
   );
 }

@@ -140,6 +140,11 @@ export const endpoints = {
     create: '/api/v1/salepayments/',
     delete: (id) => `/api/v1/salepayments/${id}`,
   },
+  saleBatchUsage: {
+    list: '/api/v1/salebatchusages/',
+    create: '/api/v1/salebatchusages/',
+    delete: (id) => `/api/v1/salebatchusages/${id}`,
+  },
   purchase: {
     list: '/api/v1/purchases/',
     details: (id) => `/api/v1/purchases/${id}`,
