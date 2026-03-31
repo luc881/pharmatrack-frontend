@@ -1,202 +1,150 @@
 import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Button from '@mui/material/Button';
-import { useTheme } from '@mui/material/styles';
+import Skeleton from '@mui/material/Skeleton';
+import Typography from '@mui/material/Typography';
+
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
+import { fCurrency } from 'src/utils/format-number';
 
 import { DashboardContent } from 'src/layouts/dashboard';
+import { useDashboardData } from 'src/actions/dashboard';
 import { SeoIllustration } from 'src/assets/illustrations';
-import { _appAuthors, _appRelated, _appFeatured, _appInvoices, _appInstalled } from 'src/_mock';
 
-import { svgColorClasses } from 'src/components/svg-color';
+import { Iconify } from 'src/components/iconify';
 
-import { useMockedUser } from 'src/auth/hooks';
+import { useAuthContext } from 'src/auth/hooks';
 
-import { AppWidget } from '../app-widget';
 import { AppWelcome } from '../app-welcome';
-import { AppFeatured } from '../app-featured';
-import { AppTopAuthors } from '../app-top-authors';
-import { AppTopRelated } from '../app-top-related';
-import { AppNewInvoices } from '../app-new-invoices';
-import { AppAreaInstalled } from '../app-area-installed';
-import { AppWidgetSummary } from '../app-widget-summary';
-import { AppCurrentDownload } from '../app-current-download';
-import { AppTopInstalledCountries } from '../app-top-installed-countries';
+import { DashboardRecentSales } from '../dashboard-recent-sales';
+import { DashboardExpiringBatches } from '../dashboard-expiring-batches';
+
+// ----------------------------------------------------------------------
+
+function StatCard({ title, value, icon, color = 'primary', loading }) {
+  return (
+    <Card sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+      <Box
+        sx={{
+          p: 1.5,
+          flexShrink: 0,
+          borderRadius: 1.5,
+          display: 'flex',
+          bgcolor: `${color}.lighter`,
+        }}
+      >
+        <Iconify icon={icon} width={32} sx={{ color: `${color}.main` }} />
+      </Box>
+
+      <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+        {loading ? (
+          <>
+            <Skeleton variant="text" width={80} height={40} />
+            <Skeleton variant="text" width={120} />
+          </>
+        ) : (
+          <>
+            <Typography variant="h4" noWrap>
+              {value}
+            </Typography>
+            <Typography variant="subtitle2" color="text.secondary" noWrap>
+              {title}
+            </Typography>
+          </>
+        )}
+      </Box>
+    </Card>
+  );
+}
 
 // ----------------------------------------------------------------------
 
 export function OverviewAppView() {
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
 
-  const theme = useTheme();
+  const { isLoading, monthlySalesCount, monthlyRevenue, totalProducts, expiringBatchesCount, recentSales, expiringBatches } =
+    useDashboardData();
 
   return (
     <DashboardContent maxWidth="xl">
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 8 }}>
           <AppWelcome
-            title={`Welcome back 👋 \n ${user?.displayName}`}
-            description="If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything."
+            title={`Bienvenido de vuelta 👋\n${user?.sub ?? user?.email ?? ''}`}
+            description="Aquí tienes un resumen del estado actual de la farmacia."
             img={<SeoIllustration hideBackground />}
             action={
-              <Button variant="contained" color="primary">
-                Go now
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.sale.new}
+                variant="contained"
+                color="primary"
+              >
+                Nueva venta
               </Button>
             }
           />
         </Grid>
 
         <Grid size={{ xs: 12, md: 4 }}>
-          <AppFeatured list={_appFeatured} />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 4 }}>
-          <AppWidgetSummary
-            title="Total active users"
-            percent={2.6}
-            total={18765}
-            chart={{
-              categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-              series: [15, 18, 12, 51, 68, 11, 39, 37],
-            }}
+          <StatCard
+            title="Lotes por vencer (≤30 días)"
+            value={expiringBatchesCount}
+            icon="solar:danger-triangle-bold"
+            color="warning"
+            loading={isLoading}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 4 }}>
-          <AppWidgetSummary
-            title="Total installed"
-            percent={0.2}
-            total={4876}
-            chart={{
-              colors: [theme.palette.info.main],
-              categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-              series: [20, 41, 63, 33, 28, 35, 50, 46],
-            }}
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <StatCard
+            title="Ventas este mes"
+            value={monthlySalesCount}
+            icon="solar:cart-large-4-bold"
+            color="primary"
+            loading={isLoading}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 4 }}>
-          <AppWidgetSummary
-            title="Total downloads"
-            percent={-0.1}
-            total={678}
-            chart={{
-              colors: [theme.palette.error.main],
-              categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'],
-              series: [18, 19, 31, 8, 16, 37, 12, 33],
-            }}
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <StatCard
+            title="Ingresos este mes"
+            value={fCurrency(monthlyRevenue)}
+            icon="solar:wallet-money-bold"
+            color="success"
+            loading={isLoading}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
-          <AppCurrentDownload
-            title="Current download"
-            subheader="Downloaded by operating system"
-            chart={{
-              series: [
-                { label: 'Mac', value: 12244 },
-                { label: 'Window', value: 53345 },
-                { label: 'iOS', value: 44313 },
-                { label: 'Android', value: 78343 },
-              ],
-            }}
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <StatCard
+            title="Total productos"
+            value={totalProducts}
+            icon="solar:pills-bold"
+            color="info"
+            loading={isLoading}
           />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6, lg: 8 }}>
-          <AppAreaInstalled
-            title="Area installed"
-            subheader="(+43%) than last year"
-            chart={{
-              categories: [
-                'Jan',
-                'Feb',
-                'Mar',
-                'Apr',
-                'May',
-                'Jun',
-                'Jul',
-                'Aug',
-                'Sep',
-                'Oct',
-                'Nov',
-                'Dec',
-              ],
-              series: [
-                {
-                  name: '2022',
-                  data: [
-                    { name: 'Asia', data: [12, 10, 18, 22, 20, 12, 8, 21, 20, 14, 15, 16] },
-                    { name: 'Europe', data: [12, 10, 18, 22, 20, 12, 8, 21, 20, 14, 15, 16] },
-                    { name: 'Americas', data: [12, 10, 18, 22, 20, 12, 8, 21, 20, 14, 15, 16] },
-                  ],
-                },
-                {
-                  name: '2023',
-                  data: [
-                    { name: 'Asia', data: [6, 18, 14, 9, 20, 6, 22, 19, 8, 22, 8, 17] },
-                    { name: 'Europe', data: [6, 18, 14, 9, 20, 6, 22, 19, 8, 22, 8, 17] },
-                    { name: 'Americas', data: [6, 18, 14, 9, 20, 6, 22, 19, 8, 22, 8, 17] },
-                  ],
-                },
-                {
-                  name: '2024',
-                  data: [
-                    { name: 'Asia', data: [6, 20, 15, 18, 7, 24, 6, 10, 12, 17, 18, 10] },
-                    { name: 'Europe', data: [6, 20, 15, 18, 7, 24, 6, 10, 12, 17, 18, 10] },
-                    { name: 'Americas', data: [6, 20, 15, 18, 7, 24, 6, 10, 12, 17, 18, 10] },
-                  ],
-                },
-              ],
-            }}
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <StatCard
+            title="Ir a lotes"
+            value="Ver stock"
+            icon="solar:box-bold"
+            color="secondary"
+            loading={false}
           />
         </Grid>
 
         <Grid size={{ xs: 12, lg: 8 }}>
-          <AppNewInvoices
-            title="New Invoices"
-            tableData={_appInvoices}
-            headCells={[
-              { id: 'id', label: 'Invoice ID' },
-              { id: 'category', label: 'Category' },
-              { id: 'price', label: 'Price' },
-              { id: 'status', label: 'Status' },
-              { id: '' },
-            ]}
-          />
+          <DashboardRecentSales sales={recentSales} loading={isLoading} />
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
-          <AppTopRelated title="Related applications" list={_appRelated} />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
-          <AppTopInstalledCountries title="Top installed countries" list={_appInstalled} />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
-          <AppTopAuthors title="Top authors" list={_appAuthors} />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
-          <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-            <AppWidget
-              title="Conversion"
-              total={38566}
-              icon="solar:user-rounded-bold"
-              chart={{ series: 48 }}
-            />
-
-            <AppWidget
-              title="Applications"
-              total={55566}
-              icon="solar:letter-bold"
-              chart={{
-                series: 75,
-                colors: [theme.vars.palette.info.light, theme.vars.palette.info.main],
-              }}
-              sx={{ bgcolor: 'info.dark', [`& .${svgColorClasses.root}`]: { color: 'info.light' } }}
-            />
-          </Box>
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <DashboardExpiringBatches batches={expiringBatches} loading={isLoading} />
         </Grid>
       </Grid>
     </DashboardContent>
