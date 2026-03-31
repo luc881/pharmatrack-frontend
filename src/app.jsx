@@ -16,6 +16,7 @@ import { SettingsDrawer, defaultSettings, SettingsProvider } from 'src/component
 
 import { CheckoutProvider } from 'src/sections/checkout/context';
 
+import { useAuthContext } from 'src/auth/hooks';
 import { AuthProvider as JwtAuthProvider } from 'src/auth/context/jwt';
 import { AuthProvider as Auth0AuthProvider } from 'src/auth/context/auth0';
 import { AuthProvider as AmplifyAuthProvider } from 'src/auth/context/amplify';
@@ -33,13 +34,25 @@ const AuthProvider =
 
 // ----------------------------------------------------------------------
 
+function UserSettingsProvider({ children }) {
+  const { user } = useAuthContext();
+  const storageKey = `app-settings-${user?.id ?? 'guest'}`;
+  return (
+    <SettingsProvider defaultSettings={defaultSettings} storageKey={storageKey}>
+      {children}
+    </SettingsProvider>
+  );
+}
+
+// ----------------------------------------------------------------------
+
 export default function App({ children }) {
   useScrollToTop();
 
   return (
     <I18nProvider>
       <AuthProvider>
-        <SettingsProvider defaultSettings={defaultSettings}>
+        <UserSettingsProvider>
           <LocalizationProvider>
             <ThemeProvider
               modeStorageKey={themeConfig.modeStorageKey}
@@ -55,7 +68,7 @@ export default function App({ children }) {
               </MotionLazy>
             </ThemeProvider>
           </LocalizationProvider>
-        </SettingsProvider>
+        </UserSettingsProvider>
       </AuthProvider>
     </I18nProvider>
   );
