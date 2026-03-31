@@ -5,6 +5,25 @@ import { fetcher, endpoints } from 'src/lib/axios';
 
 // ----------------------------------------------------------------------
 
+export function useGetDashboardStats() {
+  const { data, isLoading, error } = useSWR(endpoints.stats.dashboard, fetcher, {
+    revalidateIfStale: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  return useMemo(
+    () => ({
+      stats: data ?? null,
+      statsLoading: isLoading,
+      statsError: error,
+    }),
+    [data, isLoading, error]
+  );
+}
+
+// ----------------------------------------------------------------------
+
 const SWR_OPTIONS = {
   revalidateIfStale: false,
   revalidateOnFocus: false,

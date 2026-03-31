@@ -185,6 +185,9 @@ export const endpoints = {
     update: (id) => `/api/v1/ingredients/${id}`,
     delete: (id) => `/api/v1/ingredients/${id}`,
   },
+  stats: {
+    dashboard: '/api/v1/stats/dashboard',
+  },
   // Legacy aliases used by fetchAllPages in product.js
   productCategories: {
     list: '/api/v1/productscategories/',
