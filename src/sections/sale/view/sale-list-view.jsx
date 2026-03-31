@@ -33,6 +33,10 @@ import {
   CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
 
+import { useAllProducts } from 'src/sections/product-batch/use-all-products';
+
+import { SalePDFRowButton } from '../sale-pdf';
+
 // ----------------------------------------------------------------------
 
 const STATUS_COLOR = {
@@ -57,6 +61,12 @@ export function SaleListView() {
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
+
+  const products = useAllProducts();
+  const productMap = useMemo(
+    () => Object.fromEntries(products.map((p) => [p.id, p.title])),
+    [products]
+  );
 
   const { sales, salesTotal, salesLoading, salesMutate } = useGetSales({
     page: paginationModel.page + 1,
@@ -138,6 +148,17 @@ export function SaleListView() {
         valueGetter: (value) => value ?? '—',
       },
       {
+        field: 'pdf',
+        headerName: ' ',
+        width: 48,
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => (
+          <SalePDFRowButton sale={params.row} productMap={productMap} />
+        ),
+      },
+      {
         type: 'actions',
         field: 'actions',
         headerName: ' ',
@@ -170,7 +191,7 @@ export function SaleListView() {
         ],
       },
     ],
-    [handleDeleteRow, theme.vars.palette.error.main]
+    [handleDeleteRow, productMap, theme.vars.palette.error.main]
   );
 
   return (

@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
@@ -20,6 +22,9 @@ import { useGetSaleDetails, useGetSalePayments } from 'src/actions/sale';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { SalePDFDownload } from '../sale-pdf';
+import { useAllProducts } from '../../product-batch/use-all-products';
+
 // ----------------------------------------------------------------------
 
 const PAYMENT_METHOD_LABELS = {
@@ -34,6 +39,12 @@ export function SaleDetailView({ currentSale }) {
   const saleId = currentSale?.id;
   const { saleDetails, saleDetailsLoading } = useGetSaleDetails(saleId);
   const { salePayments, salePaymentsLoading } = useGetSalePayments(saleId);
+
+  const products = useAllProducts();
+  const productMap = useMemo(
+    () => Object.fromEntries(products.map((p) => [p.id, p.title])),
+    [products]
+  );
 
   const totalItems = saleDetails.reduce(
     (acc, d) => acc + (Number(d.quantity) || 0) * (Number(d.unit_price ?? 0)) - (Number(d.discount ?? 0)),
@@ -52,14 +63,22 @@ export function SaleDetailView({ currentSale }) {
           { name: `#${saleId}` },
         ]}
         action={
-          <Button
-            component={RouterLink}
-            href={paths.dashboard.sale.edit(saleId)}
-            variant="contained"
-            startIcon={<Iconify icon="solar:pen-bold" />}
-          >
-            Editar
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <SalePDFDownload
+              sale={currentSale}
+              saleDetails={saleDetails}
+              salePayments={salePayments}
+              productMap={productMap}
+            />
+            <Button
+              component={RouterLink}
+              href={paths.dashboard.sale.edit(saleId)}
+              variant="contained"
+              startIcon={<Iconify icon="solar:pen-bold" />}
+            >
+              Editar
+            </Button>
+          </Stack>
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -115,7 +134,7 @@ export function SaleDetailView({ currentSale }) {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Producto ID</TableCell>
+                  <TableCell>Producto</TableCell>
                   <TableCell align="right">Cantidad</TableCell>
                   <TableCell align="right">Precio unit.</TableCell>
                   <TableCell align="right">Descuento</TableCell>
@@ -139,7 +158,9 @@ export function SaleDetailView({ currentSale }) {
                       (Number(detail.discount ?? 0));
                     return (
                       <TableRow key={detail.id}>
-                        <TableCell>{detail.product_id}</TableCell>
+                        <TableCell>
+                          {productMap[detail.product_id] ?? `Producto #${detail.product_id}`}
+                        </TableCell>
                         <TableCell align="right">{detail.quantity}</TableCell>
                         <TableCell align="right">
                           {detail.unit_price != null ? `$${Number(detail.unit_price).toFixed(2)}` : '—'}
