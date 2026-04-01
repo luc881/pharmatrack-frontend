@@ -1,137 +1,95 @@
 import { m } from 'framer-motion';
-import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 
-import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
-import Tabs from '@mui/material/Tabs';
 import Badge from '@mui/material/Badge';
 import Drawer from '@mui/material/Drawer';
-import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import CircularProgress from '@mui/material/CircularProgress';
 
-import { Label } from 'src/components/label';
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { varTap, varHover, transitionTap } from 'src/components/animate';
 
+import { useNotifications } from './use-notifications';
 import { NotificationItem } from './notification-item';
 
 // ----------------------------------------------------------------------
 
-const TABS = [
-  { value: 'all', label: 'All', count: 22 },
-  { value: 'unread', label: 'Unread', count: 12 },
-  { value: 'archived', label: 'Archived', count: 10 },
-];
-
-// ----------------------------------------------------------------------
-
-export function NotificationsDrawer({ data = [], sx, ...other }) {
+export function NotificationsDrawer({ sx, ...other }) {
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const [currentTab, setCurrentTab] = useState('all');
-
-  const handleChangeTab = useCallback((event, newValue) => {
-    setCurrentTab(newValue);
-  }, []);
-
-  const [notifications, setNotifications] = useState(data);
-
-  const totalUnRead = notifications.filter((item) => item.isUnRead === true).length;
-
-  const handleMarkAllAsRead = () => {
-    setNotifications(notifications.map((notification) => ({ ...notification, isUnRead: false })));
-  };
+  const { notifications, notificationsLoading, totalUnread } = useNotifications();
 
   const renderHead = () => (
-    <Box
-      sx={{
-        py: 2,
-        pr: 1,
-        pl: 2.5,
-        minHeight: 68,
-        display: 'flex',
-        alignItems: 'center',
-      }}
-    >
+    <Box sx={{ py: 2, pr: 1, pl: 2.5, minHeight: 68, display: 'flex', alignItems: 'center' }}>
       <Typography variant="h6" sx={{ flexGrow: 1 }}>
-        Notifications
+        Notificaciones
       </Typography>
 
-      {!!totalUnRead && (
-        <Tooltip title="Mark all as read">
-          <IconButton color="primary" onClick={handleMarkAllAsRead}>
-            <Iconify icon="eva:done-all-fill" />
-          </IconButton>
-        </Tooltip>
-      )}
-
-      <IconButton onClick={onClose} sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>
+      <IconButton onClick={onClose}>
         <Iconify icon="mingcute:close-line" />
-      </IconButton>
-
-      <IconButton>
-        <Iconify icon="solar:settings-bold-duotone" />
       </IconButton>
     </Box>
   );
 
-  const renderTabs = () => (
-    <Tabs variant="fullWidth" value={currentTab} onChange={handleChangeTab} indicatorColor="custom">
-      {TABS.map((tab) => (
-        <Tab
-          key={tab.value}
-          iconPosition="end"
-          value={tab.value}
-          label={tab.label}
-          icon={
-            <Label
-              variant={((tab.value === 'all' || tab.value === currentTab) && 'filled') || 'soft'}
-              color={
-                (tab.value === 'unread' && 'info') ||
-                (tab.value === 'archived' && 'success') ||
-                'default'
-              }
-            >
-              {tab.count}
-            </Label>
-          }
-        />
-      ))}
-    </Tabs>
+  const renderEmpty = () => (
+    <Box sx={{ py: 10, textAlign: 'center' }}>
+      <Iconify icon="solar:bell-off-bold-duotone" width={48} sx={{ color: 'text.disabled', mb: 2 }} />
+      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+        Sin notificaciones pendientes
+      </Typography>
+    </Box>
   );
 
-  const renderList = () => (
-    <Scrollbar>
-      <Box component="ul">
-        {notifications?.map((notification) => (
-          <Box component="li" key={notification.id} sx={{ display: 'flex' }}>
-            <NotificationItem notification={notification} />
-          </Box>
-        ))}
-      </Box>
-    </Scrollbar>
-  );
+  const renderList = () => {
+    if (notificationsLoading) {
+      return (
+        <Box sx={{ py: 10, display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress size={32} />
+        </Box>
+      );
+    }
+
+    if (!notifications.length) return renderEmpty();
+
+    return (
+      <Scrollbar>
+        <Box component="ul" sx={{ p: 0, m: 0, listStyle: 'none' }}>
+          {notifications.map((notification) => (
+            <Box component="li" key={notification.id} sx={{ display: 'flex' }}>
+              <NotificationItem notification={notification} onClose={onClose} />
+            </Box>
+          ))}
+        </Box>
+      </Scrollbar>
+    );
+  };
 
   return (
     <>
-      <IconButton
-        component={m.button}
-        whileTap={varTap(0.96)}
-        whileHover={varHover(1.04)}
-        transition={transitionTap()}
-        aria-label="Notifications button"
-        onClick={onOpen}
-        sx={sx}
-        {...other}
-      >
-        <Badge badgeContent={totalUnRead} color="error">
-          <Iconify width={24} icon="solar:bell-bing-bold-duotone" />
-        </Badge>
-      </IconButton>
+      <Tooltip title="Notificaciones">
+        <IconButton
+          component={m.button}
+          whileTap={varTap(0.96)}
+          whileHover={varHover(1.04)}
+          transition={transitionTap()}
+          aria-label="Notificaciones"
+          onClick={onOpen}
+          sx={sx}
+          {...other}
+        >
+          <Badge badgeContent={totalUnread} color="error">
+            <Iconify width={24} icon="solar:bell-bing-bold-duotone" />
+          </Badge>
+        </IconButton>
+      </Tooltip>
 
       <Drawer
         open={open}
@@ -139,18 +97,36 @@ export function NotificationsDrawer({ data = [], sx, ...other }) {
         anchor="right"
         slotProps={{
           backdrop: { invisible: true },
-          paper: { sx: { width: 1, maxWidth: 420 } },
+          paper: { sx: { width: 1, maxWidth: 400 } },
         }}
       >
         {renderHead()}
-        {renderTabs()}
+        <Divider />
         {renderList()}
 
-        <Box sx={{ p: 1 }}>
-          <Button fullWidth size="large">
-            View all
-          </Button>
-        </Box>
+        {!!notifications.length && (
+          <Box sx={{ p: 1.5 }}>
+            <Box
+              component={RouterLink}
+              href={paths.dashboard.productBatch.root}
+              onClick={onClose}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0.5,
+                py: 1,
+                borderRadius: 1,
+                typography: 'body2',
+                color: 'text.secondary',
+                '&:hover': { color: 'text.primary' },
+              }}
+            >
+              Ver todos los lotes
+              <Iconify icon="eva:arrow-ios-forward-fill" width={16} />
+            </Box>
+          </Box>
+        )}
       </Drawer>
     </>
   );
