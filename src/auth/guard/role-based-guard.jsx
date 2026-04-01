@@ -1,45 +1,60 @@
 import { m } from 'framer-motion';
 
+import Button from '@mui/material/Button';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
+
+import { RouterLink } from 'src/routes/components';
 
 import { ForbiddenIllustration } from 'src/assets/illustrations';
 
 import { varBounce, MotionContainer } from 'src/components/animate';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 
 /**
- * NOTE:
- * This component is for reference only.
- * You can customize the logic and conditions to better suit your application's requirements.
+ * Wraps a route element and blocks access if the authenticated user's role
+ * is not in `allowedRoles`. Shows a localised "access denied" page.
+ *
+ * Usage in routes:
+ *   element: <RoleBasedGuard allowedRoles={['admin']}><MyPage /></RoleBasedGuard>
  */
+export function RoleBasedGuard({ children, allowedRoles }) {
+  const { user } = useAuthContext();
+  const userRole = user?.role ?? '';
 
-export function RoleBasedGuard({ sx, children, hasContent, currentRole, allowedRoles }) {
-  if (currentRole && allowedRoles && !allowedRoles.includes(currentRole)) {
-    return hasContent ? (
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    return (
       <Container
         component={MotionContainer}
-        sx={[{ textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]}
+        sx={{ textAlign: 'center', py: 10 }}
       >
         <m.div variants={varBounce('in')}>
           <Typography variant="h3" sx={{ mb: 2 }}>
-            Permission denied
+            Acceso denegado
           </Typography>
         </m.div>
 
         <m.div variants={varBounce('in')}>
-          <Typography sx={{ color: 'text.secondary' }}>
-            You do not have permission to access this page.
+          <Typography sx={{ color: 'text.secondary', mb: 4 }}>
+            No tienes permisos para acceder a esta página.
           </Typography>
         </m.div>
 
         <m.div variants={varBounce('in')}>
-          <ForbiddenIllustration sx={{ my: { xs: 5, sm: 10 } }} />
+          <ForbiddenIllustration sx={{ my: { xs: 5, sm: 8 } }} />
+        </m.div>
+
+        <m.div variants={varBounce('in')}>
+          <Button component={RouterLink} href="/dashboard" variant="contained" size="large">
+            Volver al inicio
+          </Button>
         </m.div>
       </Container>
-    ) : null;
+    );
   }
 
-  return <> {children} </>;
+  return <>{children}</>;
 }
