@@ -19,6 +19,7 @@ import { Iconify } from 'src/components/iconify';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { AppWelcome } from '../app-welcome';
+import { SensorWidget } from '../sensor-widget';
 import { DashboardRecentSales } from '../dashboard-recent-sales';
 import { DashboardExpiringBatches } from '../dashboard-expiring-batches';
 
@@ -145,6 +146,10 @@ export function OverviewAppView() {
 
         <Grid size={{ xs: 12, lg: 4 }}>
           <DashboardExpiringBatches batches={expiringBatches} loading={isLoading} />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 5, lg: 4 }}>
+          <SensorWidget />
         </Grid>
       </Grid>
     </DashboardContent>

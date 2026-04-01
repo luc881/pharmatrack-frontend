@@ -188,6 +188,11 @@ export const endpoints = {
   stats: {
     dashboard: '/api/v1/stats/dashboard',
   },
+  sensor: {
+    create: '/api/v1/sensor-readings/',
+    latest: '/api/v1/sensor-readings/latest',
+    list: '/api/v1/sensor-readings/',
+  },
   // Legacy aliases used by fetchAllPages in product.js
   productCategories: {
     list: '/api/v1/productscategories/',
