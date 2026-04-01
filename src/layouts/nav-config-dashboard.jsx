@@ -77,8 +77,8 @@ export const navData = [
         path: paths.dashboard.user.list,
         icon: ICONS.user,
         children: [
-          { title: 'Lista', path: paths.dashboard.user.list },
-          { title: 'Nuevo', path: paths.dashboard.user.new },
+          { title: 'Lista',     path: paths.dashboard.user.list,                    allowedRoles: ['admin'] },
+          { title: 'Nuevo',     path: paths.dashboard.user.new,                     allowedRoles: ['admin'] },
           { title: 'Mi cuenta', path: paths.dashboard.user.account, deepMatch: true },
         ],
       },
@@ -86,6 +86,7 @@ export const navData = [
         title: 'Roles',
         path: paths.dashboard.role.root,
         icon: ICONS.lock,
+        allowedRoles: ['admin'],
         children: [
           { title: 'Lista', path: paths.dashboard.role.root },
           { title: 'Nuevo', path: paths.dashboard.role.new },
@@ -96,19 +97,20 @@ export const navData = [
         path: paths.dashboard.product.root,
         icon: ICONS.product,
         children: [
-          { title: 'Lista', path: paths.dashboard.product.root },
-          { title: 'Nuevo', path: paths.dashboard.product.new },
-          { title: 'Categorías', path: paths.dashboard.productCategory.root },
-          { title: 'Marcas', path: paths.dashboard.productBrand.root },
-          { title: 'Lotes', path: paths.dashboard.productBatch.root },
-          { title: 'Principios activos', path: paths.dashboard.productMaster.root },
-          { title: 'Ingredientes', path: paths.dashboard.ingredient.root },
+          { title: 'Lista',             path: paths.dashboard.product.root },
+          { title: 'Nuevo',             path: paths.dashboard.product.new,          allowedRoles: ['admin'] },
+          { title: 'Categorías',        path: paths.dashboard.productCategory.root },
+          { title: 'Marcas',            path: paths.dashboard.productBrand.root },
+          { title: 'Lotes',             path: paths.dashboard.productBatch.root },
+          { title: 'Principios activos',path: paths.dashboard.productMaster.root },
+          { title: 'Ingredientes',      path: paths.dashboard.ingredient.root },
         ],
       },
       {
         title: 'Proveedores',
         path: paths.dashboard.supplier.root,
         icon: ICONS.order,
+        allowedRoles: ['admin'],
         children: [
           { title: 'Lista', path: paths.dashboard.supplier.root },
           { title: 'Nuevo', path: paths.dashboard.supplier.new },
@@ -118,9 +120,10 @@ export const navData = [
         title: 'Compras',
         path: paths.dashboard.purchase.root,
         icon: ICONS.invoice,
+        allowedRoles: ['admin'],
         children: [
-          { title: 'Lista', path: paths.dashboard.purchase.root },
-          { title: 'Nueva', path: paths.dashboard.purchase.new },
+          { title: 'Lista',  path: paths.dashboard.purchase.root },
+          { title: 'Nueva',  path: paths.dashboard.purchase.new },
         ],
       },
       {
@@ -145,6 +148,7 @@ export const navData = [
         title: 'Sucursales',
         path: paths.dashboard.branch.root,
         icon: ICONS.banking,
+        allowedRoles: ['admin'],
         children: [
           { title: 'Lista', path: paths.dashboard.branch.root },
           { title: 'Nueva', path: paths.dashboard.branch.new },
