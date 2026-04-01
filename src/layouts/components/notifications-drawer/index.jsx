@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { m } from 'framer-motion';
 import { useBoolean } from 'minimal-shared/hooks';
 
@@ -25,7 +26,13 @@ import { NotificationItem } from './notification-item';
 export function NotificationsDrawer({ sx, ...other }) {
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const { notifications, notificationsLoading, totalUnread } = useNotifications();
+  // Only fetch once the drawer has been opened at least once
+  const hasOpened = useRef(false);
+  if (open) hasOpened.current = true;
+
+  const { notifications, notificationsLoading, totalUnread } = useNotifications({
+    enabled: hasOpened.current,
+  });
 
   const renderHead = () => (
     <Box sx={{ py: 2, pr: 1, pl: 2.5, minHeight: 68, display: 'flex', alignItems: 'center' }}>

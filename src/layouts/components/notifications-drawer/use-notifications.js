@@ -21,9 +21,9 @@ function diffDays(dateStr) {
 
 // ----------------------------------------------------------------------
 
-export function useNotifications() {
-  const batchUrl = [endpoints.productBatch.list, { params: { page: 1, page_size: 500 } }];
-  const productUrl = [endpoints.product.list, { params: { page: 1, page_size: 500 } }];
+export function useNotifications({ enabled = false } = {}) {
+  const batchUrl = enabled ? [endpoints.productBatch.list, { params: { page: 1, page_size: 500 } }] : null;
+  const productUrl = enabled ? [endpoints.product.list, { params: { page: 1, page_size: 500 } }] : null;
 
   const { data: batchData, isLoading: batchLoading } = useSWR(batchUrl, fetcher, swrOptions);
   const { data: productData, isLoading: productLoading } = useSWR(productUrl, fetcher, swrOptions);
