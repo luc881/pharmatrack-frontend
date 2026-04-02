@@ -66,12 +66,12 @@ export function SettingsDrawer({ sx, defaultSettings }) {
       }}
     >
       <Typography variant="h6" sx={{ flexGrow: 1 }}>
-        Settings
+        Configuración
       </Typography>
 
       <FullScreenButton />
 
-      <Tooltip title="Reset all">
+      <Tooltip title="Restablecer todo">
         <IconButton onClick={handleReset}>
           <Badge color="error" variant="dot" invisible={!settings.canReset}>
             <Iconify icon="solar:restart-bold" />
@@ -79,7 +79,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
         </IconButton>
       </Tooltip>
 
-      <Tooltip title="Close">
+      <Tooltip title="Cerrar">
         <IconButton onClick={settings.onCloseDrawer}>
           <Iconify icon="mingcute:close-line" />
         </IconButton>
@@ -89,7 +89,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
   const renderMode = () => (
     <BaseOption
-      label="Mode"
+      label="Modo oscuro"
       selected={settings.state.mode === 'dark'}
       icon={<SvgIcon>{settingIcons.moon}</SvgIcon>}
       action={
@@ -102,7 +102,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
               fontWeight: 'fontWeightSemiBold',
             }}
           >
-            System
+            Sistema
           </Label>
         ) : null
       }
@@ -115,7 +115,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
   const renderContrast = () => (
     <BaseOption
-      label="Contrast"
+      label="Contraste"
       selected={settings.state.contrast === 'high'}
       icon={<SvgIcon>{settingIcons.contrast}</SvgIcon>}
       onChangeOption={() => {
@@ -128,7 +128,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
   const renderDirection = () => (
     <BaseOption
-      label="Right to left"
+      label="Derecha a izquierda"
       selected={settings.state.direction === 'rtl'}
       icon={<SvgIcon>{settingIcons.alignRight}</SvgIcon>}
       onChangeOption={() => {
@@ -139,8 +139,8 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
   const renderCompactLayout = () => (
     <BaseOption
-      tooltip="Dashboard only and available at large resolutions > 1600px (xl)"
-      label="Compact"
+      tooltip="Solo en dashboard, disponible en resoluciones mayores a 1600px"
+      label="Compacto"
       selected={!!settings.state.compactLayout}
       icon={<SvgIcon>{settingIcons.autofitWidth}</SvgIcon>}
       onChangeOption={() => {
@@ -151,7 +151,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
 
   const renderPresets = () => (
     <LargeBlock
-      title="Presets"
+      title="Color principal"
       canReset={settings.state.primaryColor !== defaultSettings.primaryColor}
       onReset={() => {
         settings.setState({ primaryColor: defaultSettings.primaryColor });
@@ -172,10 +172,10 @@ export function SettingsDrawer({ sx, defaultSettings }) {
   );
 
   const renderNav = () => (
-    <LargeBlock title="Nav" tooltip="Dashboard only" sx={{ gap: 2.5 }}>
+    <LargeBlock title="Navegación" tooltip="Solo en dashboard" sx={{ gap: 2.5 }}>
       {visibility.navLayout && (
         <SmallBlock
-          label="Layout"
+          label="Diseño"
           canReset={settings.state.navLayout !== defaultSettings.navLayout}
           onReset={() => {
             settings.setState({ navLayout: defaultSettings.navLayout });
@@ -222,12 +222,12 @@ export function SettingsDrawer({ sx, defaultSettings }) {
             }}
             options={[
               {
-                label: 'Integrate',
+                label: 'Integrado',
                 value: 'integrate',
                 icon: <SvgIcon>{settingIcons.sidebarOutline}</SvgIcon>,
               },
               {
-                label: 'Apparent',
+                label: 'Resaltado',
                 value: 'apparent',
                 icon: <SvgIcon>{settingIcons.sidebarFill}</SvgIcon>,
               },
@@ -239,10 +239,10 @@ export function SettingsDrawer({ sx, defaultSettings }) {
   );
 
   const renderFont = () => (
-    <LargeBlock title="Font" sx={{ gap: 2.5 }}>
+    <LargeBlock title="Tipografía" sx={{ gap: 2.5 }}>
       {visibility.fontFamily && (
         <SmallBlock
-          label="Family"
+          label="Fuente"
           canReset={settings.state.fontFamily !== defaultSettings.fontFamily}
           onReset={() => {
             settings.setState({ fontFamily: defaultSettings.fontFamily });
@@ -265,7 +265,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
       )}
       {visibility.fontSize && (
         <SmallBlock
-          label="Size"
+          label="Tamaño"
           canReset={settings.state.fontSize !== defaultSettings.fontSize}
           onReset={() => {
             settings.setState({ fontSize: defaultSettings.fontSize });

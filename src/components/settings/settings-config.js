@@ -1,19 +1,18 @@
 import { CONFIG } from 'src/global-config';
-import { themeConfig } from 'src/theme/theme-config';
 
 // ----------------------------------------------------------------------
 
 export const SETTINGS_STORAGE_KEY = 'app-settings';
 
 export const defaultSettings = {
-  mode: themeConfig.defaultMode,
-  direction: themeConfig.direction,
-  contrast: 'default',
+  mode: 'light',
+  direction: 'ltr',
+  contrast: 'high',
   navLayout: 'vertical',
-  primaryColor: 'default',
+  primaryColor: 'preset5',
   navColor: 'integrate',
-  compactLayout: true,
+  compactLayout: false,
   fontSize: 16,
-  fontFamily: themeConfig.fontFamily.primary,
+  fontFamily: 'Inter Variable',
   version: CONFIG.appVersion,
 };
