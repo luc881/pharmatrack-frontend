@@ -1,5 +1,3 @@
-import { varAlpha } from 'minimal-shared/utils';
-
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Tooltip from '@mui/material/Tooltip';
@@ -22,11 +20,7 @@ export function AuthSplitSection({
     <Box
       sx={[
         (theme) => ({
-          ...theme.mixins.bgGradient({
-            images: [
-              `linear-gradient(0deg, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.92)}, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.92)})`,
-            ],
-          }),
+          background: 'linear-gradient(135deg, #B71C1C 0%, #D32F2F 50%, #C62828 100%)',
           px: 3,
           pb: 3,
           width: 1,
@@ -35,7 +29,7 @@ export function AuthSplitSection({
           position: 'relative',
           pt: 'var(--layout-header-desktop-height)',
           [theme.breakpoints.up(layoutQuery)]: {
-            gap: 8,
+            gap: 4,
             display: 'flex',
             alignItems: 'center',
             flexDirection: 'column',
@@ -47,12 +41,20 @@ export function AuthSplitSection({
       {...other}
     >
       <div>
-        <Typography variant="h3" sx={{ textAlign: 'center' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <svg width="72" height="72" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" rx="18" fill="rgba(255,255,255,0.15)" />
+            <rect x="42" y="15" width="16" height="70" rx="4" fill="white" />
+            <rect x="15" y="42" width="70" height="16" rx="4" fill="white" />
+          </svg>
+        </Box>
+
+        <Typography variant="h3" sx={{ textAlign: 'center', color: 'white', fontWeight: 700 }}>
           {title}
         </Typography>
 
         {subtitle && (
-          <Typography sx={{ color: 'text.secondary', textAlign: 'center', mt: 2 }}>
+          <Typography sx={{ color: 'rgba(255,255,255,0.75)', textAlign: 'center', mt: 2 }}>
             {subtitle}
           </Typography>
         )}
