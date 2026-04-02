@@ -40,240 +40,71 @@ const pulse = keyframes`
 
 // ----------------------------------------------------------------------
 
-const STEPS = [
+const WIFI_STEPS = [
   {
     number: 1,
-    title: 'Instalar la librería WiFiManager',
-    icon: 'solar:download-bold-duotone',
-    color: 'primary',
-    content: (
-      <Stack spacing={1.5}>
-        <Typography variant="body2">
-          Abre el <strong>Arduino IDE</strong>, ve a <em>Sketch → Include Library → Manage Libraries</em> y busca:
-        </Typography>
-        <Box
-          sx={{
-            px: 2, py: 1.5, borderRadius: 1,
-            bgcolor: 'background.neutral',
-            fontFamily: 'monospace', fontSize: 13,
-          }}
-        >
-          WiFiManager by tzapu
-        </Box>
-        <Typography variant="body2">
-          Instala también <strong>ArduinoJson</strong> y <strong>Adafruit AHTX0</strong> si no las tienes.
-        </Typography>
-      </Stack>
-    ),
+    icon: 'solar:restart-bold-duotone',
+    color: 'warning',
+    title: 'Mantén presionado el botón BOOT',
+    description:
+      'Mientras el sensor esté encendido, presiona y mantén apretado el botón pequeño marcado como "BOOT" en el dispositivo por 3 segundos. El sensor se reiniciará automáticamente.',
   },
   {
     number: 2,
-    title: 'Cargar el firmware al ESP32',
-    icon: 'solar:upload-bold-duotone',
+    icon: 'solar:wifi-router-bold-duotone',
     color: 'info',
-    content: (
-      <Stack spacing={1.5}>
-        <Typography variant="body2">
-          Conecta el ESP32-S3 por USB. Selecciona la placa correcta y el puerto COM/ttyUSB.
-          Carga el código proporcionado (ver sección más abajo).
-        </Typography>
-        <Alert severity="info" sx={{ fontSize: 13 }}>
-          Si el ESP32 ya tenía credenciales guardadas, mantén presionado el <strong>botón BOOT</strong>{' '}
-          durante el encendido para borrarlas y entrar al modo configuración.
-        </Alert>
-      </Stack>
-    ),
+    title: 'Conéctate a la red del sensor',
+    description:
+      'Desde tu celular o computadora, abre la lista de redes WiFi disponibles. Aparecerá una red llamada "PharmaTrack-Sensor". Conéctate a ella (no tiene contraseña).',
   },
   {
     number: 3,
-    title: 'Conectarse a la red del sensor',
-    icon: 'solar:wifi-router-bold-duotone',
-    color: 'warning',
-    content: (
-      <Stack spacing={1.5}>
-        <Typography variant="body2">
-          La primera vez que enciendas el ESP32 (sin red guardada), creará su propio punto de acceso WiFi:
-        </Typography>
-        <Box
-          sx={{
-            px: 2, py: 1.5, borderRadius: 1,
-            bgcolor: 'background.neutral',
-            fontFamily: 'monospace', fontSize: 13,
-            display: 'flex', alignItems: 'center', gap: 1,
-          }}
-        >
-          <Iconify icon="solar:wifi-bold" width={18} />
-          PharmaTrack-Sensor
-        </Box>
-        <Typography variant="body2">
-          Desde tu celular o laptop, conéctate a esa red WiFi (no tiene contraseña).
-          Se abrirá automáticamente un portal de configuración.
-          Si no se abre, navega a <strong>192.168.4.1</strong>.
-        </Typography>
-      </Stack>
-    ),
+    icon: 'solar:smartphone-bold-duotone',
+    color: 'primary',
+    title: 'Abre el portal de configuración',
+    description:
+      'Al conectarte, se abrirá una página automáticamente en tu celular. Si no se abre sola, escribe 192.168.4.1 en el navegador. Toca "Configure WiFi", selecciona tu red, escribe la contraseña y guarda.',
   },
   {
     number: 4,
-    title: 'Configurar la red WiFi',
-    icon: 'solar:settings-bold-duotone',
-    color: 'success',
-    content: (
-      <Stack spacing={1.5}>
-        <Typography variant="body2">
-          En el portal de configuración:
-        </Typography>
-        <Stack spacing={0.75}>
-          {[
-            'Haz clic en "Configure WiFi"',
-            'Selecciona tu red WiFi de la lista',
-            'Escribe la contraseña de tu red',
-            'Haz clic en "Save"',
-          ].map((step, i) => (
-            <Stack key={i} direction="row" spacing={1} alignItems="center">
-              <Box
-                sx={{
-                  width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                  bgcolor: 'success.main', color: 'white',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  typography: 'caption', fontWeight: 700,
-                }}
-              >
-                {i + 1}
-              </Box>
-              <Typography variant="body2">{step}</Typography>
-            </Stack>
-          ))}
-        </Stack>
-        <Alert severity="success" sx={{ fontSize: 13 }}>
-          El ESP32 guardará las credenciales en su memoria flash y se reiniciará automáticamente.
-          La próxima vez se conectará solo sin necesidad de este proceso.
-        </Alert>
-      </Stack>
-    ),
-  },
-  {
-    number: 5,
-    title: 'Verificar la conexión',
     icon: 'solar:check-circle-bold-duotone',
     color: 'success',
-    content: (
-      <Stack spacing={1.5}>
-        <Typography variant="body2">
-          Después de reiniciar, el ESP32 enviará lecturas cada <strong>30 segundos</strong>.
-          Revisa el indicador de estado en la parte superior de esta página — debería mostrar{' '}
-          <Chip label="En línea" size="small" color="success" sx={{ fontSize: 11 }} />.
-        </Typography>
-        <Typography variant="body2">
-          Si permanece en{' '}
-          <Chip label="Sin señal" size="small" color="error" sx={{ fontSize: 11 }} />{' '}
-          después de 1 minuto, verifica que la contraseña WiFi sea correcta y repite desde el paso 3.
-        </Typography>
-      </Stack>
-    ),
+    title: 'El sensor se reconecta solo',
+    description:
+      'El sensor guardará la nueva red y se conectará automáticamente. En menos de un minuto debería aparecer "En línea" en el indicador de estado de esta página.',
   },
 ];
 
-// ----------------------------------------------------------------------
-
-const FIRMWARE_CODE = `#include <Wire.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
-#include <Adafruit_AHTX0.h>
-#include <WiFiManager.h>
-#include <WiFiClientSecure.h>
-
-// ── Configuración ───────────────────────────────────────
-#define RESET_BUTTON_PIN  0   // Botón BOOT del ESP32-S3
-#define SDA_PIN           8
-#define SCL_PIN           9
-const char* API_URL = "https://api.farmaciaselene.com/api/v1/sensor-readings/";
-const unsigned long POST_INTERVAL = 30000; // 30 segundos
-// ────────────────────────────────────────────────────────
-
-Adafruit_AHTX0 aht;
-WiFiClientSecure client;
-unsigned long lastPostTime = 0;
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
-
-  // Mantén presionado BOOT al encender para borrar credenciales WiFi
-  if (digitalRead(RESET_BUTTON_PIN) == LOW) {
-    Serial.println("Borrando credenciales WiFi...");
-    WiFiManager wm;
-    wm.resetSettings();
-    Serial.println("Listo. Reiniciando...");
-    delay(1000);
-    ESP.restart();
-  }
-
-  // Auto-conectar o abrir portal de configuración
-  WiFiManager wm;
-  wm.setConfigPortalTimeout(180); // 3 minutos para configurar
-  wm.setAPName("PharmaTrack-Sensor");
-
-  Serial.println("Conectando a WiFi...");
-  if (!wm.autoConnect("PharmaTrack-Sensor")) {
-    Serial.println("Tiempo agotado. Reiniciando...");
-    delay(3000);
-    ESP.restart();
-  }
-
-  Serial.println("WiFi conectado!");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
-
-  Wire.begin(SDA_PIN, SCL_PIN);
-  if (!aht.begin()) {
-    Serial.println("ERROR: Sensor AHT10 no encontrado!");
-    while (1) delay(1000);
-  }
-
-  Serial.println("Sensor AHT10 listo.");
-  client.setInsecure(); // HTTPS sin verificar certificado
-}
-
-void loop() {
-  unsigned long now = millis();
-  if (now - lastPostTime < POST_INTERVAL) return;
-  lastPostTime = now;
-
-  sensors_event_t humidity_event, temp_event;
-  aht.getEvent(&humidity_event, &temp_event);
-
-  float temperature = temp_event.temperature;
-  float humidity    = humidity_event.relative_humidity;
-
-  if (isnan(temperature) || isnan(humidity) ||
-      temperature < -40 || temperature > 85 ||
-      humidity < 0 || humidity > 100) {
-    Serial.println("Lectura inválida, omitiendo.");
-    return;
-  }
-
-  JsonDocument doc;
-  doc["temperature"] = round(temperature * 10.0) / 10.0;
-  doc["humidity"]    = round(humidity    * 10.0) / 10.0;
-
-  String payload;
-  serializeJson(doc, payload);
-  Serial.printf("Enviando: %.1f°C  %.1f%%\\n", temperature, humidity);
-
-  HTTPClient http;
-  http.begin(client, API_URL);
-  http.addHeader("Content-Type", "application/json");
-
-  int code = http.POST(payload);
-  if (code > 0) {
-    Serial.printf("HTTP %d\\n", code);
-  } else {
-    Serial.printf("Error: %s\\n", http.errorToString(code).c_str());
-  }
-  http.end();
-}`;
+const TROUBLESHOOT_ITEMS = [
+  {
+    icon: 'solar:wifi-bold-duotone',
+    color: 'warning',
+    problem: 'El sensor dice "Sin señal"',
+    solution:
+      'Verifica que el sensor esté encendido y que haya luz en el dispositivo. Si el WiFi de la farmacia cambió de nombre o contraseña, sigue los pasos para cambiar la red.',
+  },
+  {
+    icon: 'solar:plug-circle-bold-duotone',
+    color: 'error',
+    problem: 'No aparece la red "PharmaTrack-Sensor"',
+    solution:
+      'Asegúrate de que el sensor esté encendido. Espera 30 segundos después de encenderlo. Si aún no aparece, desconecta y vuelve a conectar la alimentación del sensor.',
+  },
+  {
+    icon: 'solar:lock-password-bold-duotone',
+    color: 'info',
+    problem: 'El portal se abre pero no guarda la contraseña',
+    solution:
+      'Verifica que estás escribiendo correctamente la contraseña del WiFi. Las contraseñas distinguen mayúsculas y minúsculas. Intenta acercar el sensor al router durante la configuración.',
+  },
+  {
+    icon: 'solar:danger-triangle-bold-duotone',
+    color: 'error',
+    problem: 'La temperatura o humedad se ven en rojo',
+    solution:
+      'Las condiciones están fuera del rango ideal para conservar medicamentos. Revisa la ventilación, el aire acondicionado o la ubicación del sensor. Temperatura ideal: 15–25°C. Humedad ideal: 30–60%.',
+  },
+];
 
 // ----------------------------------------------------------------------
 
@@ -298,8 +129,8 @@ function StatusCard() {
   return (
     <Card>
       <CardHeader
-        title="Estado actual del sensor"
-        subheader="Lecturas en tiempo real · actualiza cada 30 segundos"
+        title="Estado del sensor"
+        subheader="Se actualiza automáticamente cada 30 segundos"
         avatar={
           <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
             {isOnline && (
@@ -318,13 +149,7 @@ function StatusCard() {
           readingLoading ? (
             <Skeleton variant="rounded" width={80} height={28} sx={{ borderRadius: 10, mt: 1 }} />
           ) : (
-            <Chip
-              label={statusLabel}
-              color={statusColor}
-              size="small"
-              variant="soft"
-              sx={{ mt: 1 }}
-            />
+            <Chip label={statusLabel} color={statusColor} size="small" variant="soft" sx={{ mt: 1 }} />
           )
         }
       />
@@ -354,18 +179,14 @@ function StatusCard() {
                   {reading.humidity?.toFixed(0)}%
                 </Typography>
               </Stack>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>Humedad</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>Humedad relativa</Typography>
             </Stack>
 
             <Stack spacing={0.25} sx={{ ml: 'auto' }}>
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Última lectura
-              </Typography>
-              <Typography variant="subtitle2">
-                {MX_TIME.format(parseUTC(reading.recorded_at))}
-              </Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>Última lectura</Typography>
+              <Typography variant="subtitle2">{MX_TIME.format(parseUTC(reading.recorded_at))}</Typography>
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                {history.length > 0 ? `${history.length} lecturas recientes guardadas` : ''}
+                {history.length > 0 ? `${history.length} registros recientes` : ''}
               </Typography>
             </Stack>
           </Stack>
@@ -374,10 +195,10 @@ function StatusCard() {
             <Iconify icon="solar:wifi-router-bold-duotone" width={36} sx={{ color: 'text.disabled' }} />
             <Box>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                No hay datos del sensor
+                El sensor no está enviando datos
               </Typography>
               <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                Sigue la guía de configuración para conectar el ESP32
+                Verifica que el dispositivo esté encendido y conectado al WiFi
               </Typography>
             </Box>
           </Stack>
@@ -389,45 +210,73 @@ function StatusCard() {
 
 // ----------------------------------------------------------------------
 
-function StepCard({ step }) {
+function RangesCard() {
   const theme = useTheme();
+
+  const ranges = [
+    {
+      icon: 'solar:temperature-bold-duotone',
+      color: 'success',
+      label: 'Temperatura ideal',
+      value: '15 – 25 °C',
+      warning: 'Alerta si supera 25°C',
+      critical: 'Crítico si supera 30°C',
+    },
+    {
+      icon: 'solar:drop-bold-duotone',
+      color: 'info',
+      label: 'Humedad ideal',
+      value: '30 – 60 %',
+      warning: 'Alerta si supera 60%',
+      critical: 'Crítico si supera 70%',
+    },
+  ];
+
   return (
-    <Card
-      sx={{
-        border: '1px solid',
-        borderColor: alpha(theme.palette[step.color].main, 0.2),
-      }}
-    >
+    <Card>
+      <CardHeader
+        title="Condiciones ideales de almacenamiento"
+        subheader="Rangos recomendados para conservar medicamentos correctamente"
+        avatar={
+          <Box sx={{ p: 1, borderRadius: 1.5, display: 'flex', bgcolor: alpha(theme.palette.success.main, 0.12) }}>
+            <Iconify icon="solar:shield-check-bold-duotone" width={24} sx={{ color: 'success.main' }} />
+          </Box>
+        }
+      />
+      <Divider />
       <CardContent>
-        <Stack direction="row" spacing={2} alignItems="flex-start">
-          {/* Number badge */}
-          <Box
-            sx={{
-              width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              bgcolor: alpha(theme.palette[step.color].main, 0.12),
-              color: `${step.color}.main`,
-            }}
-          >
-            <Iconify icon={step.icon} width={22} />
-          </Box>
-
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
-              <Chip
-                label={`Paso ${step.number}`}
-                size="small"
-                color={step.color}
-                variant="soft"
-                sx={{ fontWeight: 700 }}
-              />
-              <Typography variant="subtitle1" fontWeight={600}>
-                {step.title}
-              </Typography>
-            </Stack>
-
-            {step.content}
-          </Box>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          {ranges.map((r) => (
+            <Box
+              key={r.label}
+              sx={{
+                flex: 1, p: 2, borderRadius: 1.5,
+                border: '1px solid',
+                borderColor: alpha(theme.palette[r.color].main, 0.2),
+                bgcolor: alpha(theme.palette[r.color].main, 0.04),
+              }}
+            >
+              <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+                <Iconify icon={r.icon} width={28} sx={{ color: `${r.color}.main` }} />
+                <Box>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{r.label}</Typography>
+                  <Typography variant="h5" sx={{ color: `${r.color}.main`, lineHeight: 1.2 }}>
+                    {r.value}
+                  </Typography>
+                </Box>
+              </Stack>
+              <Stack spacing={0.5}>
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'warning.main', flexShrink: 0 }} />
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{r.warning}</Typography>
+                </Stack>
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main', flexShrink: 0 }} />
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>{r.critical}</Typography>
+                </Stack>
+              </Stack>
+            </Box>
+          ))}
         </Stack>
       </CardContent>
     </Card>
@@ -436,48 +285,102 @@ function StepCard({ step }) {
 
 // ----------------------------------------------------------------------
 
-function FirmwareCard() {
+function WifiStepsCard() {
+  const theme = useTheme();
+
   return (
     <Card>
       <CardHeader
-        title="Código del firmware"
-        subheader="Copia este código en el Arduino IDE"
+        title="¿Cómo cambiar la red WiFi del sensor?"
+        subheader="Sigue estos pasos si el WiFi de la farmacia cambió o el sensor no se conecta"
         avatar={
-          <Box
-            sx={{
-              p: 1, borderRadius: 1.5, display: 'flex',
-              bgcolor: (t) => alpha(t.palette.warning.main, 0.12),
-            }}
-          >
-            <Iconify icon="solar:code-bold-duotone" width={24} sx={{ color: 'warning.main' }} />
+          <Box sx={{ p: 1, borderRadius: 1.5, display: 'flex', bgcolor: alpha(theme.palette.primary.main, 0.12) }}>
+            <Iconify icon="solar:settings-bold-duotone" width={24} sx={{ color: 'primary.main' }} />
           </Box>
         }
       />
       <Divider />
-      <Box
-        sx={{
-          m: 2, p: 2, borderRadius: 1,
-          bgcolor: 'grey.900',
-          overflow: 'auto',
-          maxHeight: 420,
-          '&::-webkit-scrollbar': { width: 6, height: 6 },
-          '&::-webkit-scrollbar-thumb': { bgcolor: 'grey.700', borderRadius: 3 },
-        }}
-      >
-        <Typography
-          component="pre"
-          sx={{
-            m: 0,
-            color: 'grey.100',
-            fontFamily: 'monospace',
-            fontSize: 12,
-            lineHeight: 1.7,
-            whiteSpace: 'pre',
-          }}
-        >
-          {FIRMWARE_CODE}
-        </Typography>
-      </Box>
+      <CardContent>
+        <Stack spacing={2}>
+          {WIFI_STEPS.map((step, index) => (
+            <Box key={step.number}>
+              <Stack direction="row" spacing={2} alignItems="flex-start">
+                {/* Number */}
+                <Box
+                  sx={{
+                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    bgcolor: alpha(theme.palette[step.color].main, 0.12),
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ color: `${step.color}.main`, fontWeight: 700 }}>
+                    {step.number}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ flex: 1, pt: 0.25 }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.75 }}>
+                    <Iconify icon={step.icon} width={18} sx={{ color: `${step.color}.main` }} />
+                    <Typography variant="subtitle2">{step.title}</Typography>
+                  </Stack>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {step.description}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              {index < WIFI_STEPS.length - 1 && (
+                <Box sx={{ ml: '17px', mt: 1, mb: 0, borderLeft: '2px dashed', borderColor: 'divider', height: 16 }} />
+              )}
+            </Box>
+          ))}
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function TroubleshootCard() {
+  const theme = useTheme();
+
+  return (
+    <Card>
+      <CardHeader
+        title="Solución de problemas frecuentes"
+        subheader="Qué hacer si algo no funciona como se espera"
+        avatar={
+          <Box sx={{ p: 1, borderRadius: 1.5, display: 'flex', bgcolor: alpha(theme.palette.warning.main, 0.12) }}>
+            <Iconify icon="solar:question-circle-bold-duotone" width={24} sx={{ color: 'warning.main' }} />
+          </Box>
+        }
+      />
+      <Divider />
+      <CardContent>
+        <Stack spacing={2}>
+          {TROUBLESHOOT_ITEMS.map((item) => (
+            <Stack
+              key={item.problem}
+              direction="row"
+              spacing={2}
+              alignItems="flex-start"
+              sx={{
+                p: 2, borderRadius: 1.5,
+                bgcolor: alpha(theme.palette[item.color].main, 0.04),
+                border: '1px solid',
+                borderColor: alpha(theme.palette[item.color].main, 0.15),
+              }}
+            >
+              <Iconify icon={item.icon} width={24} sx={{ color: `${item.color}.main`, flexShrink: 0, mt: 0.25 }} />
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>{item.problem}</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>{item.solution}</Typography>
+              </Box>
+            </Stack>
+          ))}
+        </Stack>
+      </CardContent>
     </Card>
   );
 }
@@ -497,59 +400,30 @@ export function SensorConfigView() {
       />
 
       <Grid container spacing={3}>
-        {/* Status */}
         <Grid size={{ xs: 12 }}>
           <StatusCard />
         </Grid>
 
-        {/* Info alert */}
         <Grid size={{ xs: 12 }}>
-          <Alert
-            severity="info"
-            icon={<Iconify icon="solar:cpu-bold-duotone" width={22} />}
-          >
-            <Typography variant="subtitle2" gutterBottom>
-              Hardware requerido
-            </Typography>
+          <RangesCard />
+        </Grid>
+
+        <Grid size={{ xs: 12 }}>
+          <Alert severity="info" icon={<Iconify icon="solar:info-circle-bold-duotone" width={22} />}>
             <Typography variant="body2">
-              <strong>ESP32-S3</strong> con sensor <strong>AHT10</strong> conectado por I²C
-              (SDA → GPIO8, SCL → GPIO9). Si usas otro modelo de ESP32, los pines pueden variar.
+              El sensor registra la temperatura y humedad de la farmacia cada 30 segundos y envía
+              una notificación automática si las condiciones salen del rango ideal.
+              Si el sensor lleva más de 2 minutos sin enviar datos, aparecerá como <strong>&quot;Sin señal&quot;</strong>.
             </Typography>
           </Alert>
         </Grid>
 
-        {/* Steps */}
-        <Grid size={{ xs: 12 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Guía de configuración
-          </Typography>
-          <Stack spacing={2}>
-            {STEPS.map((step) => (
-              <StepCard key={step.number} step={step} />
-            ))}
-          </Stack>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <WifiStepsCard />
         </Grid>
 
-        {/* Reset instructions */}
-        <Grid size={{ xs: 12 }}>
-          <Alert
-            severity="warning"
-            icon={<Iconify icon="solar:restart-bold-duotone" width={22} />}
-          >
-            <Typography variant="subtitle2" gutterBottom>
-              ¿Cómo cambiar la red WiFi después?
-            </Typography>
-            <Typography variant="body2">
-              Mantén presionado el <strong>botón BOOT</strong> del ESP32 mientras lo enciendes.
-              Esto borrará las credenciales guardadas y volverá al modo de configuración
-              (aparecerá la red <code>PharmaTrack-Sensor</code> de nuevo).
-            </Typography>
-          </Alert>
-        </Grid>
-
-        {/* Firmware */}
-        <Grid size={{ xs: 12 }}>
-          <FirmwareCard />
+        <Grid size={{ xs: 12, md: 6 }}>
+          <TroubleshootCard />
         </Grid>
       </Grid>
     </DashboardContent>
