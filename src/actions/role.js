@@ -11,13 +11,10 @@ const swrOptions = {
   revalidateOnReconnect: false,
 };
 
-const PAGE_SIZE = 100;
-
 // ----------------------------------------------------------------------
 
 export function useGetRoles() {
-  // Roles list is small — fetch all pages
-  const url = [endpoints.role.list, { params: { page: 1, page_size: PAGE_SIZE } }];
+  const url = [endpoints.role.list, { params: { page: 1, page_size: 100 } }];
   const { data, isLoading, error, mutate } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
@@ -46,31 +43,13 @@ export function useGetRole(roleId) {
 
 // ----------------------------------------------------------------------
 
-async function fetchAllPermissions() {
-  const first = await axiosInstance
-    .get(endpoints.permission.list, { params: { page: 1, page_size: PAGE_SIZE } })
-    .then((r) => r.data);
-  let items = first.data;
-  if (first.total > PAGE_SIZE) {
-    const remaining = Math.ceil(first.total / PAGE_SIZE) - 1;
-    const pages = await Promise.all(
-      Array.from({ length: remaining }, (_, i) =>
-        axiosInstance
-          .get(endpoints.permission.list, { params: { page: i + 2, page_size: PAGE_SIZE } })
-          .then((r) => r.data.data)
-      )
-    );
-    items = [...items, ...pages.flat()];
-  }
-  return items;
-}
-
 export function useGetPermissions() {
-  const { data, isLoading } = useSWR('all-permissions', fetchAllPermissions, swrOptions);
+  const url = [endpoints.permission.list, { params: { page: 1, page_size: 500 } }];
+  const { data, isLoading } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
     () => ({
-      permissions: data ?? [],
+      permissions: data?.data ?? [],
       permissionsLoading: isLoading,
     }),
     [data, isLoading]

@@ -11,39 +11,15 @@ const swrOptions = {
   revalidateOnReconnect: false,
 };
 
-const PAGE_SIZE = 100;
-
 // ----------------------------------------------------------------------
 
-async function fetchAllBrands() {
-  const first = await axiosInstance
-    .get(endpoints.productBrand.list, { params: { page: 1, page_size: PAGE_SIZE } })
-    .then((r) => r.data);
-  let items = first.data;
-  if (first.total > PAGE_SIZE) {
-    const remaining = Math.ceil(first.total / PAGE_SIZE) - 1;
-    const pages = await Promise.all(
-      Array.from({ length: remaining }, (_, i) =>
-        axiosInstance
-          .get(endpoints.productBrand.list, { params: { page: i + 2, page_size: PAGE_SIZE } })
-          .then((r) => r.data.data)
-      )
-    );
-    items = [...items, ...pages.flat()];
-  }
-  return items;
-}
-
 export function useGetAllProductBrands() {
-  const { data, isLoading, error, mutate } = useSWR(
-    'all-product-brands',
-    fetchAllBrands,
-    swrOptions
-  );
+  const url = [endpoints.productBrand.list, { params: { page: 1, page_size: 500 } }];
+  const { data, isLoading, error, mutate } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
     () => ({
-      brands: data ?? [],
+      brands: data?.data ?? [],
       brandsLoading: isLoading,
       brandsError: error,
       brandsMutate: mutate,

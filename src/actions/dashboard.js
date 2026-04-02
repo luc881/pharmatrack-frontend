@@ -13,6 +13,17 @@ const SWR_OPTIONS = {
 
 // ----------------------------------------------------------------------
 
+export function useGetDashboardStats() {
+  const { data, isLoading, error } = useSWR(endpoints.stats.dashboard, fetcher, SWR_OPTIONS);
+
+  return useMemo(
+    () => ({ stats: data ?? null, statsLoading: isLoading, statsError: error }),
+    [data, error, isLoading]
+  );
+}
+
+// ----------------------------------------------------------------------
+
 export function useDashboardData() {
   const { data, isLoading } = useSWR(endpoints.dashboard.stats, fetcher, SWR_OPTIONS);
 

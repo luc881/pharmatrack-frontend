@@ -13,35 +13,6 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
-/**
- * Trae TODOS los registros de un endpoint paginado.
- * Hace una primera petición para saber el total real,
- * luego trae las páginas restantes en paralelo.
- */
-const PAGE_SIZE = 100;
-
-async function fetchAllPages(url) {
-  const first = await axiosInstance
-    .get(url, { params: { page: 1, page_size: PAGE_SIZE } })
-    .then((r) => r.data);
-
-  const items = first.data;
-  if (first.total <= PAGE_SIZE) return items;
-
-  const remaining = Math.ceil(first.total / PAGE_SIZE) - 1;
-  const pages = await Promise.all(
-    Array.from({ length: remaining }, (_, i) =>
-      axiosInstance
-        .get(url, { params: { page: i + 2, page_size: PAGE_SIZE } })
-        .then((r) => r.data.data)
-    )
-  );
-
-  return [...items, ...pages.flat()];
-}
-
-// ----------------------------------------------------------------------
-
 export function useGetProducts({ page = 1, pageSize = 10, search = '' } = {}) {
   const params = { page, page_size: pageSize };
   // Cambia 'search' por el nombre del query param que use tu backend (ej: 'q', 'name')
@@ -88,14 +59,11 @@ export function useGetProduct(productId) {
 // ----------------------------------------------------------------------
 
 export function useGetProductCategories() {
-  const { data, isLoading } = useSWR(
-    endpoints.productCategories.list,
-    fetchAllPages,
-    swrOptions
-  );
+  const url = [endpoints.productCategories.list, { params: { page: 1, page_size: 500 } }];
+  const { data, isLoading } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
-    () => ({ categories: data || [], categoriesLoading: isLoading }),
+    () => ({ categories: data?.data || [], categoriesLoading: isLoading }),
     [data, isLoading]
   );
 }
@@ -103,14 +71,11 @@ export function useGetProductCategories() {
 // ----------------------------------------------------------------------
 
 export function useGetProductBrands() {
-  const { data, isLoading } = useSWR(
-    endpoints.productBrands.list,
-    fetchAllPages,
-    swrOptions
-  );
+  const url = [endpoints.productBrands.list, { params: { page: 1, page_size: 500 } }];
+  const { data, isLoading } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
-    () => ({ brands: data || [], brandsLoading: isLoading }),
+    () => ({ brands: data?.data || [], brandsLoading: isLoading }),
     [data, isLoading]
   );
 }
