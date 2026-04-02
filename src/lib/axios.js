@@ -188,6 +188,9 @@ export const endpoints = {
   stats: {
     dashboard: '/api/v1/stats/dashboard',
   },
+  dashboard: {
+    stats: '/api/v1/dashboard/stats',
+  },
   sensor: {
     create: '/api/v1/sensor-readings/',
     latest: '/api/v1/sensor-readings/latest',
