@@ -40,7 +40,7 @@ export function ProductListView() {
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
 
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 20 });
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
   const [rowToDelete, setRowToDelete] = useState(null);
@@ -147,7 +147,7 @@ export function ProductListView() {
             rowCount={stableRowCount}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
-            pageSizeOptions={[10, 20, 50]}
+            pageSizeOptions={[20, 50, 100]}
             columnVisibilityModel={columnVisibilityModel}
             onColumnVisibilityModelChange={setColumnVisibilityModel}
             onRowSelectionModelChange={(newSelectionModel) => setSelectedRows(newSelectionModel)}
