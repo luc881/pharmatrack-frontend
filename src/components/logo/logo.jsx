@@ -58,7 +58,7 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
         fontSize="18"
         fill={TEXT_PRIMARY}
       >
-        PharmaTrack
+        FarmaciaSelene
       </text>
     </svg>
   );
