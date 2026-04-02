@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 
 import { usePathname } from 'src/routes/hooks';
 
-import { CONFIG } from 'src/global-config';
 import { LocalizationProvider } from 'src/locales';
 import { themeConfig, ThemeProvider } from 'src/theme';
 import { I18nProvider } from 'src/locales/i18n-provider';
