@@ -7,8 +7,6 @@ import Typography from '@mui/material/Typography';
 
 import { RouterLink } from 'src/routes/components';
 
-import { CONFIG } from 'src/global-config';
-
 // ----------------------------------------------------------------------
 
 export function AuthSplitSection({
@@ -16,9 +14,8 @@ export function AuthSplitSection({
   method,
   methods,
   layoutQuery = 'md',
-  title = 'Manage the job',
-  imgUrl = `${CONFIG.assetsDir}/assets/illustrations/illustration-dashboard.webp`,
-  subtitle = 'More effectively with optimized workflows.',
+  title = 'Bienvenido',
+  subtitle = 'Sistema de gestión para Farmacia Selene.',
   ...other
 }) {
   return (
@@ -28,7 +25,6 @@ export function AuthSplitSection({
           ...theme.mixins.bgGradient({
             images: [
               `linear-gradient(0deg, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.92)}, ${varAlpha(theme.vars.palette.background.defaultChannel, 0.92)})`,
-              `url(${CONFIG.assetsDir}/assets/background/background-3-blur.webp)`,
             ],
           }),
           px: 3,
@@ -61,13 +57,6 @@ export function AuthSplitSection({
           </Typography>
         )}
       </div>
-
-      <Box
-        component="img"
-        alt="Dashboard illustration"
-        src={imgUrl}
-        sx={{ width: 1, aspectRatio: '4/3', objectFit: 'cover' }}
-      />
 
       {!!methods?.length && method && (
         <Box component="ul" sx={{ gap: 2, display: 'flex' }}>
