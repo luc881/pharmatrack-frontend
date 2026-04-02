@@ -73,6 +73,8 @@ const BranchCreatePage = lazy(() => import('src/pages/dashboard/branch/new'));
 const BranchEditPage   = lazy(() => import('src/pages/dashboard/branch/edit'));
 // Calendar
 const CalendarPage = lazy(() => import('src/pages/dashboard/calendar'));
+// Sensor
+const SensorPage = lazy(() => import('src/pages/dashboard/sensor'));
 
 // ----------------------------------------------------------------------
 
@@ -258,6 +260,9 @@ export const dashboardRoutes = [
 
       // ── Calendar ────────────────────────────────────────────────────
       { path: 'calendar', element: <CalendarPage /> },
+
+      // ── Sensor config ───────────────────────────────────────────────
+      { path: 'sensor', element: guard(ADMIN, <SensorPage />) },
     ],
   },
 ];

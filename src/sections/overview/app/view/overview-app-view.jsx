@@ -4,6 +4,7 @@ import Grid from '@mui/material/Grid';
 import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
+import { alpha, useTheme } from '@mui/material/styles';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -22,6 +23,192 @@ import { AppWelcome } from '../app-welcome';
 import { SensorWidget } from '../sensor-widget';
 import { DashboardRecentSales } from '../dashboard-recent-sales';
 import { DashboardExpiringBatches } from '../dashboard-expiring-batches';
+
+// ----------------------------------------------------------------------
+
+function QuickActionCard({ title, description, icon, color = 'primary', href }) {
+  const theme = useTheme();
+  return (
+    <Card
+      component={RouterLink}
+      href={href}
+      sx={{
+        p: 2.5,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        textDecoration: 'none',
+        transition: theme.transitions.create(['box-shadow', 'transform'], { duration: 200 }),
+        '&:hover': {
+          boxShadow: theme.customShadows?.z8 ?? theme.shadows[4],
+          transform: 'translateY(-2px)',
+        },
+      }}
+    >
+      <Box
+        sx={{
+          p: 1.25,
+          flexShrink: 0,
+          borderRadius: 1.5,
+          display: 'flex',
+          bgcolor: (t) => alpha(t.palette[color].main, 0.12),
+        }}
+      >
+        <Iconify icon={icon} width={26} sx={{ color: `${color}.main` }} />
+      </Box>
+
+      <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+        <Typography variant="subtitle2" noWrap sx={{ color: 'text.primary' }}>
+          {title}
+        </Typography>
+        {description && (
+          <Typography variant="caption" noWrap sx={{ color: 'text.secondary' }}>
+            {description}
+          </Typography>
+        )}
+      </Box>
+
+      <Iconify icon="eva:arrow-ios-forward-fill" width={18} sx={{ color: 'text.disabled', flexShrink: 0 }} />
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function QuickActions({ isAdmin }) {
+  const allActions = [
+    {
+      title: 'Nueva venta',
+      description: 'Registrar venta',
+      icon: 'solar:cart-plus-bold-duotone',
+      color: 'primary',
+      href: paths.dashboard.sale.new,
+      adminOnly: false,
+    },
+    {
+      title: 'Ver ventas',
+      description: 'Historial de ventas',
+      icon: 'solar:bill-list-bold-duotone',
+      color: 'info',
+      href: paths.dashboard.sale.root,
+      adminOnly: false,
+    },
+    {
+      title: 'Ver productos',
+      description: 'Catálogo de productos',
+      icon: 'solar:pills-bold-duotone',
+      color: 'success',
+      href: paths.dashboard.product.root,
+      adminOnly: false,
+    },
+    {
+      title: 'Ver lotes',
+      description: 'Stock y fechas de vencimiento',
+      icon: 'solar:box-bold-duotone',
+      color: 'warning',
+      href: paths.dashboard.productBatch.root,
+      adminOnly: false,
+    },
+    {
+      title: 'Nueva compra',
+      description: 'Registrar compra a proveedor',
+      icon: 'solar:bag-plus-bold-duotone',
+      color: 'secondary',
+      href: paths.dashboard.purchase.new,
+      adminOnly: true,
+    },
+    {
+      title: 'Ver compras',
+      description: 'Historial de compras',
+      icon: 'solar:bag-smile-bold-duotone',
+      color: 'secondary',
+      href: paths.dashboard.purchase.root,
+      adminOnly: true,
+    },
+    {
+      title: 'Nuevo producto',
+      description: 'Agregar al catálogo',
+      icon: 'solar:add-circle-bold-duotone',
+      color: 'success',
+      href: paths.dashboard.product.new,
+      adminOnly: true,
+    },
+    {
+      title: 'Nuevo lote',
+      description: 'Ingresar stock',
+      icon: 'solar:inbox-in-bold-duotone',
+      color: 'warning',
+      href: paths.dashboard.productBatch.new,
+      adminOnly: false,
+    },
+    {
+      title: 'Nueva devolución',
+      description: 'Registrar devolución',
+      icon: 'solar:arrow-left-down-bold-duotone',
+      color: 'error',
+      href: paths.dashboard.refundProduct.new,
+      adminOnly: false,
+    },
+    {
+      title: 'Ver devoluciones',
+      description: 'Historial de devoluciones',
+      icon: 'solar:archive-down-minimlistic-bold-duotone',
+      color: 'error',
+      href: paths.dashboard.refundProduct.root,
+      adminOnly: false,
+    },
+    {
+      title: 'Calendario',
+      description: 'Vencimientos por fecha',
+      icon: 'solar:calendar-bold-duotone',
+      color: 'info',
+      href: paths.dashboard.calendar,
+      adminOnly: false,
+    },
+    {
+      title: 'Ver proveedores',
+      description: 'Gestión de proveedores',
+      icon: 'solar:truck-bold-duotone',
+      color: 'secondary',
+      href: paths.dashboard.supplier.root,
+      adminOnly: true,
+    },
+    {
+      title: 'Ver usuarios',
+      description: 'Gestión de equipo',
+      icon: 'solar:users-group-rounded-bold-duotone',
+      color: 'primary',
+      href: paths.dashboard.user.root,
+      adminOnly: true,
+    },
+  ];
+
+  const actions = allActions.filter((a) => !a.adminOnly || isAdmin);
+
+  return (
+    <Box>
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        Acciones rápidas
+      </Typography>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: {
+            xs: 'repeat(1, 1fr)',
+            sm: 'repeat(2, 1fr)',
+            md: 'repeat(2, 1fr)',
+            lg: 'repeat(4, 1fr)',
+          },
+        }}
+      >
+        {actions.map((action) => (
+          <QuickActionCard key={action.href} {...action} />
+        ))}
+      </Box>
+    </Box>
+  );
+}
 
 // ----------------------------------------------------------------------
 
@@ -66,7 +253,7 @@ function StatCard({ title, value, icon, color = 'primary', loading }) {
 export function OverviewAppView() {
   const { user } = useAuthContext();
 
-  const { isLoading, monthlySalesCount, monthlyRevenue, totalProducts, expiringBatchesCount, recentSales, expiringBatches } =
+  const { isLoading, monthlySalesCount, monthlyRevenue, totalProducts, expiringBatchesCount, expiredBatchesCount, recentSales, expiringBatches } =
     useDashboardData();
 
   return (
@@ -132,12 +319,21 @@ export function OverviewAppView() {
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
-            title="Ir a lotes"
-            value="Ver stock"
-            icon="solar:box-bold"
-            color="secondary"
-            loading={false}
+            title="Lotes vencidos"
+            value={expiredBatchesCount}
+            icon="solar:danger-circle-bold"
+            color="error"
+            loading={isLoading}
           />
+        </Grid>
+
+        {/* Acciones rápidas + Sensor (misma fila en desktop) */}
+        <Grid size={{ xs: 12, lg: 8 }}>
+          <QuickActions isAdmin={user?.role === 'admin'} />
+        </Grid>
+
+        <Grid size={{ xs: 12, lg: 4 }}>
+          <SensorWidget />
         </Grid>
 
         <Grid size={{ xs: 12, lg: 8 }}>
@@ -146,10 +342,6 @@ export function OverviewAppView() {
 
         <Grid size={{ xs: 12, lg: 4 }}>
           <DashboardExpiringBatches batches={expiringBatches} loading={isLoading} />
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 5, lg: 4 }}>
-          <SensorWidget />
         </Grid>
       </Grid>
     </DashboardContent>

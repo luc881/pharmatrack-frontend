@@ -18,8 +18,10 @@ import { NavHorizontal } from './nav-horizontal';
 import { _account } from '../nav-config-account';
 import { Searchbar } from '../components/searchbar';
 import { MenuButton } from '../components/menu-button';
+import { HeaderClock } from '../components/header-clock';
 import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
+import { SensorStatusChip } from '../components/sensor-status-chip';
 import { navData as dashboardNavData } from '../nav-config-dashboard';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 import { NotificationsDrawer } from '../components/notifications-drawer';
@@ -111,6 +113,12 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 } }}>
           {/** @slot Searchbar */}
           <Searchbar data={navData} />
+
+          {/** @slot Current time (Mexico City) */}
+          <HeaderClock />
+
+          {/** @slot Sensor status */}
+          <SensorStatusChip />
 
           {/** @slot Notifications popover */}
           <NotificationsDrawer />

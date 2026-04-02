@@ -10,20 +10,28 @@ import { Iconify } from 'src/components/iconify';
 // ----------------------------------------------------------------------
 
 const SEVERITY_CONFIG = {
-  error:   { icon: 'solar:danger-bold-duotone',   color: 'error.main' },
-  warning: { icon: 'solar:clock-circle-bold-duotone', color: 'warning.main' },
-  info:    { icon: 'solar:box-bold-duotone',       color: 'info.main' },
+  error:   { icon: 'solar:danger-bold-duotone',        color: 'error.main' },
+  warning: { icon: 'solar:clock-circle-bold-duotone',  color: 'warning.main' },
+  info:    { icon: 'solar:box-bold-duotone',            color: 'info.main' },
+};
+
+const TYPE_ICON_OVERRIDE = {
+  sensor_alert: 'solar:temperature-bold-duotone',
 };
 
 // ----------------------------------------------------------------------
 
 export function NotificationItem({ notification, onClose }) {
-  const { icon, color } = SEVERITY_CONFIG[notification.severity] ?? SEVERITY_CONFIG.info;
+  const { icon: severityIcon, color } = SEVERITY_CONFIG[notification.severity] ?? SEVERITY_CONFIG.info;
+  const icon = TYPE_ICON_OVERRIDE[notification.type] ?? severityIcon;
+  const href = notification.type === 'sensor_alert'
+    ? paths.dashboard.root
+    : paths.dashboard.productBatch.root;
 
   return (
     <ListItemButton
       component={RouterLink}
-      href={paths.dashboard.productBatch.root}
+      href={href}
       onClick={onClose}
       disableRipple
       sx={[

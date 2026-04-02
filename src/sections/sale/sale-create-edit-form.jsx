@@ -1,4 +1,5 @@
 import { z as zod } from 'zod';
+import { useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect, useCallback } from 'react';
@@ -10,6 +11,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -282,6 +284,8 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
 function SaleItems({ products }) {
   const { control, watch } = useFormContext();
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const barcodeRef = useRef(null);
 
   const items = watch('items');
 
@@ -291,11 +295,55 @@ function SaleItems({ products }) {
     return acc + (Number(item.quantity) || 0) * price - (Number(item.discount) || 0);
   }, 0);
 
+  const handleBarcodeScan = useCallback(
+    (value) => {
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      const found = products.find(
+        (p) => p.sku && p.sku.toLowerCase() === trimmed.toLowerCase()
+      );
+      if (found) {
+        append({ ...defaultItem, product_id: found.id });
+        setBarcodeInput('');
+      } else {
+        toast.error(`Producto no encontrado: "${trimmed}"`);
+        setBarcodeInput('');
+      }
+    },
+    [products, append]
+  );
+
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h6" sx={{ mb: 3 }}>
-        Productos
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h6">Productos</Typography>
+      </Box>
+
+      {/* Barcode scanner input */}
+      <TextField
+        inputRef={barcodeRef}
+        size="small"
+        fullWidth
+        value={barcodeInput}
+        onChange={(e) => setBarcodeInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleBarcodeScan(barcodeInput);
+          }
+        }}
+        placeholder="Escanear código de barras o escribir SKU y presionar Enter…"
+        sx={{ mb: 3 }}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <Iconify icon="solar:barcode-bold" width={20} sx={{ color: 'text.disabled' }} />
+              </InputAdornment>
+            ),
+          },
+        }}
+      />
 
       <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
         {fields.map((field, index) => (

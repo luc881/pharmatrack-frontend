@@ -244,6 +244,21 @@ export function ProductCreateEditForm({ currentProduct }) {
       <Collapse in={openProperties.value}>
         <Divider />
         <Stack spacing={3} sx={{ p: 3 }}>
+          <Field.Text
+            name="sku"
+            label="Código de barras / SKU"
+            placeholder="Escanea o escribe el código…"
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Iconify icon="solar:barcode-bold" width={20} sx={{ color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+
           <Box
             sx={{
               rowGap: 3,
@@ -252,8 +267,6 @@ export function ProductCreateEditForm({ currentProduct }) {
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' },
             }}
           >
-            <Field.Text name="sku" label="SKU / Código de barras" />
-
             <Field.Select
               name="product_category_id"
               label="Categoría"

@@ -78,12 +78,18 @@ export function useDashboardData() {
       })
       .sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date));
 
+    const expiredBatchesCount = batches.filter((b) => {
+      if (!b.expiration_date) return false;
+      return new Date(b.expiration_date) < now;
+    }).length;
+
     return {
       isLoading: salesLoading || productsLoading || batchesLoading,
       monthlySalesCount: monthlySales.length,
       monthlyRevenue,
       totalProducts: productsData?.total ?? 0,
       expiringBatchesCount: expiringBatches.length,
+      expiredBatchesCount,
       recentSales: sales.slice(0, 10),
       expiringBatches: expiringBatches.slice(0, 8),
     };

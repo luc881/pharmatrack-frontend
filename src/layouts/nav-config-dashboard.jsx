@@ -155,6 +155,7 @@ export const navData = [
         ],
       },
       { title: 'Calendario', path: paths.dashboard.calendar, icon: ICONS.calendar },
+      { title: 'Sensor', path: paths.dashboard.sensor, icon: ICONS.analytics, allowedRoles: ['admin'] },
     ],
   },
 ];
