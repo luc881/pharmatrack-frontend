@@ -3,8 +3,6 @@ import { varAlpha } from 'minimal-shared/utils';
 
 import { styled } from '@mui/material/styles';
 
-import { Logo } from '../logo';
-
 // ----------------------------------------------------------------------
 
 export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
@@ -20,14 +18,7 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
         }}
       >
         {logo ?? (
-          <Logo
-            disabled
-            {...slotProps?.logo}
-            sx={[
-              { width: 64, height: 64 },
-              ...(Array.isArray(slotProps?.logo?.sx) ? slotProps.logo.sx : [slotProps?.logo?.sx]),
-            ]}
-          />
+          <MedicalCross style={{ width: 64, height: 64, ...slotProps?.logo?.sx }} />
         )}
       </m.span>
 
@@ -53,6 +44,19 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
     </LogoZoomRoot>
   );
 }
+
+// Cruz médica SVG inline
+function MedicalCross({ style }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style={style}>
+      <rect width="100" height="100" rx="18" fill="#D32F2F" />
+      <rect x="42" y="15" width="16" height="70" rx="4" fill="white" />
+      <rect x="15" y="42" width="70" height="16" rx="4" fill="white" />
+    </svg>
+  );
+}
+
+// ----------------------------------------------------------------------
 
 const LogoZoomRoot = styled('div')(() => ({
   width: 120,
@@ -83,13 +87,7 @@ export function AnimateLogoRotate({ logo, sx, slotProps, ...other }) {
   return (
     <LogoRotateRoot sx={sx} {...other}>
       {logo ?? (
-        <Logo
-          {...slotProps?.logo}
-          sx={[
-            { zIndex: 9, width: 40, height: 40 },
-            ...(Array.isArray(slotProps?.logo?.sx) ? slotProps.logo.sx : [slotProps?.logo?.sx]),
-          ]}
-        />
+        <MedicalCross style={{ zIndex: 9, width: 40, height: 40, ...slotProps?.logo?.sx }} />
       )}
 
       <LogoRotateBackground
