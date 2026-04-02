@@ -1,5 +1,7 @@
 # Farmacia Selene — Sistema de Gestión
 
+![Tests](https://github.com/luc881/pharmatrack-frontend/actions/workflows/test.yml/badge.svg)
+
 Sistema de gestión de inventario, ventas y compras para Farmacia Selene. Desarrollado como proyecto de titulación.
 
 ## Tecnologías
