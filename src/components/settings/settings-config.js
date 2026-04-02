@@ -1,8 +1,9 @@
-import { CONFIG } from 'src/global-config';
-
 // ----------------------------------------------------------------------
 
 export const SETTINGS_STORAGE_KEY = 'app-settings';
+
+// Bump this number whenever defaults change to force a reset on existing browsers.
+const SETTINGS_VERSION = '2';
 
 export const defaultSettings = {
   mode: 'light',
@@ -14,5 +15,5 @@ export const defaultSettings = {
   compactLayout: false,
   fontSize: 16,
   fontFamily: 'Inter Variable',
-  version: CONFIG.appVersion,
+  version: SETTINGS_VERSION,
 };
