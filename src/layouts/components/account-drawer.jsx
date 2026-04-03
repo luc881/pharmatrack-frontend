@@ -40,7 +40,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
       }}
     >
       <Avatar sx={{ width: 1, height: 1, typography: 'h3' }}>
-        {user?.sub?.charAt(0).toUpperCase()}
+        {user?.email?.charAt(0).toUpperCase()}
       </Avatar>
     </AnimateBorder>
   );
@@ -104,7 +104,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
       <AccountButton
         onClick={onOpen}
         photoURL={undefined}
-        displayName={user?.sub}
+        displayName={user?.email}
         sx={sx}
         {...other}
       />
@@ -142,11 +142,11 @@ export function AccountDrawer({ data = [], sx, ...other }) {
             {renderAvatar()}
 
             <Typography variant="subtitle1" noWrap sx={{ mt: 2 }}>
-              {user?.sub}
+              {user?.email}
             </Typography>
 
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
-              {user?.sub}
+              {user?.email}
             </Typography>
           </Box>
 
