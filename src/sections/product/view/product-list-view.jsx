@@ -73,8 +73,8 @@ export function ProductListView() {
     setPaginationModel((p) => ({ ...p, page: 0 }));
   }, [setSearchParams]);
 
-  const { brands, brandsLoading } = useGetProductBrands();
-  const { categories, categoriesLoading } = useGetProductCategories();
+  const { brands } = useGetProductBrands();
+  const { categories } = useGetProductCategories();
 
   const brandsMap     = useMemo(() => Object.fromEntries(brands.map((b) => [b.id, b.name])), [brands]);
   const categoriesMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c.name])), [categories]);
