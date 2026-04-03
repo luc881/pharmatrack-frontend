@@ -14,7 +14,12 @@ export function NavList({ data, depth, render, slotProps, checkPermissions, enab
   const pathname = usePathname();
   const navItemRef = useRef(null);
 
-  const isActive = isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
+  const hasActiveChild = !!data.children?.some((child) =>
+    isActiveLink(pathname, child.path, true)
+  );
+
+  const isActive =
+    isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children) || hasActiveChild;
 
   const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
 
