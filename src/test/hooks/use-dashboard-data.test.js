@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 
 import { useDashboardData } from 'src/actions/dashboard';
+
 import { server } from '../mocks/server';
 import { createWrapper } from '../utils';
 

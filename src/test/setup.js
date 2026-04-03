@@ -1,6 +1,8 @@
 import '@testing-library/jest-dom';
-import { afterEach, beforeAll, afterAll } from 'vitest';
+
 import { cleanup } from '@testing-library/react';
+import { afterAll, afterEach, beforeAll } from 'vitest';
+
 import { server } from './mocks/server';
 
 // Levanta el servidor de MSW antes de todos los tests
