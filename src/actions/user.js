@@ -55,3 +55,6 @@ export const updateUser = (id, data) =>
 
 export const deleteUser = (id) =>
   axiosInstance.delete(endpoints.user.delete(id)).then((r) => r.data);
+
+export const changePassword = (id, data) =>
+  axiosInstance.put(endpoints.user.changePassword(id), data).then((r) => r.data);
