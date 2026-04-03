@@ -90,6 +90,12 @@ export function UserCreateEditForm({ currentUser }) {
   const avatarUrl = watch('avatar');
   const nameValue = watch('name');
 
+  const toAbsoluteUrl = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.startsWith('http')) return url;
+    return `${window.location.origin}${url}`;
+  };
+
   const onSubmit = handleSubmit(async (data) => {
     try {
       const payload = {
@@ -102,7 +108,7 @@ export function UserCreateEditForm({ currentUser }) {
         gender: data.gender || null,
         type_document: data.type_document || null,
         n_document: data.n_document || null,
-        avatar: data.avatar || null,
+        avatar: toAbsoluteUrl(data.avatar),
       };
 
       if (isEdit) {

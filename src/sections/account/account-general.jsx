@@ -85,6 +85,12 @@ export function AccountGeneral() {
     [setValue]
   );
 
+  const toAbsoluteUrl = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.startsWith('http')) return url;
+    return `${window.location.origin}${url}`;
+  };
+
   const onSubmit = handleSubmit(async (data) => {
     try {
       await updateUser(authUser.id, {
@@ -92,7 +98,7 @@ export function AccountGeneral() {
         surname: data.surname || null,
         phone: data.phone || null,
         gender: data.gender || null,
-        avatar: typeof data.avatar === 'string' ? data.avatar : null,
+        avatar: toAbsoluteUrl(data.avatar),
       });
       toast.success('Perfil actualizado');
     } catch {
