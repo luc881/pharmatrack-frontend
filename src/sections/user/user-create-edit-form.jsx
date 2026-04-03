@@ -19,6 +19,7 @@ import { createUser, updateUser } from 'src/actions/user';
 
 import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
+import { AvatarPicker } from 'src/components/avatar-picker';
 
 // ----------------------------------------------------------------------
 
@@ -206,9 +207,16 @@ export function UserCreateEditForm({ currentUser }) {
                 ))}
               </Field.Select>
 
+              <Box sx={{ gridColumn: { sm: 'span 2' } }}>
+                <AvatarPicker
+                  value={avatarUrl}
+                  onChange={(url) => methods.setValue('avatar', url, { shouldValidate: true })}
+                />
+              </Box>
+
               <Field.Text
                 name="avatar"
-                label="URL del avatar"
+                label="O ingresa una URL personalizada"
                 slotProps={{ inputLabel: { shrink: true } }}
                 sx={{ gridColumn: { sm: 'span 2' } }}
               />

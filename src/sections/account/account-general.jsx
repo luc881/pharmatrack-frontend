@@ -17,6 +17,7 @@ import { updateUser, useGetUser } from 'src/actions/user';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+import { AvatarPicker } from 'src/components/avatar-picker';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -127,6 +128,13 @@ export function AccountGeneral() {
               <Typography variant="body2" color="text.secondary">
                 {authUser?.role}
               </Typography>
+            </Box>
+
+            <Box sx={{ mt: 3, textAlign: 'left' }}>
+              <AvatarPicker
+                value={avatarValue}
+                onChange={(url) => setValue('avatar', url, { shouldValidate: true })}
+              />
             </Box>
           </Card>
         </Grid>
