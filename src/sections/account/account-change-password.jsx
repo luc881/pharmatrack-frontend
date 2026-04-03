@@ -11,11 +11,11 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { changePassword } from 'src/actions/user';
 
-import { useAuthContext } from 'src/auth/hooks';
-
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
