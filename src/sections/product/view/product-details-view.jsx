@@ -81,14 +81,25 @@ export function ProductDetailsView({ product, error, loading }) {
         <Grid size={{ xs: 12, md: 8 }}>
           <Card sx={{ p: 3 }}>
             <Stack spacing={2}>
-              <Avatar
-                src={product.image || ''}
-                alt={product.title}
-                variant="rounded"
-                sx={{ width: '100%', aspectRatio: '1 / 1', height: 'auto', bgcolor: 'background.neutral', borderRadius: 2 }}
-              >
-                <Iconify icon="solar:pill-bold" width={64} sx={{ color: 'text.disabled' }} />
-              </Avatar>
+              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                <Avatar
+                  src={product.image || ''}
+                  alt={product.title}
+                  variant="rounded"
+                  sx={{
+                    width: '100%',
+                    maxWidth: 400,
+                    maxHeight: 400,
+                    aspectRatio: '1 / 1',
+                    height: 'auto',
+                    bgcolor: 'background.neutral',
+                    borderRadius: 2,
+                    '& img': { objectFit: 'contain' },
+                  }}
+                >
+                  <Iconify icon="solar:pill-bold" width={64} sx={{ color: 'text.disabled' }} />
+                </Avatar>
+              </Box>
 
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Typography variant="h5">{product.title}</Typography>
