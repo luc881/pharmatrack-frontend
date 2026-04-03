@@ -13,10 +13,21 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
-export function useGetProducts({ page = 1, pageSize = 10, search = '' } = {}) {
+export function useGetProducts({
+  page = 1,
+  pageSize = 20,
+  search = '',
+  brandId = null,
+  categoryId = null,
+  isActive = null,
+  ordering = null,
+} = {}) {
   const params = { page, page_size: pageSize };
-  // Cambia 'search' por el nombre del query param que use tu backend (ej: 'q', 'name')
   if (search) params.search = search;
+  if (brandId) params.brand_id = brandId;
+  if (categoryId) params.category_id = categoryId;
+  if (isActive !== null) params.is_active = isActive;
+  if (ordering) params.ordering = ordering;
   const url = [endpoints.product.list, { params }];
 
   const { data, isLoading, error, isValidating, mutate } = useSWR(url, fetcher, {

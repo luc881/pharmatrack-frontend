@@ -34,6 +34,15 @@ import {
 const HIDE_COLUMNS = { price_cost: false, created_at: false };
 const HIDE_COLUMNS_TOGGLABLE = ['actions'];
 
+// Convert DataGrid sortModel → API ordering string
+const toOrdering = (sortModel) => {
+  if (!sortModel?.length) return null;
+  const { field, sort } = sortModel[0];
+  const apiField = field === 'brand' ? null : field; // brand is resolved client-side
+  if (!apiField) return null;
+  return sort === 'desc' ? `-${apiField}` : apiField;
+};
+
 // ----------------------------------------------------------------------
 
 export function ProductListView() {
@@ -41,44 +50,58 @@ export function ProductListView() {
   const toolbarOptions = useToolbarSettings();
 
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 20 });
+  const [sortModel, setSortModel] = useState([]);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
   const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
   const [rowToDelete, setRowToDelete] = useState(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const appliedSearch = searchParams.get('search') ?? '';
 
-  const handleSearchSubmit = useCallback((value) => {
-    setSearchParams(value ? { search: value } : {}, { replace: true });
-    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // All filters live in URL params
+  const appliedSearch   = searchParams.get('search') ?? '';
+  const appliedBrandId  = searchParams.get('brand') ? Number(searchParams.get('brand')) : null;
+  const appliedCatId    = searchParams.get('category') ? Number(searchParams.get('category')) : null;
+  const appliedStatus   = searchParams.get('status') ?? '';   // '' | 'true' | 'false'
+
+  const setFilter = useCallback((key, value) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value) next.set(key, value);
+      else next.delete(key);
+      return next;
+    }, { replace: true });
+    setPaginationModel((p) => ({ ...p, page: 0 }));
   }, [setSearchParams]);
 
-  const { brands } = useGetProductBrands();
-  const brandsMap = useMemo(() => Object.fromEntries(brands.map((b) => [b.id, b.name])), [brands]);
+  const { brands, brandsLoading } = useGetProductBrands();
+  const { categories, categoriesLoading } = useGetProductCategories();
 
-  const { categories } = useGetProductCategories();
-  const categoriesMap = useMemo(
-    () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
-    [categories]
-  );
+  const brandsMap     = useMemo(() => Object.fromEntries(brands.map((b) => [b.id, b.name])), [brands]);
+  const categoriesMap = useMemo(() => Object.fromEntries(categories.map((c) => [c.id, c.name])), [categories]);
+
+  const selectedBrand    = useMemo(() => brands.find((b) => b.id === appliedBrandId) ?? null, [brands, appliedBrandId]);
+  const selectedCategory = useMemo(() => categories.find((c) => c.id === appliedCatId) ?? null, [categories, appliedCatId]);
+
+  const isActive = appliedStatus === 'true' ? true : appliedStatus === 'false' ? false : null;
 
   const { products, productsTotal, productsLoading, productsMutate } = useGetProducts({
     page: paginationModel.page + 1,
     pageSize: paginationModel.pageSize,
     search: appliedSearch,
+    brandId: appliedBrandId,
+    categoryId: appliedCatId,
+    isActive,
+    ordering: toOrdering(sortModel),
   });
 
-  // Evita que el DataGrid resetee la paginación cuando rowCount cae a 0 durante el fetch
   const rowCountRef = useRef(productsTotal);
   if (productsTotal > 0) rowCountRef.current = productsTotal;
   const stableRowCount = rowCountRef.current;
 
-  const handleDeleteRow = useCallback(
-    (id) => {
-      setRowToDelete(id);
-      confirmDialog.onTrue();
-    },
-    [confirmDialog]
-  );
+  const handleDeleteRow = useCallback((id) => {
+    setRowToDelete(id);
+    confirmDialog.onTrue();
+  }, [confirmDialog]);
 
   const handleConfirmDelete = useCallback(async () => {
     try {
@@ -96,6 +119,11 @@ export function ProductListView() {
       confirmDialog.onFalse();
     }
   }, [rowToDelete, selectedRows.ids, productsMutate, confirmDialog]);
+
+  const handleSortModelChange = useCallback((newSortModel) => {
+    setSortModel(newSortModel);
+    setPaginationModel((p) => ({ ...p, page: 0 }));
+  }, []);
 
   const columns = useGetColumns({ onDeleteRow: handleDeleteRow, brandsMap, categoriesMap });
 
@@ -142,12 +170,16 @@ export function ProductListView() {
             loading={productsLoading}
             rowHeight={72}
             rowBufferPx={4000}
-            // Paginación server-side
+            // Server-side pagination
             paginationMode="server"
             rowCount={stableRowCount}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
             pageSizeOptions={[20, 50, 100]}
+            // Server-side sorting
+            sortingMode="server"
+            sortModel={sortModel}
+            onSortModelChange={handleSortModelChange}
             columnVisibilityModel={columnVisibilityModel}
             onColumnVisibilityModelChange={setColumnVisibilityModel}
             onRowSelectionModelChange={(newSelectionModel) => setSelectedRows(newSelectionModel)}
@@ -159,7 +191,15 @@ export function ProductListView() {
             slotProps={{
               toolbar: {
                 initialSearch: appliedSearch,
-                onSearchSubmit: handleSearchSubmit,
+                onSearchSubmit: (v) => setFilter('search', v),
+                brands,
+                categories,
+                selectedBrand,
+                selectedCategory,
+                selectedStatus: appliedStatus,
+                onBrandChange: (v) => setFilter('brand', v?.id ?? ''),
+                onCategoryChange: (v) => setFilter('category', v?.id ?? ''),
+                onStatusChange: (v) => setFilter('status', v),
                 selectedRowCount: selectedRows.ids?.size ?? 0,
                 onOpenConfirmDeleteRows: () => {
                   setRowToDelete(null);
@@ -176,10 +216,7 @@ export function ProductListView() {
               },
             }}
             sx={{
-              [`& .${gridClasses.cell}`]: {
-                display: 'flex',
-                alignItems: 'center',
-              },
+              [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' },
             }}
           />
         </Card>
@@ -230,11 +267,13 @@ const useGetColumns = ({ onDeleteRow, brandsMap, categoriesMap }) => {
         field: 'sku',
         headerName: 'SKU',
         width: 150,
+        sortable: false,
       },
       {
         field: 'brand',
         headerName: 'Marca',
         width: 140,
+        sortable: false,
         valueGetter: (_, row) => brandsMap[row.brand_id] ?? '—',
       },
       {
@@ -253,6 +292,7 @@ const useGetColumns = ({ onDeleteRow, brandsMap, categoriesMap }) => {
         field: 'is_active',
         headerName: 'Estado',
         width: 110,
+        sortable: false,
         renderCell: (params) => <RenderCellStatus params={params} />,
       },
       {
