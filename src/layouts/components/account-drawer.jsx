@@ -18,6 +18,8 @@ import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { AnimateBorder } from 'src/components/animate';
 
+import { useGetUser } from 'src/actions/user';
+
 import { useAuthContext } from 'src/auth/hooks';
 
 import { AccountButton } from './account-button';
@@ -29,6 +31,9 @@ export function AccountDrawer({ data = [], sx, ...other }) {
   const pathname = usePathname();
 
   const { user } = useAuthContext();
+  const { user: profile } = useGetUser(user?.id);
+
+  const avatarUrl = profile?.avatar || undefined;
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
@@ -39,7 +44,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
         primaryBorder: { size: 120, sx: { color: 'primary.main' } },
       }}
     >
-      <Avatar sx={{ width: 1, height: 1, typography: 'h3' }}>
+      <Avatar src={avatarUrl} sx={{ width: 1, height: 1, typography: 'h3' }}>
         {user?.email?.charAt(0).toUpperCase()}
       </Avatar>
     </AnimateBorder>
@@ -103,7 +108,7 @@ export function AccountDrawer({ data = [], sx, ...other }) {
     <>
       <AccountButton
         onClick={onOpen}
-        photoURL={undefined}
+        photoURL={avatarUrl}
         displayName={user?.email}
         sx={sx}
         {...other}
