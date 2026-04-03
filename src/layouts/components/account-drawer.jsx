@@ -13,12 +13,12 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { useGetUser } from 'src/actions/user';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { AnimateBorder } from 'src/components/animate';
-
-import { useGetUser } from 'src/actions/user';
 
 import { useAuthContext } from 'src/auth/hooks';
 
