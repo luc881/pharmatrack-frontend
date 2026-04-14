@@ -25,23 +25,24 @@ import { AvatarPicker } from 'src/components/avatar-picker';
 // ----------------------------------------------------------------------
 
 // Descripciones de los roles estándar del sistema.
-// La clave debe coincidir exactamente con el nombre del rol en la base de datos.
+// Las claves están en minúsculas; la búsqueda normaliza el nombre del rol
+// para que no importe si fue guardado como "Almacenista", "almacenista", etc.
 const ROLE_DESCRIPTIONS = {
-  'Sin acceso':
+  'sin acceso':
     'El usuario existe en el sistema pero no puede realizar ninguna acción. Útil para cuentas suspendidas temporalmente.',
-  'Solo lectura':
+  'solo lectura':
     'Puede consultar toda la información del sistema pero no puede crear, modificar ni eliminar nada. Ideal para contadores o auditores externos.',
-  Cajero:
+  cajero:
     'Procesa ventas y cobros en el punto de venta. Puede registrar nuevos clientes y consultar productos disponibles. No puede hacer devoluciones ni modificar inventario.',
-  'Farmacéutico':
+  'farmacéutico':
     'Procesa ventas completas incluyendo devoluciones y atenciones de detalle. No gestiona inventario ni compras.',
-  Almacenista:
+  almacenista:
     'Gestiona el inventario, recibe compras y administra proveedores y almacenes. No tiene acceso a ventas.',
-  'Gerente de sucursal':
+  'gerente de sucursal':
     'Acceso completo a todas las operaciones del negocio: ventas, inventario y compras. No puede gestionar usuarios ni modificar la configuración del sistema.',
-  'Dueño':
+  'dueño':
     'Acceso completo al negocio y a la gestión de usuarios. Puede consultar la configuración de roles, pero no modificarla.',
-  'Super administrador':
+  'super administrador':
     'Acceso total al sistema, incluyendo la configuración de roles y permisos. Solo debe asignarse al administrador del sistema.',
 };
 
@@ -116,7 +117,9 @@ export function UserCreateEditForm({ currentUser }) {
   const roleId = watch('role_id');
 
   const selectedRole = roles.find((r) => String(r.id) === String(roleId));
-  const roleDescription = selectedRole ? ROLE_DESCRIPTIONS[selectedRole.name] : null;
+  const roleDescription = selectedRole
+    ? ROLE_DESCRIPTIONS[selectedRole.name.trim().toLowerCase()]
+    : null;
 
   const toAbsoluteUrl = (url) => {
     if (!url || typeof url !== 'string') return null;
