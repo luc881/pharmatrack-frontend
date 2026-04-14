@@ -13,8 +13,12 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
-export function useGetBranches() {
-  const { data, isLoading, error, mutate } = useSWR(endpoints.branch.list, fetcher, swrOptions);
+export function useGetBranches({ includeDeleted = false } = {}) {
+  const url = includeDeleted
+    ? [endpoints.branch.list, { params: { include_deleted: true } }]
+    : endpoints.branch.list;
+
+  const { data, isLoading, error, mutate } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
     () => ({
@@ -49,3 +53,6 @@ export const updateBranch = (id, data) =>
 
 export const deleteBranch = (id) =>
   axiosInstance.delete(endpoints.branch.delete(id)).then((r) => r.data);
+
+export const restoreBranch = (id) =>
+  axiosInstance.patch(endpoints.branch.restore(id)).then((r) => r.data);

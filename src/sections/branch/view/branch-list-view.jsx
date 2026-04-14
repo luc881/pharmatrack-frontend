@@ -2,15 +2,17 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo, useState, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
+import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import { useTheme } from '@mui/material/styles';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { deleteBranch, useGetBranches } from 'src/actions/branch';
+import { deleteBranch, restoreBranch, useGetBranches } from 'src/actions/branch';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -36,10 +38,11 @@ export function BranchListView() {
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
 
+  const [showDeleted, setShowDeleted] = useState(false);
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
 
-  const { branches, branchesLoading, branchesMutate } = useGetBranches();
+  const { branches, branchesLoading, branchesMutate } = useGetBranches({ includeDeleted: showDeleted });
 
   const handleDeleteRow = useCallback(
     (id) => {
@@ -66,6 +69,19 @@ export function BranchListView() {
     }
   }, [rowToDelete, selectedRows.ids, branchesMutate, confirmDialog]);
 
+  const handleRestoreRow = useCallback(
+    async (id) => {
+      try {
+        await restoreBranch(id);
+        await branchesMutate();
+        toast.success('Sucursal restaurada');
+      } catch {
+        toast.error('Error al restaurar');
+      }
+    },
+    [branchesMutate]
+  );
+
   const deleteCount = rowToDelete ? 1 : selectedRows.ids?.size ?? 0;
 
   const columns = useMemo(
@@ -77,12 +93,17 @@ export function BranchListView() {
       {
         field: 'is_active',
         headerName: 'Estado',
-        width: 110,
-        renderCell: (params) => (
-          <Label variant="soft" color={params.row.is_active ? 'success' : 'default'}>
-            {params.row.is_active ? 'Activa' : 'Inactiva'}
-          </Label>
-        ),
+        width: 120,
+        renderCell: (params) => {
+          if (params.row.deleted_at) {
+            return <Label variant="soft" color="error">Eliminada</Label>;
+          }
+          return (
+            <Label variant="soft" color={params.row.is_active ? 'success' : 'default'}>
+              {params.row.is_active ? 'Activa' : 'Inactiva'}
+            </Label>
+          );
+        },
       },
       {
         type: 'actions',
@@ -94,24 +115,37 @@ export function BranchListView() {
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
-        getActions: (params) => [
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Editar"
-            icon={<Iconify icon="solar:pen-bold" />}
-            href={paths.dashboard.branch.edit(params.row.id)}
-          />,
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Eliminar"
-            icon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={() => handleDeleteRow(params.row.id)}
-            style={{ color: theme.vars.palette.error.main }}
-          />,
-        ],
+        getActions: (params) => {
+          if (params.row.deleted_at) {
+            return [
+              <CustomGridActionsCellItem
+                showInMenu
+                label="Restaurar"
+                icon={<Iconify icon="solar:restart-bold" />}
+                onClick={() => handleRestoreRow(params.row.id)}
+                style={{ color: theme.vars.palette.success.main }}
+              />,
+            ];
+          }
+          return [
+            <CustomGridActionsCellItem
+              showInMenu
+              label="Editar"
+              icon={<Iconify icon="solar:pen-bold" />}
+              href={paths.dashboard.branch.edit(params.row.id)}
+            />,
+            <CustomGridActionsCellItem
+              showInMenu
+              label="Eliminar"
+              icon={<Iconify icon="solar:trash-bin-trash-bold" />}
+              onClick={() => handleDeleteRow(params.row.id)}
+              style={{ color: theme.vars.palette.error.main }}
+            />,
+          ];
+        },
       },
     ],
-    [handleDeleteRow, theme.vars.palette.error.main]
+    [handleDeleteRow, handleRestoreRow, theme.vars.palette.error.main, theme.vars.palette.success.main]
   );
 
   return (
@@ -155,6 +189,7 @@ export function BranchListView() {
             pageSizeOptions={[25, 50, 100]}
             initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
+            getRowClassName={(params) => (params.row.deleted_at ? 'row--deleted' : '')}
             slots={{
               noRowsOverlay: () => <EmptyContent />,
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
@@ -163,6 +198,17 @@ export function BranchListView() {
                   <ToolbarContainer>
                     <ToolbarLeftPanel>
                       <CustomToolbarQuickFilter />
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            size="small"
+                            checked={showDeleted}
+                            onChange={(e) => setShowDeleted(e.target.checked)}
+                          />
+                        }
+                        label="Ver eliminadas"
+                        sx={{ ml: 0.5, mr: 0 }}
+                      />
                     </ToolbarLeftPanel>
                     <ToolbarRightPanel>
                       {!!(selectedRows.ids?.size > 0) && (
@@ -188,7 +234,10 @@ export function BranchListView() {
                 </Toolbar>
               ),
             }}
-            sx={{ [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' } }}
+            sx={{
+              [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' },
+              '& .row--deleted': { opacity: 0.5 },
+            }}
           />
         </Card>
       </DashboardContent>

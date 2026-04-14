@@ -101,6 +101,7 @@ export const endpoints = {
     create: '/api/v1/branches',
     update: (id) => `/api/v1/branches/${id}`,
     delete: (id) => `/api/v1/branches/${id}`,
+    restore: (id) => `/api/v1/branches/${id}/restore`,
   },
   productMaster: {
     list: '/api/v1/productsmaster',
