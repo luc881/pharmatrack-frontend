@@ -2,8 +2,14 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
+import InputLabel from '@mui/material/InputLabel';
+import FormControl from '@mui/material/FormControl';
 import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
@@ -61,6 +67,12 @@ export function SaleListView() {
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
+  const [filters, setFilters] = useState({ status: '', dateFrom: '', dateTo: '' });
+
+  const handleFilterChange = useCallback((key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPaginationModel((prev) => ({ ...prev, page: 0 }));
+  }, []);
 
   const products = useAllProducts();
   const productMap = useMemo(
@@ -71,6 +83,9 @@ export function SaleListView() {
   const { sales, salesTotal, salesLoading, salesMutate } = useGetSales({
     page: paginationModel.page + 1,
     pageSize: paginationModel.pageSize,
+    status:   filters.status   || undefined,
+    dateFrom: filters.dateFrom || undefined,
+    dateTo:   filters.dateTo   || undefined,
   });
 
   const rowCountRef = useRef(salesTotal);
@@ -246,6 +261,39 @@ export function SaleListView() {
                   <ToolbarContainer>
                     <ToolbarLeftPanel>
                       <CustomToolbarQuickFilter />
+                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                        <FormControl size="small" sx={{ minWidth: 140 }}>
+                          <InputLabel>Estado</InputLabel>
+                          <Select
+                            value={filters.status}
+                            label="Estado"
+                            onChange={(e) => handleFilterChange('status', e.target.value)}
+                          >
+                            <MenuItem value="">Todos</MenuItem>
+                            <MenuItem value="completed">Completada</MenuItem>
+                            <MenuItem value="cancelled">Cancelada</MenuItem>
+                            <MenuItem value="refunded">Reembolsada</MenuItem>
+                          </Select>
+                        </FormControl>
+                        <TextField
+                          size="small"
+                          label="Desde"
+                          type="date"
+                          value={filters.dateFrom}
+                          onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                          slotProps={{ inputLabel: { shrink: true } }}
+                          sx={{ width: 150 }}
+                        />
+                        <TextField
+                          size="small"
+                          label="Hasta"
+                          type="date"
+                          value={filters.dateTo}
+                          onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                          slotProps={{ inputLabel: { shrink: true } }}
+                          sx={{ width: 150 }}
+                        />
+                      </Stack>
                     </ToolbarLeftPanel>
                     <ToolbarRightPanel>
                       {!!(selectedRows.ids?.size > 0) && (

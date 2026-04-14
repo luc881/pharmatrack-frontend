@@ -41,7 +41,7 @@ export function SupplierListView() {
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
 
-  const { suppliers, suppliersLoading, suppliersMutate } = useGetSuppliers();
+  const { suppliers, suppliersLoading, suppliersMutate } = useGetSuppliers({ pageSize: 100 });
 
   const handleDeleteRow = useCallback(
     (id) => {

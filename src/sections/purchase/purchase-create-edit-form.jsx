@@ -105,7 +105,7 @@ const schema = zod.object({
 export function PurchaseCreateEditForm({ currentPurchase, currentDetails = [] }) {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const { suppliers } = useGetSuppliers();
+  const { suppliers } = useGetSuppliers({ pageSize: 100 });
 
   const defaultValues = {
     supplier_id: currentPurchase?.supplier_id ?? '',

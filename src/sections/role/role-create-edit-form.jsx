@@ -41,6 +41,9 @@ const schema = zod.object({
 // Recursos de administración del sistema (solo super administrador y dueño pueden tocarlos)
 const SYSTEM_RESOURCES = ['users', 'roles', 'permissions'];
 
+// Recursos de monitoreo (sensores de temperatura/humedad, etc.)
+const MONITORING_RESOURCES = ['sensor_readings'];
+
 // Recursos de ventas con operaciones completas
 const SALES_RESOURCES = [
   'sales', 'saledetails', 'salepayments', 'salebatchusages',
@@ -121,15 +124,20 @@ const TEMPLATES = [
       if (PURCHASE_RESOURCES.includes(resource)) return true;
       // Lectura de logística y sucursales (saber a dónde va el inventario)
       if (LOGISTICS_RESOURCES.includes(resource)) return action === 'read';
+      // Lectura de sensores (temperatura/humedad del almacén)
+      if (MONITORING_RESOURCES.includes(resource)) return action === 'read';
       return false;
     },
   },
 
-  // Gerente de sucursal — operaciones completas del negocio, sin gestión de sistema
+  // Gerente de sucursal — operaciones completas del negocio + monitoreo, sin gestión de sistema
   {
     label: 'Gerente de sucursal',
     color: 'primary',
-    filter: (p) => !SYSTEM_RESOURCES.includes(p.name.split('.')[0]),
+    filter: (p) => {
+      const resource = p.name.split('.')[0];
+      return !SYSTEM_RESOURCES.includes(resource);
+    },
   },
 
   // Dueño — todo el negocio + gestión de usuarios; solo lectura en roles y permisos

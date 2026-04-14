@@ -125,6 +125,7 @@ export const endpoints = {
   },
   permission: {
     list: '/api/v1/permissions/',
+    all: '/api/v1/permissions/all',
   },
   sale: {
     list: '/api/v1/sales/',

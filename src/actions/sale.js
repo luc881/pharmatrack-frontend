@@ -27,8 +27,13 @@ export function useGetBranches() {
 
 // ----------------------------------------------------------------------
 
-export function useGetSales({ page = 1, pageSize = 10 } = {}) {
-  const url = [endpoints.sale.list, { params: { page, page_size: pageSize } }];
+export function useGetSales({ page = 1, pageSize = 10, status, dateFrom, dateTo } = {}) {
+  const params = { page, page_size: pageSize };
+  if (status)   params.status    = status;
+  if (dateFrom) params.date_from = dateFrom;
+  if (dateTo)   params.date_to   = dateTo;
+
+  const url = [endpoints.sale.list, { params }];
 
   const { data, isLoading, error, isValidating, mutate } = useSWR(url, fetcher, {
     ...swrOptions,

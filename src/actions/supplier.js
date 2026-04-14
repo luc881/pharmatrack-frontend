@@ -13,13 +13,18 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
-// La API de proveedores devuelve un array plano (sin paginación)
-export function useGetSuppliers() {
-  const { data, isLoading, error, mutate } = useSWR(endpoints.supplier.list, fetcher, swrOptions);
+export function useGetSuppliers({ page = 1, pageSize = 50 } = {}) {
+  const url = [endpoints.supplier.list, { params: { page, page_size: pageSize } }];
+
+  const { data, isLoading, error, mutate } = useSWR(url, fetcher, {
+    ...swrOptions,
+    keepPreviousData: true,
+  });
 
   const memoizedValue = useMemo(
     () => ({
-      suppliers: Array.isArray(data) ? data : [],
+      suppliers: data?.data ?? [],
+      suppliersTotal: data?.total ?? 0,
       suppliersLoading: isLoading,
       suppliersError: error,
     }),

@@ -44,12 +44,11 @@ export function useGetRole(roleId) {
 // ----------------------------------------------------------------------
 
 export function useGetPermissions() {
-  const url = [endpoints.permission.list, { params: { page: 1, page_size: 500 } }];
-  const { data, isLoading } = useSWR(url, fetcher, swrOptions);
+  const { data, isLoading } = useSWR(endpoints.permission.all, fetcher, swrOptions);
 
   return useMemo(
     () => ({
-      permissions: data?.data ?? [],
+      permissions: Array.isArray(data) ? data : (data?.data ?? []),
       permissionsLoading: isLoading,
     }),
     [data, isLoading]
