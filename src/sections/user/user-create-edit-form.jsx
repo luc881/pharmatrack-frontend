@@ -19,7 +19,31 @@ import { createUser, updateUser } from 'src/actions/user';
 
 import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
+import { Iconify } from 'src/components/iconify';
 import { AvatarPicker } from 'src/components/avatar-picker';
+
+// ----------------------------------------------------------------------
+
+// Descripciones de los roles estándar del sistema.
+// La clave debe coincidir exactamente con el nombre del rol en la base de datos.
+const ROLE_DESCRIPTIONS = {
+  'Sin acceso':
+    'El usuario existe en el sistema pero no puede realizar ninguna acción. Útil para cuentas suspendidas temporalmente.',
+  'Solo lectura':
+    'Puede consultar toda la información del sistema pero no puede crear, modificar ni eliminar nada. Ideal para contadores o auditores externos.',
+  Cajero:
+    'Procesa ventas y cobros en el punto de venta. Puede registrar nuevos clientes y consultar productos disponibles. No puede hacer devoluciones ni modificar inventario.',
+  'Farmacéutico':
+    'Procesa ventas completas incluyendo devoluciones y atenciones de detalle. No gestiona inventario ni compras.',
+  Almacenista:
+    'Gestiona el inventario, recibe compras y administra proveedores y almacenes. No tiene acceso a ventas.',
+  'Gerente de sucursal':
+    'Acceso completo a todas las operaciones del negocio: ventas, inventario y compras. No puede gestionar usuarios ni modificar la configuración del sistema.',
+  'Dueño':
+    'Acceso completo al negocio y a la gestión de usuarios. Puede consultar la configuración de roles, pero no modificarla.',
+  'Super administrador':
+    'Acceso total al sistema, incluyendo la configuración de roles y permisos. Solo debe asignarse al administrador del sistema.',
+};
 
 // ----------------------------------------------------------------------
 
@@ -89,6 +113,10 @@ export function UserCreateEditForm({ currentUser }) {
 
   const avatarUrl = watch('avatar');
   const nameValue = watch('name');
+  const roleId = watch('role_id');
+
+  const selectedRole = roles.find((r) => String(r.id) === String(roleId));
+  const roleDescription = selectedRole ? ROLE_DESCRIPTIONS[selectedRole.name] : null;
 
   const toAbsoluteUrl = (url) => {
     if (!url || typeof url !== 'string') return null;
@@ -195,14 +223,36 @@ export function UserCreateEditForm({ currentUser }) {
                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
               }}
             >
-              <Field.Select name="role_id" label="Rol">
-                <MenuItem value="">Sin rol</MenuItem>
-                {roles.map((r) => (
-                  <MenuItem key={r.id} value={r.id}>
-                    {r.name}
-                  </MenuItem>
-                ))}
-              </Field.Select>
+              <Box>
+                <Field.Select name="role_id" label="Rol">
+                  <MenuItem value="">Sin rol</MenuItem>
+                  {roles.map((r) => (
+                    <MenuItem key={r.id} value={r.id}>
+                      {r.name}
+                    </MenuItem>
+                  ))}
+                </Field.Select>
+
+                {roleDescription && (
+                  <Box
+                    sx={{
+                      mt: 1,
+                      px: 1.5,
+                      py: 1,
+                      borderRadius: 1,
+                      bgcolor: 'background.neutral',
+                      display: 'flex',
+                      gap: 0.75,
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <Iconify icon="eva:info-outline" width={15} sx={{ color: 'text.disabled', mt: '1px', flexShrink: 0 }} />
+                    <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>
+                      {roleDescription}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
 
               <Field.Select name="branch_id" label="Sucursal">
                 <MenuItem value="">Sin sucursal</MenuItem>
