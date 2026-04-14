@@ -36,45 +36,119 @@ const schema = zod.object({
 
 // ----------------------------------------------------------------------
 
+// Recursos de administración del sistema (solo super administrador y dueño pueden tocarlos)
 const SYSTEM_RESOURCES = ['users', 'roles', 'permissions'];
 
+// Recursos de ventas con operaciones completas
 const SALES_RESOURCES = [
   'sales', 'saledetails', 'salepayments', 'salebatchusages',
   'saledetailattentions', 'refundproducts', 'clients',
 ];
-const SALES_READ_RESOURCES = ['products', 'productbatches', 'branches'];
 
+// Recursos de venta que el cajero/farmacéutico solo puede leer
+const SALES_LOOKUP_RESOURCES = ['products', 'productbatches', 'branches'];
+
+// Recursos de inventario y catálogos
 const INVENTORY_RESOURCES = [
   'products', 'productbatches', 'productbrands', 'productmasters',
   'productscategories', 'productstockinitials', 'productwallets',
   'productwarehouses', 'ingredients', 'units', 'conversions',
-  'suppliers', 'purchases', 'purchasedetails', 'warehouses', 'transports',
 ];
 
+// Recursos de compras y proveedores
+const PURCHASE_RESOURCES = ['suppliers', 'purchases', 'purchasedetails'];
+
+// Recursos de logística y ubicaciones
+const LOGISTICS_RESOURCES = ['warehouses', 'transports', 'branches'];
+
 const TEMPLATES = [
-  { label: 'Sin acceso',    color: 'default',    filter: () => false },
-  { label: 'Solo lectura',  color: 'info',       filter: (p) => p.name.endsWith('.read') },
+  // Sin acceso — usuario creado pero sin permisos asignados aún
+  {
+    label: 'Sin acceso',
+    color: 'default',
+    filter: () => false,
+  },
+
+  // Solo lectura — auditores, contadores, supervisores externos
+  {
+    label: 'Solo lectura',
+    color: 'info',
+    filter: (p) => p.name.endsWith('.read'),
+  },
+
+  // Cajero — procesa ventas nuevas, no puede cancelar ni hacer devoluciones
+  {
+    label: 'Cajero',
+    color: 'default',
+    filter: (p) => {
+      const [resource, action] = p.name.split('.');
+      // Ventas: solo crear y leer (sin eliminar ni devoluciones)
+      if (['sales', 'saledetails', 'salepayments', 'salebatchusages'].includes(resource))
+        return action === 'create' || action === 'read';
+      // Clientes: puede crear nuevos y consultar existentes
+      if (resource === 'clients') return action === 'create' || action === 'read';
+      // Consulta de productos, lotes y sucursal para el punto de venta
+      if (SALES_LOOKUP_RESOURCES.includes(resource)) return action === 'read';
+      return false;
+    },
+  },
+
+  // Farmacéutico — operaciones completas de venta incluyendo devoluciones
   {
     label: 'Farmacéutico',
     color: 'warning',
     filter: (p) => {
       const [resource, action] = p.name.split('.');
+      // Acceso completo a ventas, clientes y devoluciones
       if (SALES_RESOURCES.includes(resource)) return true;
-      if (SALES_READ_RESOURCES.includes(resource)) return action === 'read';
+      // Solo lectura en productos, lotes y sucursales (consulta en punto de venta)
+      if (SALES_LOOKUP_RESOURCES.includes(resource)) return action === 'read';
       return false;
     },
   },
+
+  // Almacenista — gestión de inventario y compras, sin acceso a ventas ni sistema
   {
-    label: 'Inventario',
+    label: 'Almacenista',
     color: 'secondary',
-    filter: (p) => INVENTORY_RESOURCES.includes(p.name.split('.')[0]),
+    filter: (p) => {
+      const [resource, action] = p.name.split('.');
+      // Acceso completo a inventario y catálogos de productos
+      if (INVENTORY_RESOURCES.includes(resource)) return true;
+      // Acceso completo a compras y proveedores
+      if (PURCHASE_RESOURCES.includes(resource)) return true;
+      // Lectura de logística y sucursales (saber a dónde va el inventario)
+      if (LOGISTICS_RESOURCES.includes(resource)) return action === 'read';
+      return false;
+    },
   },
+
+  // Gerente de sucursal — operaciones completas del negocio, sin gestión de sistema
   {
-    label: 'Supervisor',
+    label: 'Gerente de sucursal',
     color: 'primary',
     filter: (p) => !SYSTEM_RESOURCES.includes(p.name.split('.')[0]),
   },
-  { label: 'Administrador', color: 'error', filter: () => true },
+
+  // Dueño — todo el negocio + gestión de usuarios; solo lectura en roles y permisos
+  {
+    label: 'Dueño',
+    color: 'success',
+    filter: (p) => {
+      const [resource, action] = p.name.split('.');
+      // Puede leer roles y permisos para entender la configuración, pero no modificarlos
+      if (resource === 'roles' || resource === 'permissions') return action === 'read';
+      // Acceso total a todo lo demás, incluyendo gestión de usuarios
+      return true;
+    },
+  },
+
+  // Super administrador — acceso total, solo para el administrador del sistema
+  {
+    label: 'Super administrador',
+    color: 'error',
+    filter: () => true,
+  },
 ];
 
 const ACTION_LABELS = { read: 'Leer', create: 'Crear', update: 'Actualizar', delete: 'Eliminar' };
