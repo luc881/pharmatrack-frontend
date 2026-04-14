@@ -26,7 +26,14 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    if (error.response?.status === 429 && !error.config._retried) {
+      error.config._retried = true;
+      const retryAfter = Number(error.response.headers['retry-after'] ?? 1);
+      await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+      return axiosInstance(error.config);
+    }
+
     const message = error?.response?.data?.message || error?.message || 'Something went wrong!';
     console.error('Axios error:', message);
     return Promise.reject(new Error(message));
