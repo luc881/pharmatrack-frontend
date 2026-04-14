@@ -55,7 +55,11 @@ const GENDER_OPTIONS = [
   { value: 'F', label: 'Femenino' },
 ];
 
-const DOC_TYPE_OPTIONS = ['CURP', 'RFC', 'INE', 'Pasaporte', 'Otro'];
+const DOC_TYPE_OPTIONS = [
+  { value: 'INE', label: 'INE' },
+  { value: 'PASSPORT', label: 'Pasaporte' },
+  { value: 'LICENSE', label: 'Licencia de conducir' },
+];
 
 // ----------------------------------------------------------------------
 
@@ -207,8 +211,8 @@ export function UserCreateEditForm({ currentUser }) {
               <Field.Select name="type_document" label="Tipo de documento">
                 <MenuItem value="">Sin especificar</MenuItem>
                 {DOC_TYPE_OPTIONS.map((d) => (
-                  <MenuItem key={d} value={d}>
-                    {d}
+                  <MenuItem key={d.value} value={d.value}>
+                    {d.label}
                   </MenuItem>
                 ))}
               </Field.Select>

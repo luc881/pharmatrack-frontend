@@ -46,15 +46,19 @@ import { SalePDFRowButton } from '../sale-pdf';
 // ----------------------------------------------------------------------
 
 const STATUS_COLOR = {
+  draft: 'default',
   completed: 'success',
   cancelled: 'error',
   refunded: 'warning',
+  partially_refunded: 'warning',
 };
 
 const STATUS_LABEL = {
+  draft: 'Borrador',
   completed: 'Completada',
   cancelled: 'Cancelada',
   refunded: 'Reembolsada',
+  partially_refunded: 'Reemb. parcial',
 };
 
 // ----------------------------------------------------------------------
@@ -270,9 +274,11 @@ export function SaleListView() {
                             onChange={(e) => handleFilterChange('status', e.target.value)}
                           >
                             <MenuItem value="">Todos</MenuItem>
+                            <MenuItem value="draft">Borrador</MenuItem>
                             <MenuItem value="completed">Completada</MenuItem>
                             <MenuItem value="cancelled">Cancelada</MenuItem>
                             <MenuItem value="refunded">Reembolsada</MenuItem>
+                            <MenuItem value="partially_refunded">Reemb. parcial</MenuItem>
                           </Select>
                         </FormControl>
                         <TextField

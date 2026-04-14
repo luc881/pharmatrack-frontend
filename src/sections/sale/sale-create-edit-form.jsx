@@ -83,6 +83,12 @@ const PAYMENT_METHODS = [
   { value: 'transfer', label: 'Transferencia' },
 ];
 
+const BANK_OPTIONS = [
+  'BBVA', 'Santander', 'Banamex', 'Banorte', 'HSBC', 'Scotiabank',
+  'Inbursa', 'Bajío', 'Afirme', 'Bx+', 'Mifel', 'Monexcb',
+  'Azteca', 'Spin by OXXO', 'Mercado Pago', 'Clip', 'Otro',
+];
+
 const defaultItem = { product_id: '', batch_id: '', quantity: 1, discount: 0, description: '' };
 
 const defaultPayment = { method_payment: 'cash', amount: 0, transaction_number: '', bank: '' };
@@ -611,12 +617,16 @@ function SalePaymentItem({ index, onRemove }) {
               size="small"
               slotProps={{ inputLabel: { shrink: true } }}
             />
-            <Field.Text
+            <Field.Select
               name={`payments[${index}].bank`}
               label="Banco"
               size="small"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
+            >
+              <MenuItem value="">Sin especificar</MenuItem>
+              {BANK_OPTIONS.map((b) => (
+                <MenuItem key={b} value={b}>{b}</MenuItem>
+              ))}
+            </Field.Select>
           </>
         )}
       </Box>
