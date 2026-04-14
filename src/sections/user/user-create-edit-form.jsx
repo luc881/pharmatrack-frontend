@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { z as zod } from 'zod';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -13,6 +14,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
 
+import { endpoints } from 'src/lib/axios';
 import { useGetRoles } from 'src/actions/role';
 import { useGetBranches } from 'src/actions/sale';
 import { createUser, updateUser } from 'src/actions/user';
@@ -150,6 +152,7 @@ export function UserCreateEditForm({ currentUser }) {
       }
 
       toast.success(isEdit ? 'Usuario actualizado' : 'Usuario creado');
+      mutate((key) => Array.isArray(key) && key[0] === endpoints.user.list);
       navigate(paths.dashboard.user.list);
     } catch {
       toast.error('Error al guardar el usuario');

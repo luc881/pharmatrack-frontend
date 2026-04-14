@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { z as zod } from 'zod';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,6 +11,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
 
+import { endpoints } from 'src/lib/axios';
 import { createProductMaster, updateProductMaster } from 'src/actions/product-master';
 
 import { toast } from 'src/components/snackbar';
@@ -58,6 +60,7 @@ export function ProductMasterCreateEditForm({ currentProductMaster }) {
       }
 
       toast.success(isEdit ? 'Principio activo actualizado' : 'Principio activo creado');
+      mutate((key) => Array.isArray(key) && key[0] === endpoints.productMaster.list);
       navigate(paths.dashboard.productMaster.root);
     } catch {
       toast.error('Error al guardar el principio activo');

@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { z as zod } from 'zod';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,6 +13,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
+import { endpoints } from 'src/lib/axios';
 import { createProductBatch, updateProductBatch } from 'src/actions/product-batch';
 
 import { toast } from 'src/components/snackbar';
@@ -70,6 +72,7 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
       }
 
       toast.success(isEdit ? 'Lote actualizado' : 'Lote registrado');
+      mutate((key) => Array.isArray(key) && key[0] === endpoints.productBatch.list);
       navigate(paths.dashboard.productBatch.root);
     } catch {
       toast.error('Error al guardar el lote');

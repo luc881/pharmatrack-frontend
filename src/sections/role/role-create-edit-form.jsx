@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { z as zod } from 'zod';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
@@ -22,6 +23,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 
+import { endpoints } from 'src/lib/axios';
 import { createRole, updateRole, useGetPermissions } from 'src/actions/role';
 
 import { toast } from 'src/components/snackbar';
@@ -241,6 +243,7 @@ export function RoleCreateEditForm({ currentRole }) {
         await createRole(payload);
       }
       toast.success(isEdit ? 'Rol actualizado' : 'Rol creado');
+      mutate((key) => Array.isArray(key) && key[0] === endpoints.role.list);
       navigate(paths.dashboard.role.root);
     } catch {
       toast.error('Error al guardar el rol');

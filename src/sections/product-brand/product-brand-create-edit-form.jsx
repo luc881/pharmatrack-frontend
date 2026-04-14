@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { z as zod } from 'zod';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,6 +12,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
 
+import { endpoints } from 'src/lib/axios';
 import { createProductBrand, updateProductBrand } from 'src/actions/product-brand';
 
 import { toast } from 'src/components/snackbar';
@@ -51,6 +53,7 @@ export function ProductBrandCreateEditForm({ currentBrand }) {
         await createProductBrand(payload);
       }
       toast.success(isEdit ? 'Marca actualizada' : 'Marca creada');
+      mutate((key) => Array.isArray(key) && key[0] === endpoints.productBrand.list);
       navigate(paths.dashboard.productBrand.root);
     } catch {
       toast.error('Error al guardar la marca');

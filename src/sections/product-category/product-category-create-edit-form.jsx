@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { z as zod } from 'zod';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,6 +12,7 @@ import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
 
+import { endpoints } from 'src/lib/axios';
 import { createProductCategory, updateProductCategory, useGetAllProductCategories } from 'src/actions/product-category';
 
 import { toast } from 'src/components/snackbar';
@@ -63,6 +65,7 @@ export function ProductCategoryCreateEditForm({ currentCategory }) {
       }
 
       toast.success(isEdit ? 'Categoría actualizada' : 'Categoría creada');
+      mutate((key) => Array.isArray(key) && key[0] === endpoints.productCategory.list);
       navigate(paths.dashboard.productCategory.root);
     } catch {
       toast.error('Error al guardar la categoría');
