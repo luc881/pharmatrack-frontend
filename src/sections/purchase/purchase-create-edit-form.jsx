@@ -73,6 +73,8 @@ function useAllProducts() {
 
 // ----------------------------------------------------------------------
 
+const todayISO = () => new Date().toLocaleDateString('en-CA');
+
 const defaultItem = {
   product_id: '',
   quantity: 1,
@@ -81,7 +83,7 @@ const defaultItem = {
   expiration_date: '',
 };
 
-const itemSchema = zod.object({
+const baseItemSchema = zod.object({
   product_id: zod
     .union([zod.string(), zod.number()])
     .refine((v) => v !== '' && Number(v) > 0, { message: 'Selecciona un producto' }),
@@ -91,13 +93,22 @@ const itemSchema = zod.object({
   expiration_date: zod.string().optional(),
 });
 
-const schema = zod.object({
+const createItemSchema = baseItemSchema.extend({
+  expiration_date: zod
+    .string()
+    .optional()
+    .refine((v) => !v || v >= todayISO(), {
+      message: 'La fecha de vencimiento debe ser hoy o una fecha futura',
+    }),
+});
+
+const buildSchema = (isEdit) => zod.object({
   supplier_id: zod
     .union([zod.string(), zod.number()])
     .refine((v) => v !== '' && Number(v) > 0, { message: 'Selecciona un proveedor' }),
   date_emision: zod.string().optional(),
   description: zod.string().optional(),
-  items: zod.array(itemSchema).min(1, 'Agrega al menos un producto'),
+  items: zod.array(isEdit ? baseItemSchema : createItemSchema).min(1, 'Agrega al menos un producto'),
 });
 
 // ----------------------------------------------------------------------
@@ -126,7 +137,7 @@ export function PurchaseCreateEditForm({ currentPurchase, currentDetails = [] })
         : [defaultItem],
   };
 
-  const methods = useForm({ resolver: zodResolver(schema), defaultValues });
+  const methods = useForm({ resolver: zodResolver(buildSchema(!!currentPurchase)), defaultValues });
 
   const { handleSubmit, formState: { isSubmitting } } = methods;
 

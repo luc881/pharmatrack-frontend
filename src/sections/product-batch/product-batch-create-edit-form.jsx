@@ -23,7 +23,9 @@ import { useAllProducts } from './use-all-products';
 
 // ----------------------------------------------------------------------
 
-const schema = zod.object({
+const todayISO = () => new Date().toLocaleDateString('en-CA');
+
+const baseSchema = zod.object({
   product_id: zod
     .union([zod.string(), zod.number()])
     .refine((v) => v !== '' && Number(v) > 0, { message: 'Selecciona un producto' }),
@@ -33,12 +35,22 @@ const schema = zod.object({
   purchase_price: zod.number({ coerce: true }).nonnegative().optional().nullable(),
 });
 
+const createSchema = baseSchema.extend({
+  expiration_date: zod
+    .string()
+    .min(1, 'La fecha de vencimiento es requerida')
+    .refine((v) => v >= todayISO(), {
+      message: 'La fecha de vencimiento debe ser hoy o una fecha futura',
+    }),
+});
+
 // ----------------------------------------------------------------------
 
 export function ProductBatchCreateEditForm({ currentBatch }) {
   const navigate = useNavigate();
   const products = useAllProducts();
   const isEdit = !!currentBatch;
+  const schema = isEdit ? baseSchema : createSchema;
 
   const methods = useForm({
     resolver: zodResolver(schema),

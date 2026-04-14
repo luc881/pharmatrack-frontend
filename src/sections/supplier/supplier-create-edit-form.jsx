@@ -21,12 +21,19 @@ import { Form, Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
+const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-V0-9]{3}$/;
+
 const SupplierSchema = z.object({
-  name: z.string().min(1, { error: 'El nombre es requerido' }),
-  email: z.string().email({ error: 'Email inválido' }).or(z.literal('')).nullable(),
+  name: z.string().min(1, 'El nombre es requerido').max(255, 'Máximo 255 caracteres'),
+  email: z.string().email('Email inválido').or(z.literal('')).nullable(),
   phone: z.string().nullable(),
   address: z.string().nullable(),
-  rfc: z.string().nullable(),
+  rfc: z
+    .string()
+    .nullable()
+    .refine((v) => !v || RFC_REGEX.test(v), {
+      message: 'RFC inválido — formato esperado: XXXX000000XXX',
+    }),
   logo: z.string().nullable(),
   is_active: z.boolean(),
 });
