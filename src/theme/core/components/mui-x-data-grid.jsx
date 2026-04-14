@@ -204,6 +204,7 @@ const MuiDataGrid = {
   // ▼▼▼▼▼▼▼▼ ⚙️ PROPS ▼▼▼▼▼▼▼▼
   defaultProps: {
     showToolbar: true,
+    disableColumnMenu: true,
     slots: {
       /* Column */
       columnSortedAscendingIcon: ArrowUpIcon,
@@ -238,6 +239,9 @@ const MuiDataGrid = {
         searchInputProps: {
           size: 'medium',
         },
+        // Excluir la columna de checkboxes del panel de columnas para que siempre esté activa
+        getTogglableColumns: (cols) =>
+          cols.filter((c) => c.field !== '__check__').map((c) => c.field),
       },
     },
   },
