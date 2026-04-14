@@ -77,6 +77,7 @@ export function RoleListView() {
         flex: 1,
         minWidth: 200,
         hideable: false,
+        valueGetter: (value) => value ? value.charAt(0).toUpperCase() + value.slice(1) : value,
       },
       {
         field: 'created_at',

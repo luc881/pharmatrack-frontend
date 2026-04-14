@@ -50,7 +50,9 @@ export function UserListView() {
 
   const { roles } = useGetRoles();
   const roleMap = useMemo(
-    () => Object.fromEntries(roles.map((r) => [r.id, r.name])),
+    () => Object.fromEntries(
+      roles.map((r) => [r.id, r.name.charAt(0).toUpperCase() + r.name.slice(1)])
+    ),
     [roles]
   );
 

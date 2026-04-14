@@ -234,7 +234,7 @@ export function UserCreateEditForm({ currentUser }) {
                   <MenuItem value="">Sin rol</MenuItem>
                   {roles.map((r) => (
                     <MenuItem key={r.id} value={r.id}>
-                      {r.name}
+                      {r.name.charAt(0).toUpperCase() + r.name.slice(1)}
                     </MenuItem>
                   ))}
                 </Field.Select>
