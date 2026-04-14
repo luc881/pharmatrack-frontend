@@ -112,7 +112,7 @@ function QuickActions({ isAdmin }) {
     {
       title: 'Nueva compra',
       description: 'Registrar compra a proveedor',
-      icon: 'solar:bag-plus-bold-duotone',
+      icon: 'solar:bag-2-bold-duotone',
       color: 'secondary',
       href: paths.dashboard.purchase.new,
       adminOnly: true,

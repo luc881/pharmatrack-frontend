@@ -239,7 +239,7 @@ export function SensorWidget() {
               value={reading ? parseFloat(reading.humidity?.toFixed(1)) : 0}
               max={100}
               unit="%"
-              icon="solar:drop-bold"
+              icon="solar:water-bold"
               color="info"
               label="Humedad"
               loading={readingLoading}

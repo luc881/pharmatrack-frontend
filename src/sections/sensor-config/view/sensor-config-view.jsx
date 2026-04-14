@@ -174,7 +174,7 @@ function StatusCard() {
 
             <Stack spacing={0.25}>
               <Stack direction="row" spacing={1} alignItems="center">
-                <Iconify icon="solar:drop-bold-duotone" width={20} sx={{ color: 'info.main' }} />
+                <Iconify icon="solar:water-bold" width={20} sx={{ color: 'info.main' }} />
                 <Typography variant="h4" sx={{ color: 'info.main' }}>
                   {reading.humidity?.toFixed(0)}%
                 </Typography>
@@ -223,7 +223,7 @@ function RangesCard() {
       critical: 'Crítico si supera 30°C',
     },
     {
-      icon: 'solar:drop-bold-duotone',
+      icon: 'solar:water-bold',
       color: 'info',
       label: 'Humedad ideal',
       value: '30 – 60 %',
