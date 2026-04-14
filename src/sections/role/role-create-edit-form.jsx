@@ -245,8 +245,9 @@ export function RoleCreateEditForm({ currentRole }) {
       toast.success(isEdit ? 'Rol actualizado' : 'Rol creado');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.role.list);
       navigate(paths.dashboard.role.root);
-    } catch {
-      toast.error('Error al guardar el rol');
+    } catch (error) {
+      const message = error?.response?.data?.detail ?? error?.message ?? 'Error al guardar el rol';
+      toast.error(typeof message === 'string' ? message : JSON.stringify(message));
     }
   });
 
