@@ -210,8 +210,9 @@ export function RoleCreateEditForm({ currentRole }) {
     return ids.length > 0 && ids.every((id) => selectedIds.includes(id));
   };
 
-  const applyTemplate = (filter) => {
+  const applyTemplate = (filter, label) => {
     setValue('permission_ids', permissions.filter(filter).map((p) => p.id));
+    if (!isEdit) setValue('name', label);
   };
 
   const handleToggleAll = (resourcePerms, checked) => {
@@ -285,7 +286,7 @@ export function RoleCreateEditForm({ currentRole }) {
                     color={tpl.color}
                     variant="soft"
                     clickable
-                    onClick={() => applyTemplate(tpl.filter)}
+                    onClick={() => applyTemplate(tpl.filter, tpl.label)}
                   />
                 ))}
               </Stack>
