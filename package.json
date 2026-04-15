@@ -66,6 +66,7 @@
     "@tiptap/react": "^3.13.0",
     "@tiptap/starter-kit": "^3.13.0",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "apexcharts": "^5.3.6",
     "autosuggest-highlight": "^3.3.4",
     "aws-amplify": "^6.15.9",
