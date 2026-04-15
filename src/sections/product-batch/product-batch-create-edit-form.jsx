@@ -13,10 +13,10 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
+import { handleApiError } from 'src/utils/handle-api-error';
+
 import { endpoints } from 'src/lib/axios';
 import { createProductBatch, updateProductBatch } from 'src/actions/product-batch';
-
-import { handleApiError } from 'src/utils/handle-api-error';
 
 import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';

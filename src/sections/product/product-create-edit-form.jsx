@@ -22,10 +22,10 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { handleApiError } from 'src/utils/handle-api-error';
+
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
-
-import { handleApiError } from 'src/utils/handle-api-error';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';

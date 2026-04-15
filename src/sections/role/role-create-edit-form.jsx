@@ -23,10 +23,10 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 
+import { handleApiError } from 'src/utils/handle-api-error';
+
 import { endpoints } from 'src/lib/axios';
 import { createRole, updateRole, useGetPermissions } from 'src/actions/role';
-
-import { handleApiError } from 'src/utils/handle-api-error';
 
 import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
