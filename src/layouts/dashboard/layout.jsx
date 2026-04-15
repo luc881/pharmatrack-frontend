@@ -46,8 +46,10 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
   const isNavHorizontal = settings.state.navLayout === 'horizontal';
   const isNavVertical = isNavMini || settings.state.navLayout === 'vertical';
 
+  // The template hides an item when this returns true.
+  // Return true (hide) when the user has NONE of the required permissions.
   const canDisplayItemByRole = (allowedRoles) =>
-    !allowedRoles || allowedRoles.some((p) => (user?.permissions ?? []).includes(p));
+    !allowedRoles.some((p) => (user?.permissions ?? []).includes(p));
 
   const renderHeader = () => {
     const headerSlotProps = {
