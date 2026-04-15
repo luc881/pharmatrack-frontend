@@ -16,6 +16,8 @@ import { endpoints } from 'src/lib/axios';
 import { createProductBrand, updateProductBrand } from 'src/actions/product-brand';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -39,7 +41,7 @@ export function ProductBrandCreateEditForm({ currentBrand }) {
     },
   });
 
-  const { watch, handleSubmit, formState: { isSubmitting } } = methods;
+  const { watch, setError, handleSubmit, formState: { isSubmitting } } = methods;
 
   const logoUrl = watch('logo');
   const nameValue = watch('name');
@@ -55,8 +57,10 @@ export function ProductBrandCreateEditForm({ currentBrand }) {
       toast.success(isEdit ? 'Marca actualizada' : 'Marca creada');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.productBrand.list);
       navigate(paths.dashboard.productBrand.root);
-    } catch {
-      toast.error('Error al guardar la marca');
+    } catch (error) {
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar la marca');
+      }
     }
   });
 

@@ -15,6 +15,8 @@ import { endpoints } from 'src/lib/axios';
 import { createProductMaster, updateProductMaster } from 'src/actions/product-master';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -41,6 +43,7 @@ export function ProductMasterCreateEditForm({ currentProductMaster }) {
   });
 
   const {
+    setError,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -62,8 +65,10 @@ export function ProductMasterCreateEditForm({ currentProductMaster }) {
       toast.success(isEdit ? 'Principio activo actualizado' : 'Principio activo creado');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.productMaster.list);
       navigate(paths.dashboard.productMaster.root);
-    } catch {
-      toast.error('Error al guardar el principio activo');
+    } catch (error) {
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar el principio activo');
+      }
     }
   });
 

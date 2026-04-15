@@ -16,6 +16,8 @@ import { endpoints } from 'src/lib/axios';
 import { createProductCategory, updateProductCategory, useGetAllProductCategories } from 'src/actions/product-category';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -47,7 +49,7 @@ export function ProductCategoryCreateEditForm({ currentCategory }) {
     },
   });
 
-  const { handleSubmit, formState: { isSubmitting } } = methods;
+  const { setError, handleSubmit, formState: { isSubmitting } } = methods;
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -67,8 +69,10 @@ export function ProductCategoryCreateEditForm({ currentCategory }) {
       toast.success(isEdit ? 'Categoría actualizada' : 'Categoría creada');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.productCategory.list);
       navigate(paths.dashboard.productCategory.root);
-    } catch {
-      toast.error('Error al guardar la categoría');
+    } catch (error) {
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar la categoría');
+      }
     }
   });
 

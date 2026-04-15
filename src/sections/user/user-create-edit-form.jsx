@@ -20,6 +20,8 @@ import { useGetBranches } from 'src/actions/sale';
 import { createUser, updateUser } from 'src/actions/user';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { AvatarPicker } from 'src/components/avatar-picker';
@@ -114,6 +116,7 @@ export function UserCreateEditForm({ currentUser }) {
 
   const {
     watch,
+    setError,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -158,8 +161,10 @@ export function UserCreateEditForm({ currentUser }) {
       toast.success(isEdit ? 'Usuario actualizado' : 'Usuario creado');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.user.list);
       navigate(paths.dashboard.user.list);
-    } catch {
-      toast.error('Error al guardar el usuario');
+    } catch (error) {
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar el usuario');
+      }
     }
   });
 

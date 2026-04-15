@@ -15,6 +15,8 @@ import { endpoints } from 'src/lib/axios';
 import { createBranch, updateBranch } from 'src/actions/branch';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -45,6 +47,7 @@ export function BranchCreateEditForm({ currentBranch }) {
   });
 
   const {
+    setError,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -68,8 +71,10 @@ export function BranchCreateEditForm({ currentBranch }) {
       toast.success(isEdit ? 'Sucursal actualizada' : 'Sucursal creada');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.branch.list);
       navigate(paths.dashboard.branch.root);
-    } catch {
-      toast.error('Error al guardar la sucursal');
+    } catch (error) {
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar la sucursal');
+      }
     }
   });
 

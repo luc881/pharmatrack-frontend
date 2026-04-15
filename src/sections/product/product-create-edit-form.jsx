@@ -26,6 +26,8 @@ import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Iconify } from 'src/components/iconify';
 import { UploadAvatar } from 'src/components/upload';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
@@ -97,6 +99,7 @@ export function ProductCreateEditForm({ currentProduct }) {
     reset,
     watch,
     setValue,
+    setError,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -156,8 +159,9 @@ export function ProductCreateEditForm({ currentProduct }) {
         router.push(paths.dashboard.product.root);
       }
     } catch (error) {
-      console.error(error);
-      toast.error('Error al guardar el producto');
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar el producto');
+      }
     }
   });
 

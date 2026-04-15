@@ -17,6 +17,8 @@ import { endpoints } from 'src/lib/axios';
 import { createProductBatch, updateProductBatch } from 'src/actions/product-batch';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Field } from 'src/components/hook-form';
 
 import { useAllProducts } from './use-all-products';
@@ -63,7 +65,7 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
     },
   });
 
-  const { handleSubmit, formState: { isSubmitting } } = methods;
+  const { setError, handleSubmit, formState: { isSubmitting } } = methods;
 
   const onSubmit = handleSubmit(async (data) => {
     try {
@@ -86,8 +88,10 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
       toast.success(isEdit ? 'Lote actualizado' : 'Lote registrado');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.productBatch.list);
       navigate(paths.dashboard.productBatch.root);
-    } catch {
-      toast.error('Error al guardar el lote');
+    } catch (error) {
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar el lote');
+      }
     }
   });
 

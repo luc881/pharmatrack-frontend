@@ -17,6 +17,8 @@ import { useRouter } from 'src/routes/hooks';
 import { createSupplier, updateSupplier } from 'src/actions/supplier';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Form, Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -61,6 +63,7 @@ export function SupplierCreateEditForm({ currentSupplier }) {
 
   const {
     reset,
+    setError,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -86,8 +89,9 @@ export function SupplierCreateEditForm({ currentSupplier }) {
       }
       router.push(paths.dashboard.supplier.root);
     } catch (error) {
-      console.error(error);
-      toast.error('Error al guardar el proveedor');
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar el proveedor');
+      }
     }
   });
 

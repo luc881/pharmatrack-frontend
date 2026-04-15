@@ -27,6 +27,8 @@ import { endpoints } from 'src/lib/axios';
 import { createRole, updateRole, useGetPermissions } from 'src/actions/role';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -191,7 +193,7 @@ export function RoleCreateEditForm({ currentRole }) {
     },
   });
 
-  const { watch, setValue, handleSubmit, formState: { isSubmitting } } = methods;
+  const { watch, setValue, setError, handleSubmit, formState: { isSubmitting } } = methods;
 
   const selectedIds = watch('permission_ids');
   const grouped = groupPermissions(permissions);
@@ -254,8 +256,9 @@ export function RoleCreateEditForm({ currentRole }) {
       mutate((key) => Array.isArray(key) && key[0] === endpoints.role.list);
       navigate(paths.dashboard.role.root);
     } catch (error) {
-      const message = error?.response?.data?.detail ?? error?.message ?? 'Error al guardar el rol';
-      toast.error(typeof message === 'string' ? message : JSON.stringify(message));
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar el rol');
+      }
     }
   });
 

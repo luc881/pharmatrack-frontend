@@ -15,6 +15,8 @@ import { endpoints } from 'src/lib/axios';
 import { createIngredient, updateIngredient } from 'src/actions/ingredient';
 
 import { toast } from 'src/components/snackbar';
+
+import { handleApiError } from 'src/utils/handle-api-error';
 import { Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -41,6 +43,7 @@ export function IngredientCreateEditForm({ currentIngredient }) {
   });
 
   const {
+    setError,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -62,8 +65,10 @@ export function IngredientCreateEditForm({ currentIngredient }) {
       toast.success(isEdit ? 'Ingrediente actualizado' : 'Ingrediente creado');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.ingredient.list);
       navigate(paths.dashboard.ingredient.root);
-    } catch {
-      toast.error('Error al guardar el ingrediente');
+    } catch (error) {
+      if (!handleApiError(error, setError)) {
+        toast.error('Error al guardar el ingrediente');
+      }
     }
   });
 
