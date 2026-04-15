@@ -49,7 +49,8 @@ const ICONS = {
  * - `path`: The URL path the item links to.
  * - `icon`: An optional icon component to display alongside the title.
  * - `info`: Optional additional information to display, such as a label.
- * - `allowedRoles`: An optional array of roles that are allowed to see the item.
+ * - `allowedRoles`: A list of PERMISSION strings the user must have at least one of (e.g. ['users.read']).
+ *                   Leave empty/omit for items accessible to all authenticated users.
  * - `caption`: An optional caption to display below the title.
  * - `children`: An optional array of nested navigation items.
  * - `disabled`: An optional boolean to disable the item.
@@ -62,7 +63,7 @@ export const navData = [
   {
     subheader: 'Overview',
     items: [
-      { title: 'Inicio', path: paths.dashboard.root, icon: ICONS.dashboard },
+      { title: 'Inicio',       path: paths.dashboard.root,              icon: ICONS.dashboard },
       { title: 'Estadísticas', path: paths.dashboard.general.analytics, icon: ICONS.analytics },
     ],
   },
@@ -76,9 +77,10 @@ export const navData = [
         title: 'Usuarios',
         path: paths.dashboard.user.list,
         icon: ICONS.user,
+        allowedRoles: ['users.read'],
         children: [
-          { title: 'Lista',     path: paths.dashboard.user.list,                    allowedRoles: ['admin'] },
-          { title: 'Nuevo',     path: paths.dashboard.user.new,                     allowedRoles: ['admin'] },
+          { title: 'Lista',     path: paths.dashboard.user.list,                    allowedRoles: ['users.read'] },
+          { title: 'Nuevo',     path: paths.dashboard.user.new,                     allowedRoles: ['users.create'] },
           { title: 'Mi cuenta', path: paths.dashboard.user.account, deepMatch: true },
         ],
       },
@@ -86,10 +88,10 @@ export const navData = [
         title: 'Roles',
         path: paths.dashboard.role.root,
         icon: ICONS.lock,
-        allowedRoles: ['admin'],
+        allowedRoles: ['roles.read'],
         children: [
-          { title: 'Lista', path: paths.dashboard.role.root },
-          { title: 'Nuevo', path: paths.dashboard.role.new },
+          { title: 'Lista', path: paths.dashboard.role.root,  allowedRoles: ['roles.read'] },
+          { title: 'Nuevo', path: paths.dashboard.role.new,   allowedRoles: ['roles.create'] },
         ],
       },
       {
@@ -97,33 +99,33 @@ export const navData = [
         path: paths.dashboard.product.root,
         icon: ICONS.product,
         children: [
-          { title: 'Lista',             path: paths.dashboard.product.root },
-          { title: 'Nuevo',             path: paths.dashboard.product.new,          allowedRoles: ['admin'] },
-          { title: 'Categorías',        path: paths.dashboard.productCategory.root },
-          { title: 'Marcas',            path: paths.dashboard.productBrand.root },
-          { title: 'Lotes',             path: paths.dashboard.productBatch.root },
-          { title: 'Principios activos',path: paths.dashboard.productMaster.root },
-          { title: 'Ingredientes',      path: paths.dashboard.ingredient.root },
+          { title: 'Lista',              path: paths.dashboard.product.root },
+          { title: 'Nuevo',              path: paths.dashboard.product.new,          allowedRoles: ['products.create'] },
+          { title: 'Categorías',         path: paths.dashboard.productCategory.root },
+          { title: 'Marcas',             path: paths.dashboard.productBrand.root },
+          { title: 'Lotes',              path: paths.dashboard.productBatch.root },
+          { title: 'Principios activos', path: paths.dashboard.productMaster.root },
+          { title: 'Ingredientes',       path: paths.dashboard.ingredient.root },
         ],
       },
       {
         title: 'Proveedores',
         path: paths.dashboard.supplier.root,
         icon: ICONS.order,
-        allowedRoles: ['admin'],
+        allowedRoles: ['suppliers.read'],
         children: [
-          { title: 'Lista', path: paths.dashboard.supplier.root },
-          { title: 'Nuevo', path: paths.dashboard.supplier.new },
+          { title: 'Lista', path: paths.dashboard.supplier.root,  allowedRoles: ['suppliers.read'] },
+          { title: 'Nuevo', path: paths.dashboard.supplier.new,   allowedRoles: ['suppliers.create'] },
         ],
       },
       {
         title: 'Compras',
         path: paths.dashboard.purchase.root,
         icon: ICONS.invoice,
-        allowedRoles: ['admin'],
+        allowedRoles: ['purchases.read'],
         children: [
-          { title: 'Lista',  path: paths.dashboard.purchase.root },
-          { title: 'Nueva',  path: paths.dashboard.purchase.new },
+          { title: 'Lista',  path: paths.dashboard.purchase.root,  allowedRoles: ['purchases.read'] },
+          { title: 'Nueva',  path: paths.dashboard.purchase.new,   allowedRoles: ['purchases.create'] },
         ],
       },
       {
@@ -148,14 +150,14 @@ export const navData = [
         title: 'Sucursales',
         path: paths.dashboard.branch.root,
         icon: ICONS.banking,
-        allowedRoles: ['admin'],
+        allowedRoles: ['branches.read'],
         children: [
-          { title: 'Lista', path: paths.dashboard.branch.root },
-          { title: 'Nueva', path: paths.dashboard.branch.new },
+          { title: 'Lista', path: paths.dashboard.branch.root,  allowedRoles: ['branches.read'] },
+          { title: 'Nueva', path: paths.dashboard.branch.new,   allowedRoles: ['branches.create'] },
         ],
       },
       { title: 'Calendario', path: paths.dashboard.calendar, icon: ICONS.calendar },
-      { title: 'Sensor', path: paths.dashboard.sensor, icon: ICONS.analytics, allowedRoles: ['admin'] },
+      { title: 'Sensor',     path: paths.dashboard.sensor,   icon: ICONS.analytics, allowedRoles: ['branches.read'] },
     ],
   },
 ];

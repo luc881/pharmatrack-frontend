@@ -15,17 +15,24 @@ import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
 
 /**
- * Wraps a route element and blocks access if the authenticated user's role
- * is not in `allowedRoles`. Shows a localised "access denied" page.
+ * Wraps a route element and blocks access if the authenticated user does not
+ * have at least one of the required permissions. Shows an "access denied" page.
  *
  * Usage in routes:
- *   element: <RoleBasedGuard allowedRoles={['admin']}><MyPage /></RoleBasedGuard>
+ *   element: <RoleBasedGuard allowedPermissions={['users.read']}><MyPage /></RoleBasedGuard>
+ *
+ * Permissions come from the JWT payload (`decoded.permissions`) which the backend
+ * populates from the user's role at token-creation time.
  */
-export function RoleBasedGuard({ children, allowedRoles }) {
+export function RoleBasedGuard({ children, allowedPermissions }) {
   const { user } = useAuthContext();
-  const userRole = user?.role ?? '';
+  const userPermissions = user?.permissions ?? [];
 
-  if (allowedRoles && !allowedRoles.includes(userRole)) {
+  const hasAccess =
+    !allowedPermissions?.length ||
+    allowedPermissions.some((p) => userPermissions.includes(p));
+
+  if (!hasAccess) {
     return (
       <Container
         component={MotionContainer}

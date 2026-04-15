@@ -30,6 +30,7 @@ export function AuthProvider({ children }) {
           id: decoded.id,
           email: decoded.sub,
           role: decoded.role,
+          permissions: decoded.permissions ?? [],
           displayName: decoded.sub,
         };
         setState({ user: { ...user, accessToken }, loading: false });
@@ -60,6 +61,7 @@ export function AuthProvider({ children }) {
           id: decoded.id,
           email: decoded.sub,
           role: decoded.role,
+          permissions: decoded.permissions ?? [],
           displayName: decoded.sub,
         };
         setState({ user: { ...user, accessToken: access_token }, loading: false });
@@ -86,7 +88,9 @@ export function AuthProvider({ children }) {
 
   const memoizedValue = useMemo(
     () => ({
-      user: state.user ? { ...state.user, role: state.user?.role ?? 'admin' } : null,
+      user: state.user
+        ? { ...state.user, role: state.user?.role ?? '', permissions: state.user?.permissions ?? [] }
+        : null,
       checkUserSession,
       loading: status === 'loading',
       authenticated: status === 'authenticated',

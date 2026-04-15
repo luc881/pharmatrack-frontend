@@ -78,10 +78,46 @@ const SensorPage = lazy(() => import('src/pages/dashboard/sensor'));
 
 // ----------------------------------------------------------------------
 
-const ADMIN = ['admin'];
+// Permission constants — match the exact strings the backend stores in the permissions table.
+// Format: '{resource}.{action}'  e.g. 'users.read', 'branches.create'
+const P = {
+  // Users
+  usersRead:   ['users.read'],
+  usersCreate: ['users.create'],
+  usersUpdate: ['users.update'],
+  // Roles
+  rolesRead:   ['roles.read'],
+  rolesCreate: ['roles.create'],
+  rolesUpdate: ['roles.update'],
+  // Products
+  productsCreate:            ['products.create'],
+  productsUpdate:            ['products.update'],
+  productBatchesCreate:      ['productbatches.create'],
+  productBatchesUpdate:      ['productbatches.update'],
+  productCategoriesCreate:   ['productscategories.create'],
+  productCategoriesUpdate:   ['productscategories.update'],
+  productBrandsCreate:       ['productbrands.create'],
+  productBrandsUpdate:       ['productbrands.update'],
+  productMastersCreate:      ['productmasters.create'],
+  productMastersUpdate:      ['productmasters.update'],
+  ingredientsCreate:         ['ingredients.create'],
+  ingredientsUpdate:         ['ingredients.update'],
+  // Suppliers
+  suppliersRead:   ['suppliers.read'],
+  suppliersCreate: ['suppliers.create'],
+  suppliersUpdate: ['suppliers.update'],
+  // Purchases
+  purchasesRead:   ['purchases.read'],
+  purchasesCreate: ['purchases.create'],
+  purchasesUpdate: ['purchases.update'],
+  // Branches
+  branchesRead:   ['branches.read'],
+  branchesCreate: ['branches.create'],
+  branchesUpdate: ['branches.update'],
+};
 
-function guard(allowedRoles, element) {
-  return <RoleBasedGuard allowedRoles={allowedRoles}>{element}</RoleBasedGuard>;
+function guard(allowedPermissions, element) {
+  return <RoleBasedGuard allowedPermissions={allowedPermissions}>{element}</RoleBasedGuard>;
 }
 
 // ----------------------------------------------------------------------
@@ -115,14 +151,14 @@ export const dashboardRoutes = [
       { index: true, element: <IndexPage /> },
       { path: 'analytics', element: <OverviewAnalyticsPage /> },
 
-      // ── Users (admin only) ──────────────────────────────────────────
+      // ── Users ──────────────────────────────────────────────────────
       {
         path: 'user',
         children: [
-          { index: true,      element: guard(ADMIN, <UserListPage />) },
-          { path: 'list',     element: guard(ADMIN, <UserListPage />) },
-          { path: 'new',      element: guard(ADMIN, <UserCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <UserEditPage />) },
+          { index: true,      element: guard(P.usersRead,   <UserListPage />) },
+          { path: 'list',     element: guard(P.usersRead,   <UserListPage />) },
+          { path: 'new',      element: guard(P.usersCreate, <UserCreatePage />) },
+          { path: ':id/edit', element: guard(P.usersUpdate, <UserEditPage />) },
           {
             path: 'account',
             element: accountLayout(),
@@ -134,14 +170,14 @@ export const dashboardRoutes = [
         ],
       },
 
-      // ── Roles (admin only) ──────────────────────────────────────────
+      // ── Roles ───────────────────────────────────────────────────────
       {
         path: 'role',
         children: [
-          { index: true,      element: guard(ADMIN, <RoleListPage />) },
-          { path: 'list',     element: guard(ADMIN, <RoleListPage />) },
-          { path: 'new',      element: guard(ADMIN, <RoleCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <RoleEditPage />) },
+          { index: true,      element: guard(P.rolesRead,   <RoleListPage />) },
+          { path: 'list',     element: guard(P.rolesRead,   <RoleListPage />) },
+          { path: 'new',      element: guard(P.rolesCreate, <RoleCreatePage />) },
+          { path: ':id/edit', element: guard(P.rolesUpdate, <RoleEditPage />) },
         ],
       },
 
@@ -152,8 +188,8 @@ export const dashboardRoutes = [
           { index: true,      element: <ProductListPage /> },
           { path: 'list',     element: <ProductListPage /> },
           { path: ':id',      element: <ProductDetailsPage /> },
-          { path: 'new',      element: guard(ADMIN, <ProductCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <ProductEditPage />) },
+          { path: 'new',      element: guard(P.productsCreate, <ProductCreatePage />) },
+          { path: ':id/edit', element: guard(P.productsUpdate, <ProductEditPage />) },
         ],
       },
       {
@@ -161,8 +197,8 @@ export const dashboardRoutes = [
         children: [
           { index: true,      element: <ProductBatchListPage /> },
           { path: 'list',     element: <ProductBatchListPage /> },
-          { path: 'new',      element: guard(ADMIN, <ProductBatchCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <ProductBatchEditPage />) },
+          { path: 'new',      element: guard(P.productBatchesCreate, <ProductBatchCreatePage />) },
+          { path: ':id/edit', element: guard(P.productBatchesUpdate, <ProductBatchEditPage />) },
         ],
       },
       {
@@ -170,8 +206,8 @@ export const dashboardRoutes = [
         children: [
           { index: true,      element: <ProductCategoryListPage /> },
           { path: 'list',     element: <ProductCategoryListPage /> },
-          { path: 'new',      element: guard(ADMIN, <ProductCategoryCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <ProductCategoryEditPage />) },
+          { path: 'new',      element: guard(P.productCategoriesCreate, <ProductCategoryCreatePage />) },
+          { path: ':id/edit', element: guard(P.productCategoriesUpdate, <ProductCategoryEditPage />) },
         ],
       },
       {
@@ -179,8 +215,8 @@ export const dashboardRoutes = [
         children: [
           { index: true,      element: <ProductBrandListPage /> },
           { path: 'list',     element: <ProductBrandListPage /> },
-          { path: 'new',      element: guard(ADMIN, <ProductBrandCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <ProductBrandEditPage />) },
+          { path: 'new',      element: guard(P.productBrandsCreate, <ProductBrandCreatePage />) },
+          { path: ':id/edit', element: guard(P.productBrandsUpdate, <ProductBrandEditPage />) },
         ],
       },
       {
@@ -188,8 +224,8 @@ export const dashboardRoutes = [
         children: [
           { index: true,      element: <ProductMasterListPage /> },
           { path: 'list',     element: <ProductMasterListPage /> },
-          { path: 'new',      element: guard(ADMIN, <ProductMasterCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <ProductMasterEditPage />) },
+          { path: 'new',      element: guard(P.productMastersCreate, <ProductMasterCreatePage />) },
+          { path: ':id/edit', element: guard(P.productMastersUpdate, <ProductMasterEditPage />) },
         ],
       },
       {
@@ -197,31 +233,31 @@ export const dashboardRoutes = [
         children: [
           { index: true,      element: <IngredientListPage /> },
           { path: 'list',     element: <IngredientListPage /> },
-          { path: 'new',      element: guard(ADMIN, <IngredientCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <IngredientEditPage />) },
+          { path: 'new',      element: guard(P.ingredientsCreate, <IngredientCreatePage />) },
+          { path: ':id/edit', element: guard(P.ingredientsUpdate, <IngredientEditPage />) },
         ],
       },
 
-      // ── Suppliers (admin only) ──────────────────────────────────────
+      // ── Suppliers ───────────────────────────────────────────────────
       {
         path: 'supplier',
         children: [
-          { index: true,      element: guard(ADMIN, <SupplierListPage />) },
-          { path: 'list',     element: guard(ADMIN, <SupplierListPage />) },
-          { path: 'new',      element: guard(ADMIN, <SupplierCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <SupplierEditPage />) },
+          { index: true,      element: guard(P.suppliersRead,   <SupplierListPage />) },
+          { path: 'list',     element: guard(P.suppliersRead,   <SupplierListPage />) },
+          { path: 'new',      element: guard(P.suppliersCreate, <SupplierCreatePage />) },
+          { path: ':id/edit', element: guard(P.suppliersUpdate, <SupplierEditPage />) },
         ],
       },
 
-      // ── Purchases (admin only) ──────────────────────────────────────
+      // ── Purchases ───────────────────────────────────────────────────
       {
         path: 'purchase',
         children: [
-          { index: true,      element: guard(ADMIN, <PurchaseListPage />) },
-          { path: 'list',     element: guard(ADMIN, <PurchaseListPage />) },
-          { path: 'new',      element: guard(ADMIN, <PurchaseCreatePage />) },
-          { path: ':id',      element: guard(ADMIN, <PurchaseDetailsPage />) },
-          { path: ':id/edit', element: guard(ADMIN, <PurchaseEditPage />) },
+          { index: true,      element: guard(P.purchasesRead,   <PurchaseListPage />) },
+          { path: 'list',     element: guard(P.purchasesRead,   <PurchaseListPage />) },
+          { path: 'new',      element: guard(P.purchasesCreate, <PurchaseCreatePage />) },
+          { path: ':id',      element: guard(P.purchasesRead,   <PurchaseDetailsPage />) },
+          { path: ':id/edit', element: guard(P.purchasesUpdate, <PurchaseEditPage />) },
         ],
       },
 
@@ -247,14 +283,14 @@ export const dashboardRoutes = [
         ],
       },
 
-      // ── Branches (admin only) ───────────────────────────────────────
+      // ── Branches ────────────────────────────────────────────────────
       {
         path: 'branch',
         children: [
-          { index: true,      element: guard(ADMIN, <BranchListPage />) },
-          { path: 'list',     element: guard(ADMIN, <BranchListPage />) },
-          { path: 'new',      element: guard(ADMIN, <BranchCreatePage />) },
-          { path: ':id/edit', element: guard(ADMIN, <BranchEditPage />) },
+          { index: true,      element: guard(P.branchesRead,   <BranchListPage />) },
+          { path: 'list',     element: guard(P.branchesRead,   <BranchListPage />) },
+          { path: 'new',      element: guard(P.branchesCreate, <BranchCreatePage />) },
+          { path: ':id/edit', element: guard(P.branchesUpdate, <BranchEditPage />) },
         ],
       },
 
@@ -262,7 +298,7 @@ export const dashboardRoutes = [
       { path: 'calendar', element: <CalendarPage /> },
 
       // ── Sensor config ───────────────────────────────────────────────
-      { path: 'sensor', element: guard(ADMIN, <SensorPage />) },
+      { path: 'sensor', element: guard(P.branchesRead, <SensorPage />) },
     ],
   },
 ];
