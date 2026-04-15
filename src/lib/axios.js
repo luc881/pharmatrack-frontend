@@ -74,6 +74,8 @@ export const endpoints = {
     signIn: '/api/v1/auth/token',
     refresh: '/api/v1/auth/refresh',
     signOut: '/api/v1/auth/logout',
+    forgotPassword: '/api/v1/auth/forgot-password',
+    resetPassword: '/api/v1/auth/reset-password',
   },
   mail: {
     list: '/api/mail/list',

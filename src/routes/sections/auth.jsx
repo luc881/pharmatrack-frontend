@@ -11,6 +11,8 @@ import { GuestGuard } from 'src/auth/guard';
 
 const SignInPage = lazy(() => import('src/pages/auth/jwt/sign-in'));
 const SignUpPage = lazy(() => import('src/pages/auth/jwt/sign-up'));
+const ForgotPasswordPage = lazy(() => import('src/pages/auth/jwt/forgot-password'));
+const ResetPasswordPage = lazy(() => import('src/pages/auth/reset-password'));
 
 // ----------------------------------------------------------------------
 
@@ -46,7 +48,25 @@ export const authRoutes = [
               </GuestGuard>
             ),
           },
+          {
+            path: 'forgot-password',
+            element: (
+              <GuestGuard>
+                <AuthSplitLayout>
+                  <ForgotPasswordPage />
+                </AuthSplitLayout>
+              </GuestGuard>
+            ),
+          },
         ],
+      },
+      {
+        path: 'reset-password',
+        element: (
+          <AuthSplitLayout>
+            <ResetPasswordPage />
+          </AuthSplitLayout>
+        ),
       },
     ],
   },
