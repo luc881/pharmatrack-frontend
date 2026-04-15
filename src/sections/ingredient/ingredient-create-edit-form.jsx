@@ -14,9 +14,9 @@ import { paths } from 'src/routes/paths';
 import { endpoints } from 'src/lib/axios';
 import { createIngredient, updateIngredient } from 'src/actions/ingredient';
 
-import { toast } from 'src/components/snackbar';
-
 import { handleApiError } from 'src/utils/handle-api-error';
+
+import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------

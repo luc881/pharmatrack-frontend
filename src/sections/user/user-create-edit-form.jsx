@@ -19,9 +19,9 @@ import { useGetRoles } from 'src/actions/role';
 import { useGetBranches } from 'src/actions/sale';
 import { createUser, updateUser } from 'src/actions/user';
 
-import { toast } from 'src/components/snackbar';
-
 import { handleApiError } from 'src/utils/handle-api-error';
+
+import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { AvatarPicker } from 'src/components/avatar-picker';

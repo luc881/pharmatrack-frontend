@@ -16,9 +16,9 @@ import { paths } from 'src/routes/paths';
 import { endpoints } from 'src/lib/axios';
 import { createProductBatch, updateProductBatch } from 'src/actions/product-batch';
 
-import { toast } from 'src/components/snackbar';
-
 import { handleApiError } from 'src/utils/handle-api-error';
+
+import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
 
 import { useAllProducts } from './use-all-products';

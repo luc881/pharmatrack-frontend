@@ -25,9 +25,9 @@ import { useRouter } from 'src/routes/hooks';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
 
-import { toast } from 'src/components/snackbar';
-
 import { handleApiError } from 'src/utils/handle-api-error';
+
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { UploadAvatar } from 'src/components/upload';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
