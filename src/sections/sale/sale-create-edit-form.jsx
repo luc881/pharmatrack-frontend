@@ -288,12 +288,19 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
 // ----------------------------------------------------------------------
 
 function SaleItems({ products }) {
-  const { control, watch } = useFormContext();
+  const { control, watch, setValue, getValues } = useFormContext();
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [scanFlash, setScanFlash] = useState(null); // 'success' | 'error' | null
+  const [lastScanned, setLastScanned] = useState(null);
   const barcodeRef = useRef(null);
 
   const items = watch('items');
+
+  // Auto-foco al montar el formulario
+  useEffect(() => {
+    barcodeRef.current?.focus();
+  }, []);
 
   const estimatedTotal = items.reduce((acc, item) => {
     const product = products.find((p) => p.id === Number(item.product_id));
@@ -305,18 +312,41 @@ function SaleItems({ products }) {
     (value) => {
       const trimmed = value.trim();
       if (!trimmed) return;
+
       const found = products.find(
         (p) => p.sku && p.sku.toLowerCase() === trimmed.toLowerCase()
       );
+
+      setBarcodeInput('');
+
       if (found) {
-        append({ ...defaultItem, product_id: found.id });
-        setBarcodeInput('');
+        // Si el producto ya está en la lista, incrementar cantidad
+        const currentItems = getValues('items');
+        const existingIndex = currentItems.findIndex(
+          (item) => Number(item.product_id) === found.id
+        );
+
+        if (existingIndex >= 0) {
+          const currentQty = Number(currentItems[existingIndex].quantity) || 1;
+          setValue(`items[${existingIndex}].quantity`, currentQty + 1);
+        } else {
+          append({ ...defaultItem, product_id: found.id });
+        }
+
+        setScanFlash('success');
+        setLastScanned(found.title);
+        setTimeout(() => setScanFlash(null), 500);
+        setTimeout(() => setLastScanned(null), 2000);
       } else {
+        setScanFlash('error');
+        setTimeout(() => setScanFlash(null), 500);
         toast.error(`Producto no encontrado: "${trimmed}"`);
-        setBarcodeInput('');
       }
+
+      // Re-foco para el siguiente escaneo
+      setTimeout(() => barcodeRef.current?.focus(), 50);
     },
-    [products, append]
+    [products, append, getValues, setValue]
   );
 
   return (
@@ -339,7 +369,14 @@ function SaleItems({ products }) {
           }
         }}
         placeholder="Escanear código de barras o escribir SKU y presionar Enter…"
-        sx={{ mb: 3 }}
+        sx={{
+          mb: lastScanned ? 1 : 3,
+          '& .MuiOutlinedInput-root fieldset': {
+            transition: 'border-color 0.3s ease, border-width 0.3s ease',
+            ...(scanFlash === 'success' && { borderColor: 'success.main', borderWidth: 2 }),
+            ...(scanFlash === 'error' && { borderColor: 'error.main', borderWidth: 2 }),
+          },
+        }}
         slotProps={{
           input: {
             startAdornment: (
@@ -350,6 +387,16 @@ function SaleItems({ products }) {
           },
         }}
       />
+
+      {/* Último producto escaneado */}
+      {lastScanned && (
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <Iconify icon="solar:check-circle-bold" width={15} sx={{ color: 'success.main' }} />
+          <Typography variant="caption" sx={{ color: 'success.main' }}>
+            Agregado: {lastScanned}
+          </Typography>
+        </Box>
+      )}
 
       <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
         {fields.map((field, index) => (
