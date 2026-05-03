@@ -56,7 +56,6 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       container: {
         maxWidth: false,
         sx: {
-          direction: 'ltr',
           ...(isNavVertical && { px: { [layoutQuery]: 5 } }),
           ...(isNavHorizontal && {
             bgcolor: 'var(--layout-nav-bg)',
@@ -187,16 +186,20 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
        *************************************** */
       cssVars={{ ...dashboardLayoutVars(theme), ...navVars.layout, ...cssVars }}
       sx={[
-        {
-          [`& .${layoutClasses.sidebarContainer}`]: {
-            [theme.breakpoints.up(layoutQuery)]: {
-              pl: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
-              transition: theme.transitions.create(['padding-left'], {
-                easing: 'var(--layout-transition-easing)',
-                duration: 'var(--layout-transition-duration)',
-              }),
+        (t) => {
+          const isRtl = t.direction === 'rtl';
+          const navWidth = isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)';
+          return {
+            [`& .${layoutClasses.sidebarContainer}`]: {
+              [t.breakpoints.up(layoutQuery)]: {
+                ...(isRtl ? { pr: navWidth } : { pl: navWidth }),
+                transition: t.transitions.create([isRtl ? 'padding-right' : 'padding-left'], {
+                  easing: 'var(--layout-transition-easing)',
+                  duration: 'var(--layout-transition-duration)',
+                }),
+              },
             },
-          },
+          };
         },
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}

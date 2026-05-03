@@ -28,7 +28,6 @@ export function DashboardContent({
       maxWidth={settings.state.compactLayout ? maxWidth : false}
       sx={[
         (theme) => ({
-          direction: 'ltr',
           display: 'flex',
           flex: '1 1 auto',
           flexDirection: 'column',
