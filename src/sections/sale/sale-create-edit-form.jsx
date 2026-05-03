@@ -7,19 +7,25 @@ import { useForm, Controller, FormProvider, useFieldArray, useFormContext } from
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
+import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
 import axiosInstance, { endpoints } from 'src/lib/axios';
+import { createProductBatch } from 'src/actions/product-batch';
 import {
   createSale,
   updateSale,
@@ -454,6 +460,7 @@ function SaleItem({ index, products, onRemove }) {
   const { watch, setValue, control } = useFormContext();
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
+  const [openAddBatch, setOpenAddBatch] = useState(false);
 
   const productId = watch(`items[${index}].product_id`);
   const batchId = watch(`items[${index}].batch_id`);
@@ -501,6 +508,17 @@ function SaleItem({ index, products, onRemove }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
+  const handleBatchCreated = useCallback(
+    (newBatch) => {
+      setBatches((prev) =>
+        [...prev, newBatch].sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date))
+      );
+      setValue(`items[${index}].batch_id`, newBatch.id);
+      setOpenAddBatch(false);
+    },
+    [index, setValue]
+  );
+
   return (
     <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
       <Box
@@ -530,20 +548,45 @@ function SaleItem({ index, products, onRemove }) {
           )}
         />
 
-        <Field.Select
-          name={`items[${index}].batch_id`}
-          label="Lote"
-          size="small"
-          disabled={!productId || batchesLoading}
-        >
-          <MenuItem value="">Sin lote</MenuItem>
-          {batches.map((b) => (
-            <MenuItem key={b.id} value={b.id}>
-              {b.expiration_date ? `Vence: ${b.expiration_date}` : `Lote #${b.id}`}
-              {` — Stock: ${b.quantity}`}
-            </MenuItem>
-          ))}
-        </Field.Select>
+        <Box>
+          <Field.Select
+            name={`items[${index}].batch_id`}
+            label="Lote"
+            size="small"
+            disabled={!productId || batchesLoading}
+          >
+            <MenuItem value="">Sin lote</MenuItem>
+            {batches.map((b) => (
+              <MenuItem key={b.id} value={b.id}>
+                {b.lot_code ? `${b.lot_code} — ` : ''}
+                {b.expiration_date ? `Vence: ${b.expiration_date}` : `Lote #${b.id}`}
+                {` — Stock: ${b.quantity}`}
+              </MenuItem>
+            ))}
+          </Field.Select>
+
+          {productId && (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+              <Button
+                size="small"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                onClick={() => setOpenAddBatch(true)}
+              >
+                {batches.length === 0 ? 'Crear lote' : 'Agregar lote'}
+              </Button>
+            </Box>
+          )}
+
+          {openAddBatch && (
+            <AddBatchDialog
+              open={openAddBatch}
+              onClose={() => setOpenAddBatch(false)}
+              productId={Number(productId)}
+              existingBatches={batches}
+              onCreated={handleBatchCreated}
+            />
+          )}
+        </Box>
 
         <Field.Text
           name={`items[${index}].quantity`}
@@ -654,6 +697,185 @@ function SalePayments() {
         Agregar forma de pago
       </Button>
     </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+// ----------------------------------------------------------------------
+
+function normalize(s) {
+  return s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }) {
+  const [lotCode, setLotCode] = useState('');
+  const [expirationDate, setExpirationDate] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [purchasePrice, setPurchasePrice] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [duplicateError, setDuplicateError] = useState('');
+  const [similarBatches, setSimilarBatches] = useState([]);
+  const [pendingCreate, setPendingCreate] = useState(false);
+
+  const todayISO = new Date().toLocaleDateString('en-CA');
+
+  const resetWarnings = () => {
+    setDuplicateError('');
+    setSimilarBatches([]);
+    setPendingCreate(false);
+  };
+
+  const findSimilar = (code) => {
+    const norm = normalize(code);
+    if (norm.length < 2) return [];
+    return existingBatches.filter((b) => {
+      if (!b.lot_code) return false;
+      const bNorm = normalize(b.lot_code);
+      if (bNorm === norm) return false;
+      return bNorm.includes(norm) || norm.includes(bNorm);
+    });
+  };
+
+  const doCreate = async () => {
+    setCreating(true);
+    try {
+      const created = await createProductBatch({
+        product_id: productId,
+        lot_code: lotCode.trim() || null,
+        expiration_date: expirationDate || null,
+        quantity: Number(quantity),
+        purchase_price: purchasePrice ? Number(purchasePrice) : null,
+      });
+      toast.success('Lote creado');
+      onCreated(created);
+    } catch {
+      toast.error('Error al crear el lote');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    const errs = {};
+    if (!quantity || Number(quantity) <= 0) errs.quantity = 'La cantidad debe ser mayor a 0';
+    if (expirationDate && expirationDate < todayISO) errs.expirationDate = 'La fecha debe ser hoy o una fecha futura';
+    if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
+
+    if (lotCode.trim()) {
+      const norm = normalize(lotCode);
+      const exact = existingBatches.find((b) => b.lot_code && normalize(b.lot_code) === norm);
+      if (exact) { setDuplicateError(`Ya existe el lote "${exact.lot_code}" para este producto`); return; }
+      const similar = findSimilar(lotCode);
+      if (similar.length > 0) { setSimilarBatches(similar); setPendingCreate(true); return; }
+    }
+
+    await doCreate();
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Agregar lote</DialogTitle>
+
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <TextField
+            label="Código de lote"
+            size="small"
+            fullWidth
+            value={lotCode}
+            onChange={(e) => { setLotCode(e.target.value); resetWarnings(); }}
+            error={!!duplicateError}
+            helperText={duplicateError || 'Opcional'}
+          />
+
+          {similarBatches.length > 0 && (
+            <Alert
+              severity="warning"
+              icon={<Iconify icon="solar:danger-triangle-bold" width={20} />}
+            >
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Hay lotes con código similar:{' '}
+                <Box component="span" sx={{ fontWeight: 600 }}>
+                  {similarBatches.map((b) => b.lot_code).join(', ')}
+                </Box>
+                . ¿Es un lote nuevo?
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <LoadingButton
+                  size="small"
+                  variant="contained"
+                  color="warning"
+                  loading={creating}
+                  onClick={doCreate}
+                >
+                  Sí, crear &ldquo;{lotCode.trim()}&rdquo;
+                </LoadingButton>
+                <Button size="small" variant="outlined" color="inherit" onClick={resetWarnings}>
+                  Cancelar
+                </Button>
+              </Box>
+            </Alert>
+          )}
+
+          <TextField
+            label="Fecha de vencimiento"
+            type="date"
+            size="small"
+            fullWidth
+            value={expirationDate}
+            onChange={(e) => { setExpirationDate(e.target.value); setFieldErrors((p) => ({ ...p, expirationDate: '' })); }}
+            error={!!fieldErrors.expirationDate}
+            helperText={fieldErrors.expirationDate || 'Opcional'}
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+
+          <TextField
+            label="Cantidad *"
+            type="number"
+            size="small"
+            fullWidth
+            value={quantity}
+            onChange={(e) => { setQuantity(e.target.value); setFieldErrors((p) => ({ ...p, quantity: '' })); }}
+            error={!!fieldErrors.quantity}
+            helperText={fieldErrors.quantity}
+          />
+
+          <TextField
+            label="Precio de costo"
+            type="number"
+            size="small"
+            fullWidth
+            value={purchasePrice}
+            onChange={(e) => setPurchasePrice(e.target.value)}
+            helperText="Opcional"
+            slotProps={{
+              inputLabel: { shrink: true },
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        </Stack>
+      </DialogContent>
+
+      <DialogActions>
+        <Button onClick={onClose} disabled={creating}>Cancelar</Button>
+        <LoadingButton
+          variant="contained"
+          loading={creating}
+          disabled={pendingCreate}
+          onClick={handleSubmit}
+        >
+          Crear lote
+        </LoadingButton>
+      </DialogActions>
+    </Dialog>
   );
 }
 
