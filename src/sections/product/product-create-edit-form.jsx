@@ -37,6 +37,49 @@ import { InlineCreatableSelect } from './inline-creatable-select';
 
 // ----------------------------------------------------------------------
 
+const UNIT_OPTIONS = [
+  // Sólidos
+  'pieza',
+  'tableta',
+  'cápsula',
+  'gragea',
+  'óvulo',
+  'supositorio',
+  'parche',
+  // Líquidos
+  'ml',
+  'L',
+  'frasco',
+  'ampolleta',
+  'vial',
+  'solución',
+  // Semisólidos
+  'g',
+  'kg',
+  'mg',
+  'tubo',
+  'sobre',
+  // Presentaciones empaquetadas (c/ = "con")
+  'caja c/10',
+  'caja c/12',
+  'caja c/14',
+  'caja c/20',
+  'caja c/24',
+  'caja c/28',
+  'caja c/30',
+  'caja c/60',
+  'caja c/100',
+  'caja c/500',
+  'frasco c/30',
+  'frasco c/60',
+  'frasco c/90',
+  'frasco c/100',
+  'frasco c/120',
+  'frasco c/500',
+];
+
+// ----------------------------------------------------------------------
+
 const ProductSchema = z.object({
   title: z.string().min(1, { error: 'El nombre es requerido' }),
   description: z.string(),
@@ -310,7 +353,14 @@ export function ProductCreateEditForm({ currentProduct }) {
               loading={brandsLoading}
             />
 
-            <Field.Text name="unit_name" label="Unidad de venta" placeholder="pieza, caja, ml…" />
+            <Field.Autocomplete
+              name="unit_name"
+              label="Unidad de venta"
+              placeholder="pieza, caja, ml…"
+              freeSolo
+              options={UNIT_OPTIONS}
+              slotProps={{ textField: { slotProps: { inputLabel: { shrink: true } } } }}
+            />
           </Box>
 
           <Field.Switch name="is_unit_sale" label="Venta por unidad individual" />
