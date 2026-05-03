@@ -325,24 +325,40 @@ function SaleItems({ products, estimatedTotal }) {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [scanFlash, setScanFlash] = useState(null);
   const [lastScanned, setLastScanned] = useState(null);
+  const [isScanMode, setIsScanMode] = useState(false);
   const barcodeRef = useRef(null);
+  const scanZoneRef = useRef(null);
 
-  // Auto-foco al montar el formulario
+  // Auto-foco y activar modo escáner al montar
   useEffect(() => {
     barcodeRef.current?.focus();
+    setIsScanMode(true);
   }, []);
 
-  // F2 — regresar al campo de escaneo desde cualquier lugar
+  // F2 — activar modo escáner desde cualquier lugar
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === 'F2') {
         e.preventDefault();
+        setIsScanMode(true);
         barcodeRef.current?.focus();
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
+
+  // Click de ratón fuera de la zona de escaneo → desactivar modo
+  useEffect(() => {
+    if (!isScanMode) return undefined;
+    const onMouseDown = (e) => {
+      if (scanZoneRef.current && !scanZoneRef.current.contains(e.target)) {
+        setIsScanMode(false);
+      }
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [isScanMode]);
 
   const handleBarcodeScan = useCallback(
     (value) => {
@@ -389,50 +405,160 @@ function SaleItems({ products, estimatedTotal }) {
         <Typography variant="h6">Productos</Typography>
       </Box>
 
-      {/* Barcode scanner input */}
-      <TextField
-        inputRef={barcodeRef}
-        size="small"
-        fullWidth
-        value={barcodeInput}
-        onChange={(e) => setBarcodeInput(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            handleBarcodeScan(barcodeInput);
-          }
-        }}
-        placeholder="Escanear código de barras o escribir SKU y presionar Enter…"
-        helperText={
-          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Chip label="F2" size="small" variant="soft" sx={{ height: 16, fontSize: 10, px: 0.5 }} />
-            para regresar aquí desde cualquier campo
-          </Box>
-        }
-        sx={{
-          mb: lastScanned ? 1 : 3,
-          '& .MuiOutlinedInput-root fieldset': {
-            transition: 'border-color 0.3s ease, border-width 0.3s ease',
-            ...(scanFlash === 'success' && { borderColor: 'success.main', borderWidth: 2 }),
-            ...(scanFlash === 'error' && { borderColor: 'error.main', borderWidth: 2 }),
-          },
-        }}
-        slotProps={{
-          input: {
-            startAdornment: (
-              <InputAdornment position="start">
-                <Iconify icon="solar:barcode-bold" width={20} sx={{ color: 'text.disabled' }} />
-              </InputAdornment>
-            ),
-          },
-        }}
-      />
+      {/* Zona de escaneo — el mousedown fuera de aquí desactiva el modo */}
+      <Box ref={scanZoneRef}>
 
-      {lastScanned && (
-        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Iconify icon="solar:check-circle-bold" width={15} sx={{ color: 'success.main' }} />
-          <Typography variant="caption" sx={{ color: 'success.main' }}>
-            Agregado: {lastScanned}
+        {/* Banner modo escáner */}
+        {isScanMode && (
+          <Box
+            sx={{
+              mb: 1.5,
+              px: 2,
+              py: 1,
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              bgcolor: 'primary.lighter',
+              border: '1px solid',
+              borderColor: 'primary.light',
+            }}
+          >
+            {/* Punto pulsante */}
+            <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  width: 10, height: 10,
+                  borderRadius: '50%',
+                  bgcolor: 'primary.main',
+                  opacity: 0.35,
+                  animation: 'scanPulse 1.4s ease-in-out infinite',
+                  '@keyframes scanPulse': {
+                    '0%, 100%': { transform: 'scale(1)', opacity: 0.35 },
+                    '50%': { transform: 'scale(2.2)', opacity: 0 },
+                  },
+                }}
+              />
+              <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: 'primary.main' }} />
+            </Box>
+
+            <Iconify icon="solar:barcode-bold" width={18} sx={{ color: 'primary.main', flexShrink: 0 }} />
+
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography variant="subtitle2" sx={{ color: 'primary.darker', lineHeight: 1.3 }}>
+                Modo escáner activo
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'primary.dark', lineHeight: 1.2 }}>
+                Apunta el lector al código de barras · haz clic en otro campo para salir
+              </Typography>
+            </Box>
+
+            <Chip
+              label="F2"
+              size="small"
+              sx={{ bgcolor: 'primary.light', color: 'primary.darker', fontWeight: 700, fontSize: 10, height: 20 }}
+            />
+          </Box>
+        )}
+
+        {/* Campo de escaneo */}
+        <TextField
+          inputRef={barcodeRef}
+          size="small"
+          fullWidth
+          value={barcodeInput}
+          onChange={(e) => setBarcodeInput(e.target.value)}
+          onFocus={() => setIsScanMode(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleBarcodeScan(barcodeInput);
+            }
+          }}
+          placeholder="Escanear código de barras o escribir SKU y presionar Enter…"
+          helperText={
+            !isScanMode && (
+              <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Chip label="F2" size="small" variant="soft" sx={{ height: 16, fontSize: 10, px: 0.5 }} />
+                para activar modo escáner
+              </Box>
+            )
+          }
+          sx={{
+            mb: lastScanned ? 1 : 2,
+            '& .MuiOutlinedInput-root fieldset': {
+              transition: 'border-color 0.2s ease, border-width 0.2s ease, box-shadow 0.2s ease',
+              ...(isScanMode && !scanFlash && {
+                borderColor: 'primary.main',
+                borderWidth: 2,
+                boxShadow: (theme) => `0 0 0 3px ${theme.palette.primary.main}22`,
+              }),
+              ...(scanFlash === 'success' && { borderColor: 'success.main', borderWidth: 2 }),
+              ...(scanFlash === 'error' && { borderColor: 'error.main', borderWidth: 2 }),
+            },
+          }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Iconify
+                    icon="solar:barcode-bold"
+                    width={20}
+                    sx={{ color: isScanMode ? 'primary.main' : 'text.disabled' }}
+                  />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+
+        {lastScanned && (
+          <Box sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Iconify icon="solar:check-circle-bold" width={15} sx={{ color: 'success.main' }} />
+            <Typography variant="caption" sx={{ color: 'success.main' }}>
+              Agregado: {lastScanned}
+            </Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Badge flotante — visible en toda la pantalla mientras el modo está activo */}
+      {isScanMode && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 1300,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            px: 1.5,
+            py: 0.75,
+            borderRadius: 10,
+            bgcolor: 'primary.main',
+            color: '#fff',
+            boxShadow: 4,
+            pointerEvents: 'none', // no interfiere con clicks
+          }}
+        >
+          <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Box
+              sx={{
+                position: 'absolute',
+                width: 8, height: 8,
+                borderRadius: '50%',
+                bgcolor: '#fff',
+                opacity: 0.4,
+                animation: 'scanPulse 1.4s ease-in-out infinite',
+              }}
+            />
+            <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#fff' }} />
+          </Box>
+          <Iconify icon="solar:barcode-bold" width={16} />
+          <Typography variant="caption" sx={{ fontWeight: 700, lineHeight: 1 }}>
+            Escaneando
           </Typography>
         </Box>
       )}
