@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Calendar from '@fullcalendar/react';
 import listPlugin from '@fullcalendar/list';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -8,6 +9,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
+import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -21,16 +23,31 @@ import { CalendarToolbar } from '../calendar-toolbar';
 // ----------------------------------------------------------------------
 
 const LEGEND = [
-  { label: 'Vencido', color: errorColor.darker },
-  { label: '≤ 7 días', color: errorColor.main },
+  { label: 'Vencido',   color: errorColor.darker },
+  { label: '≤ 7 días',  color: errorColor.main },
   { label: '≤ 30 días', color: warning.main },
-  { label: 'Vigente', color: success.main },
+  { label: 'Vigente',   color: success.main },
 ];
+
+// "2027-07-27" → "Julio de 2027"
+function formatMonthYear(yearMonth) {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const s = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' })
+    .format(new Date(year, month - 1, 1));
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Today's YYYY-MM string, computed once
+function todayYearMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
 
 // ----------------------------------------------------------------------
 
 export function CalendarView() {
   const { events, eventsLoading } = useGetBatchCalendarEvents();
+  const [currentYearMonth, setCurrentYearMonth] = useState(todayYearMonth);
 
   const {
     calendarRef,
@@ -45,6 +62,9 @@ export function CalendarView() {
     display: 'flex',
     flexDirection: 'column',
   };
+
+  // Events that start in the currently visible month (safe string compare — no TZ issues)
+  const monthEvents = events.filter((ev) => ev.start?.startsWith(currentYearMonth));
 
   return (
     <DashboardContent maxWidth="xl" sx={{ ...flexStyles }}>
@@ -81,10 +101,10 @@ export function CalendarView() {
             onDateNavigation={onDateNavigation}
             onOpenFilters={() => {}}
             viewOptions={[
-              { value: 'dayGridMonth', label: 'Mes', icon: 'mingcute:calendar-month-line' },
+              { value: 'dayGridMonth', label: 'Mes',    icon: 'mingcute:calendar-month-line' },
               { value: 'timeGridWeek', label: 'Semana', icon: 'mingcute:calendar-week-line' },
-              { value: 'timeGridDay', label: 'Día', icon: 'mingcute:calendar-day-line' },
-              { value: 'listWeek', label: 'Agenda', icon: 'custom:calendar-agenda-outline' },
+              { value: 'timeGridDay',  label: 'Día',    icon: 'mingcute:calendar-day-line' },
+              { value: 'listWeek',     label: 'Agenda', icon: 'custom:calendar-agenda-outline' },
             ]}
           />
 
@@ -101,6 +121,12 @@ export function CalendarView() {
             initialView={view}
             events={events}
             plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
+            onDatesSet={(dateInfo) => {
+              const d = dateInfo.view.currentStart;
+              setCurrentYearMonth(
+                `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+              );
+            }}
             eventContent={(arg) => (
               <Box
                 title={`${arg.event.title}\nStk: ${arg.event.extendedProps?.batch?.quantity ?? '—'}`}
@@ -121,7 +147,72 @@ export function CalendarView() {
           />
         </CalendarRoot>
       </Card>
+
+      {/* ── Monthly batch list ────────────────────────────────────────── */}
+      <Card sx={{ mt: 3 }}>
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: monthEvents.length > 0 ? 2 : 0 }}>
+            Lotes que vencen en {formatMonthYear(currentYearMonth)}
+          </Typography>
+
+          {monthEvents.length === 0 ? (
+            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
+              No hay lotes que venzan en este mes.
+            </Typography>
+          ) : (
+            <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />}>
+              {monthEvents.map((ev) => {
+                const parts = ev.title.split(' \u2014 '); // em dash separator
+                const productName = parts[0] ?? ev.title;
+                const lotCode = parts[1] ?? null;
+                const statusLabel = LEGEND.find((l) => l.color === ev.color)?.label ?? 'Vigente';
+
+                return (
+                  <Box
+                    key={ev.id}
+                    sx={{
+                      py: 1.5,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 2,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="subtitle2" noWrap>
+                        {productName}
+                      </Typography>
+                      {lotCode && (
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Lote: {lotCode}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    <Stack direction="row" spacing={1.5} alignItems="center" flexShrink={0}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        {ev.start}
+                      </Typography>
+                      <Typography variant="body2">
+                        Stock:{' '}
+                        <Box component="span" sx={{ fontWeight: 700 }}>
+                          {ev.extendedProps?.batch?.quantity ?? '—'}
+                        </Box>
+                      </Typography>
+                      <Chip
+                        label={statusLabel}
+                        size="small"
+                        sx={{ bgcolor: ev.color, color: '#fff', fontWeight: 600 }}
+                      />
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+        </Box>
+      </Card>
     </DashboardContent>
   );
 }
-
