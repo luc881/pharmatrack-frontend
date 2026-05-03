@@ -1,7 +1,7 @@
 import { z as zod } from 'zod';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRef , useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { useForm, Controller, FormProvider, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -11,6 +11,7 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -21,6 +22,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import InputAdornment from '@mui/material/InputAdornment';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 
@@ -456,6 +458,17 @@ function SaleItems({ products }) {
 
 // ----------------------------------------------------------------------
 
+// Label shown in the batch Autocomplete for a given batch
+function batchLabel(b) {
+  const parts = [];
+  if (b.lot_code) parts.push(b.lot_code);
+  parts.push(b.expiration_date ? `Vence: ${b.expiration_date}` : `Lote #${b.id}`);
+  parts.push(`Stock: ${b.quantity}`);
+  return parts.join(' — ');
+}
+
+const NULL_BATCH = { id: '', label: 'Sin lote' };
+
 function SaleItem({ index, products, onRemove }) {
   const { watch, setValue, control } = useFormContext();
   const [batches, setBatches] = useState([]);
@@ -519,6 +532,11 @@ function SaleItem({ index, products, onRemove }) {
     [index, setValue]
   );
 
+  // Build Autocomplete options: null option + available batches
+  const batchOptions = [NULL_BATCH, ...batches.map((b) => ({ id: b.id, label: batchLabel(b) }))];
+  const selectedBatchOption =
+    batchOptions.find((o) => o.id === (batchId === '' ? '' : Number(batchId))) ?? NULL_BATCH;
+
   return (
     <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
       <Box
@@ -548,22 +566,29 @@ function SaleItem({ index, products, onRemove }) {
           )}
         />
 
+        {/* Batch — searchable Autocomplete */}
         <Box>
-          <Field.Select
+          <Controller
             name={`items[${index}].batch_id`}
-            label="Lote"
-            size="small"
-            disabled={!productId || batchesLoading}
-          >
-            <MenuItem value="">Sin lote</MenuItem>
-            {batches.map((b) => (
-              <MenuItem key={b.id} value={b.id}>
-                {b.lot_code ? `${b.lot_code} — ` : ''}
-                {b.expiration_date ? `Vence: ${b.expiration_date}` : `Lote #${b.id}`}
-                {` — Stock: ${b.quantity}`}
-              </MenuItem>
-            ))}
-          </Field.Select>
+            control={control}
+            render={({ fieldState: { error } }) => (
+              <Autocomplete
+                size="small"
+                options={batchOptions}
+                value={selectedBatchOption}
+                getOptionLabel={(o) => o.label ?? ''}
+                isOptionEqualToValue={(o, v) => o.id === v?.id}
+                disabled={!productId || batchesLoading}
+                onChange={(_, newVal) =>
+                  setValue(`items[${index}].batch_id`, newVal?.id ?? '', { shouldValidate: true })
+                }
+                noOptionsText="Sin lotes disponibles"
+                renderInput={(params) => (
+                  <TextField {...params} label="Lote" error={!!error} helperText={error?.message} />
+                )}
+              />
+            )}
+          />
 
           {productId && (
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
@@ -667,50 +692,178 @@ function SaleItem({ index, products, onRemove }) {
 
 // ----------------------------------------------------------------------
 
-function SalePayments() {
-  const { control } = useFormContext();
-  const { fields, append, remove } = useFieldArray({ control, name: 'payments' });
+function normalize(s) {
+  return s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// Returns YYYY-MM-DD for the last day of the given month.
+// In pharma, "exp 12/2025" means valid through Dec 31 2025.
+function lastDayISO(year, month) {
+  // new Date(year, month, 0) → day 0 of month+1 = last day of month (1-indexed month input)
+  const d = new Date(year, month, 0);
+  return `${year}-${String(month).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const MONTH_ITEMS = [
+  { value: 1, label: 'Enero' },
+  { value: 2, label: 'Febrero' },
+  { value: 3, label: 'Marzo' },
+  { value: 4, label: 'Abril' },
+  { value: 5, label: 'Mayo' },
+  { value: 6, label: 'Junio' },
+  { value: 7, label: 'Julio' },
+  { value: 8, label: 'Agosto' },
+  { value: 9, label: 'Septiembre' },
+  { value: 10, label: 'Octubre' },
+  { value: 11, label: 'Noviembre' },
+  { value: 12, label: 'Diciembre' },
+];
+
+function ScrollColumn({ items, value, onChange, width }) {
+  const ITEM_H = 48;
+  const ref = useRef(null);
+  const timerRef = useRef(null);
+  const currentIndex = items.findIndex((item) => item.value === value);
+
+  // Set initial scroll position synchronously before paint
+  useLayoutEffect(() => {
+    if (ref.current && currentIndex >= 0) {
+      ref.current.scrollTop = currentIndex * ITEM_H;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const snapToNearest = useCallback(() => {
+    if (!ref.current) return;
+    const idx = Math.round(ref.current.scrollTop / ITEM_H);
+    const clamped = Math.max(0, Math.min(items.length - 1, idx));
+    ref.current.scrollTo({ top: clamped * ITEM_H, behavior: 'smooth' });
+    onChange(items[clamped].value);
+  }, [items, onChange]);
+
+  const handleScroll = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(snapToNearest, 120);
+  };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h6" sx={{ mb: 3 }}>
-        Pago
-      </Typography>
+    <Box sx={{ position: 'relative', width, height: ITEM_H * 5, overflow: 'hidden', userSelect: 'none' }}>
+      {/* Selection highlight bar */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: ITEM_H * 2,
+          left: 4,
+          right: 4,
+          height: ITEM_H,
+          bgcolor: 'action.selected',
+          borderRadius: 1,
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+      {/* Fade top */}
+      <Box
+        sx={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H * 2,
+          background: (theme) =>
+            `linear-gradient(to bottom, ${theme.palette.background.paper} 10%, transparent)`,
+          pointerEvents: 'none', zIndex: 2,
+        }}
+      />
+      {/* Fade bottom */}
+      <Box
+        sx={{
+          position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H * 2,
+          background: (theme) =>
+            `linear-gradient(to top, ${theme.palette.background.paper} 10%, transparent)`,
+          pointerEvents: 'none', zIndex: 2,
+        }}
+      />
 
-      <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
-        {fields.map((field, index) => (
-          <SalePaymentItem
-            key={field.id}
-            index={index}
-            onRemove={fields.length > 1 ? () => remove(index) : null}
-          />
-        ))}
-      </Stack>
-
-      <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
-
-      <Button
-        size="small"
-        startIcon={<Iconify icon="mingcute:add-line" />}
-        onClick={() => append({ ...defaultPayment })}
+      {/* Scrollable list */}
+      <Box
+        ref={ref}
+        onScroll={handleScroll}
+        sx={{
+          position: 'absolute', inset: 0,
+          overflowY: 'scroll',
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+          zIndex: 1,
+        }}
       >
-        Agregar forma de pago
-      </Button>
+        {/* Top spacer — allows first item to reach center */}
+        <Box sx={{ height: ITEM_H * 2 }} />
+
+        {items.map((item) => (
+          <Box
+            key={item.value}
+            onClick={() => {
+              const idx = items.findIndex((i) => i.value === item.value);
+              ref.current?.scrollTo({ top: idx * ITEM_H, behavior: 'smooth' });
+              onChange(item.value);
+            }}
+            sx={{
+              height: ITEM_H,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              typography: 'body2',
+              fontWeight: item.value === value ? 700 : 400,
+              color: item.value === value ? 'text.primary' : 'text.secondary',
+              transition: 'font-weight 0.15s, color 0.15s',
+            }}
+          >
+            {item.label}
+          </Box>
+        ))}
+
+        {/* Bottom spacer — allows last item to reach center */}
+        <Box sx={{ height: ITEM_H * 2 }} />
+      </Box>
+    </Box>
+  );
+}
+
+function MonthYearPicker({ month, year, onMonthChange, onYearChange }) {
+  const currentYear = new Date().getFullYear();
+  const yearItems = Array.from({ length: 8 }, (_, i) => ({
+    value: currentYear + i,
+    label: String(currentYear + i),
+  }));
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 1,
+        overflow: 'hidden',
+        bgcolor: 'background.paper',
+      }}
+    >
+      <ScrollColumn items={MONTH_ITEMS} value={month} onChange={onMonthChange} width={130} />
+      <Divider orientation="vertical" flexItem />
+      <ScrollColumn items={yearItems} value={year} onChange={onYearChange} width={90} />
     </Box>
   );
 }
 
 // ----------------------------------------------------------------------
 
-// ----------------------------------------------------------------------
-
-function normalize(s) {
-  return s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
 function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }) {
+  const _now = new Date();
+  // Default expiration month: next month (to avoid initializing on a past month)
+  const _defaultMonth = _now.getMonth() + 2 > 12 ? 1 : _now.getMonth() + 2;
+  const _defaultYear = _now.getMonth() + 2 > 12 ? _now.getFullYear() + 1 : _now.getFullYear();
+
   const [lotCode, setLotCode] = useState('');
-  const [expirationDate, setExpirationDate] = useState('');
+  const [hasExpiration, setHasExpiration] = useState(false);
+  const [expMonth, setExpMonth] = useState(_defaultMonth);
+  const [expYear, setExpYear] = useState(_defaultYear);
   const [quantity, setQuantity] = useState('');
   const [purchasePrice, setPurchasePrice] = useState('');
   const [creating, setCreating] = useState(false);
@@ -719,7 +872,7 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
   const [similarBatches, setSimilarBatches] = useState([]);
   const [pendingCreate, setPendingCreate] = useState(false);
 
-  const todayISO = new Date().toLocaleDateString('en-CA');
+  const todayISO = _now.toLocaleDateString('en-CA');
 
   const resetWarnings = () => {
     setDuplicateError('');
@@ -744,7 +897,7 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
       const created = await createProductBatch({
         product_id: productId,
         lot_code: lotCode.trim() || null,
-        expiration_date: expirationDate || null,
+        expiration_date: hasExpiration ? lastDayISO(expYear, expMonth) : null,
         quantity: Number(quantity),
         purchase_price: purchasePrice ? Number(purchasePrice) : null,
       });
@@ -760,7 +913,9 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
   const handleSubmit = async () => {
     const errs = {};
     if (!quantity || Number(quantity) <= 0) errs.quantity = 'La cantidad debe ser mayor a 0';
-    if (expirationDate && expirationDate < todayISO) errs.expirationDate = 'La fecha debe ser hoy o una fecha futura';
+    if (hasExpiration && lastDayISO(expYear, expMonth) < todayISO) {
+      errs.expirationDate = 'La fecha de caducidad debe ser igual o posterior al mes actual';
+    }
     if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
 
     if (lotCode.trim()) {
@@ -819,17 +974,41 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
             </Alert>
           )}
 
-          <TextField
-            label="Fecha de vencimiento"
-            type="date"
-            size="small"
-            fullWidth
-            value={expirationDate}
-            onChange={(e) => { setExpirationDate(e.target.value); setFieldErrors((p) => ({ ...p, expirationDate: '' })); }}
-            error={!!fieldErrors.expirationDate}
-            helperText={fieldErrors.expirationDate || 'Opcional'}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
+          {/* Expiration date — month/year drum picker */}
+          <Box>
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={hasExpiration}
+                  onChange={(e) => {
+                    setHasExpiration(e.target.checked);
+                    setFieldErrors((p) => ({ ...p, expirationDate: '' }));
+                  }}
+                />
+              }
+              label="Tiene fecha de caducidad"
+            />
+
+            {hasExpiration && (
+              <Box sx={{ mt: 1 }}>
+                <MonthYearPicker
+                  month={expMonth}
+                  year={expYear}
+                  onMonthChange={setExpMonth}
+                  onYearChange={setExpYear}
+                />
+                {fieldErrors.expirationDate && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, display: 'block' }}>
+                    {fieldErrors.expirationDate}
+                  </Typography>
+                )}
+                <Typography variant="caption" sx={{ color: 'text.disabled', mt: 0.5, display: 'block' }}>
+                  Se guardará como el último día del mes ({lastDayISO(expYear, expMonth)})
+                </Typography>
+              </Box>
+            )}
+          </Box>
 
           <TextField
             label="Cantidad *"
@@ -876,6 +1055,41 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
         </LoadingButton>
       </DialogActions>
     </Dialog>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function SalePayments() {
+  const { control } = useFormContext();
+  const { fields, append, remove } = useFieldArray({ control, name: 'payments' });
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h6" sx={{ mb: 3 }}>
+        Pago
+      </Typography>
+
+      <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
+        {fields.map((field, index) => (
+          <SalePaymentItem
+            key={field.id}
+            index={index}
+            onRemove={fields.length > 1 ? () => remove(index) : null}
+          />
+        ))}
+      </Stack>
+
+      <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
+
+      <Button
+        size="small"
+        startIcon={<Iconify icon="mingcute:add-line" />}
+        onClick={() => append({ ...defaultPayment })}
+      >
+        Agregar forma de pago
+      </Button>
+    </Box>
   );
 }
 
