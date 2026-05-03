@@ -1,12 +1,12 @@
 import { z as zod } from 'zod';
-import { useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState, useEffect, useCallback } from 'react';
-import { useForm, FormProvider, useFieldArray, useFormContext } from 'react-hook-form';
+import { useRef , useState, useEffect, useCallback } from 'react';
+import { useForm, Controller, FormProvider, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -14,6 +14,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
+import Autocomplete from '@mui/material/Autocomplete';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
@@ -302,6 +303,18 @@ function SaleItems({ products }) {
     barcodeRef.current?.focus();
   }, []);
 
+  // F2 — regresar al campo de escaneo desde cualquier lugar
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        barcodeRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const estimatedTotal = items.reduce((acc, item) => {
     const product = products.find((p) => p.id === Number(item.product_id));
     const price = product?.price_retail ?? 0;
@@ -369,6 +382,12 @@ function SaleItems({ products }) {
           }
         }}
         placeholder="Escanear código de barras o escribir SKU y presionar Enter…"
+        helperText={
+          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Chip label="F2" size="small" variant="soft" sx={{ height: 16, fontSize: 10, px: 0.5 }} />
+            para regresar aquí desde cualquier campo
+          </Box>
+        }
         sx={{
           mb: lastScanned ? 1 : 3,
           '& .MuiOutlinedInput-root fieldset': {
@@ -432,17 +451,21 @@ function SaleItems({ products }) {
 // ----------------------------------------------------------------------
 
 function SaleItem({ index, products, onRemove }) {
-  const { watch, setValue } = useFormContext();
+  const { watch, setValue, control } = useFormContext();
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
 
   const productId = watch(`items[${index}].product_id`);
+  const batchId = watch(`items[${index}].batch_id`);
   const quantity = watch(`items[${index}].quantity`);
   const discount = watch(`items[${index}].discount`);
 
   const product = products.find((p) => p.id === Number(productId));
   const priceRetail = product?.price_retail ?? 0;
   const lineTotal = (Number(quantity) || 0) * priceRetail - (Number(discount) || 0);
+
+  const selectedBatch = batches.find((b) => b.id === Number(batchId));
+  const stockWarning = selectedBatch && Number(quantity) > Number(selectedBatch.quantity);
 
   // Cargar lotes disponibles cuando cambia el producto y auto-seleccionar el más próximo a vencer
   const loadBatches = useCallback(async (pid) => {
@@ -488,13 +511,24 @@ function SaleItem({ index, products, onRemove }) {
           alignItems: 'start',
         }}
       >
-        <Field.Select name={`items[${index}].product_id`} label="Producto *" size="small">
-          {products.map((p) => (
-            <MenuItem key={p.id} value={p.id}>
-              {p.title}
-            </MenuItem>
-          ))}
-        </Field.Select>
+        <Controller
+          name={`items[${index}].product_id`}
+          control={control}
+          render={({ field: { value }, fieldState: { error } }) => (
+            <Autocomplete
+              size="small"
+              options={products}
+              getOptionLabel={(opt) => (typeof opt === 'object' ? opt.title : products.find((p) => p.id === Number(opt))?.title ?? '')}
+              isOptionEqualToValue={(opt, val) => opt.id === (typeof val === 'object' ? val?.id : Number(val))}
+              value={products.find((p) => p.id === Number(value)) ?? null}
+              onChange={(_, newValue) => setValue(`items[${index}].product_id`, newValue?.id ?? '', { shouldValidate: true })}
+              noOptionsText="Sin resultados"
+              renderInput={(params) => (
+                <TextField {...params} label="Producto *" error={!!error} helperText={error?.message} />
+              )}
+            />
+          )}
+        />
 
         <Field.Select
           name={`items[${index}].batch_id`}
@@ -565,12 +599,24 @@ function SaleItem({ index, products, onRemove }) {
       </Box>
 
       {product && (
-        <Typography variant="body2" sx={{ color: 'text.secondary', textAlign: 'right' }}>
-          Precio unitario: <strong>${priceRetail}</strong> · Subtotal estimado:{' '}
-          <Box component="span" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
-            ${lineTotal.toFixed(2)}
-          </Box>
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+          {stockWarning ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+              <Iconify icon="solar:danger-triangle-bold" width={15} sx={{ color: 'warning.main' }} />
+              <Typography variant="caption" sx={{ color: 'warning.main' }}>
+                Stock disponible en este lote: {selectedBatch.quantity} unidades
+              </Typography>
+            </Box>
+          ) : (
+            <Box />
+          )}
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Precio unitario: <strong>${priceRetail}</strong> · Subtotal:{' '}
+            <Box component="span" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+              ${lineTotal.toFixed(2)}
+            </Box>
+          </Typography>
+        </Box>
       )}
     </Box>
   );
