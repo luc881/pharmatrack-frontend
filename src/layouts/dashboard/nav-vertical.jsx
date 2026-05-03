@@ -106,6 +106,7 @@ const NavRoot = styled('div', {
   display: 'none',
   position: 'fixed',
   flexDirection: 'column',
+  direction: 'ltr',
   zIndex: 'var(--layout-nav-zIndex)',
   backgroundColor: 'var(--layout-nav-bg)',
   width: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
