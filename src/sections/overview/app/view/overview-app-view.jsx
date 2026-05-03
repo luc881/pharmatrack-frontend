@@ -58,7 +58,7 @@ function QuickActionCard({ title, description, icon, color = 'primary', href }) 
       </Box>
 
       <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-        <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
+        <Typography variant="subtitle2" noWrap sx={{ color: 'text.primary' }}>
           {title}
         </Typography>
         {description && (

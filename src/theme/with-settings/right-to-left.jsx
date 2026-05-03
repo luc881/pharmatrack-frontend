@@ -1,9 +1,24 @@
-// RTL mode is used solely to move the sidebar to the right side.
-// We intentionally skip the stylis-plugin-rtl CSS transformer so that
-// all component layouts (flex directions, text alignment, padding, etc.)
-// stay in LTR. The sidebar and toggle button are repositioned manually
-// via theme.direction checks in their own style definitions.
+import { useEffect } from 'react';
+import createCache from '@emotion/cache';
+import { CacheProvider } from '@emotion/react';
 
-export function Rtl({ children }) {
+import rtlPlugin from '@mui/stylis-plugin-rtl';
+
+// ----------------------------------------------------------------------
+
+const cacheRtl = createCache({
+  key: 'rtl',
+  stylisPlugins: [rtlPlugin],
+});
+
+export function Rtl({ children, direction }) {
+  useEffect(() => {
+    document.dir = direction;
+  }, [direction]);
+
+  if (direction === 'rtl') {
+    return <CacheProvider value={cacheRtl}>{children}</CacheProvider>;
+  }
+
   return <>{children}</>;
 }

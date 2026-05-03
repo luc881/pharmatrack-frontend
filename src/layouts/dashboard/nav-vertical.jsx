@@ -99,31 +99,20 @@ export function NavVertical({
 
 const NavRoot = styled('div', {
   shouldForwardProp: (prop) => !['isNavMini', 'layoutQuery', 'sx'].includes(prop),
-})(({ isNavMini, layoutQuery = 'md', theme }) => {
-  const isRtl = theme.direction === 'rtl';
-  return {
-    top: 0,
-    height: '100%',
-    display: 'none',
-    position: 'fixed',
-    flexDirection: 'column',
-    zIndex: 'var(--layout-nav-zIndex)',
-    backgroundColor: 'var(--layout-nav-bg)',
-    width: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
-    ...(isRtl
-      ? {
-          right: 0,
-          left: 'auto',
-          borderLeft: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
-        }
-      : {
-          left: 0,
-          borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
-        }),
-    transition: theme.transitions.create(['width'], {
-      easing: 'var(--layout-transition-easing)',
-      duration: 'var(--layout-transition-duration)',
-    }),
-    [theme.breakpoints.up(layoutQuery)]: { display: 'flex' },
-  };
-});
+})(({ isNavMini, layoutQuery = 'md', theme }) => ({
+  top: 0,
+  left: 0,
+  height: '100%',
+  display: 'none',
+  position: 'fixed',
+  flexDirection: 'column',
+  zIndex: 'var(--layout-nav-zIndex)',
+  backgroundColor: 'var(--layout-nav-bg)',
+  width: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
+  borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
+  transition: theme.transitions.create(['width'], {
+    easing: 'var(--layout-transition-easing)',
+    duration: 'var(--layout-transition-duration)',
+  }),
+  [theme.breakpoints.up(layoutQuery)]: { display: 'flex' },
+}));
