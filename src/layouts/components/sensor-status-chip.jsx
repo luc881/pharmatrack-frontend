@@ -124,7 +124,7 @@ export function SensorStatusChip() {
               lineHeight: 1,
             }}
           >
-            Offline
+            Sin señal
           </Typography>
         )}
       </Box>

@@ -5,14 +5,20 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Divider from '@mui/material/Divider';
 import MenuList from '@mui/material/MenuList';
 import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import InputAdornment from '@mui/material/InputAdornment';
 import Dialog, { dialogClasses } from '@mui/material/Dialog';
 import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
 import InputBase, { inputBaseClasses } from '@mui/material/InputBase';
+
+import { paths } from 'src/routes/paths';
+
+import { useGetProducts } from 'src/actions/product';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -33,6 +39,9 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
   const { value: open, onFalse: onClose, onTrue: onOpen, onToggle } = useBoolean();
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Load products for catalog search (large page so the whole catalog is available client-side)
+  const { products } = useGetProducts({ pageSize: 300 });
+
   const handleClose = useCallback(() => {
     onClose();
     setSearchQuery('');
@@ -51,7 +60,6 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
@@ -64,15 +72,26 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
   const formattedNavItems = flattenNavSections(navItems);
 
   const dataFiltered = useMemo(
-    () =>
-      applyFilter({
-        inputData: formattedNavItems,
-        query: searchQuery,
-      }),
+    () => applyFilter({ inputData: formattedNavItems, query: searchQuery }),
     [formattedNavItems, searchQuery]
   );
 
-  const notFound = searchQuery && !dataFiltered.length;
+  // Product search — only active when user has typed something
+  const productsFiltered = useMemo(() => {
+    if (!searchQuery) return [];
+    const q = searchQuery.toLowerCase();
+    return (products ?? [])
+      .filter(
+        (p) =>
+          p.title?.toLowerCase().includes(q) ||
+          p.sku?.toLowerCase().includes(q) ||
+          p.brand?.name?.toLowerCase().includes(q) ||
+          p.category?.name?.toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  }, [products, searchQuery]);
+
+  const notFound = searchQuery && !dataFiltered.length && !productsFiltered.length;
 
   const renderButton = () => (
     <Box
@@ -127,38 +146,73 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
     </Box>
   );
 
-  const renderResults = () => (
-    <MenuList
-      disablePadding
-      sx={{
-        [`& .${menuItemClasses.root}`]: {
-          p: 0,
-          mb: 0,
-          '&:hover': { bgcolor: 'transparent' },
-        },
-      }}
-    >
-      {dataFiltered.map((item) => {
-        const matchesTitle = match(item.title, searchQuery, { insideWords: true });
-        const partsTitle = parse(item.title, matchesTitle);
+  const menuItemSx = {
+    [`& .${menuItemClasses.root}`]: {
+      p: 0,
+      mb: 0,
+      '&:hover': { bgcolor: 'transparent' },
+    },
+  };
 
-        const matchesPath = match(item.path, searchQuery, { insideWords: true });
-        const partsPath = parse(item.path, matchesPath);
+  const renderNavResults = () =>
+    dataFiltered.length > 0 && (
+      <MenuList disablePadding sx={menuItemSx}>
+        {dataFiltered.map((item) => {
+          const matchesTitle = match(item.title, searchQuery, { insideWords: true });
+          const partsTitle = parse(item.title, matchesTitle);
+          const matchesPath = match(item.path, searchQuery, { insideWords: true });
+          const partsPath = parse(item.path, matchesPath);
 
-        return (
-          <MenuItem disableRipple key={`${item.title}${item.path}`}>
-            <ResultItem
-              path={partsPath}
-              title={partsTitle}
-              href={item.path}
-              labels={item.group.split('.')}
-              onClick={handleClose}
-            />
-          </MenuItem>
-        );
-      })}
-    </MenuList>
-  );
+          return (
+            <MenuItem disableRipple key={`${item.title}${item.path}`}>
+              <ResultItem
+                path={partsPath}
+                title={partsTitle}
+                href={item.path}
+                labels={item.group.split('.')}
+                onClick={handleClose}
+              />
+            </MenuItem>
+          );
+        })}
+      </MenuList>
+    );
+
+  const renderProductResults = () =>
+    productsFiltered.length > 0 && (
+      <>
+        {dataFiltered.length > 0 && <Divider sx={{ mx: 0 }} />}
+
+        <Box sx={{ px: 2.5, pt: 1.5, pb: 0.5 }}>
+          <Typography variant="overline" sx={{ color: 'text.secondary', fontSize: 11 }}>
+            Productos
+          </Typography>
+        </Box>
+
+        <MenuList disablePadding sx={menuItemSx}>
+          {productsFiltered.map((product) => {
+            const matchesTitle = match(product.title ?? '', searchQuery, { insideWords: true });
+            const partsTitle = parse(product.title ?? '', matchesTitle);
+
+            const skuText = product.sku ?? '';
+            const matchesSku = match(skuText, searchQuery, { insideWords: true });
+            const partsSku = parse(skuText, matchesSku);
+
+            return (
+              <MenuItem disableRipple key={product.id}>
+                <ResultItem
+                  title={partsTitle}
+                  path={partsSku}
+                  href={paths.dashboard.product.edit(product.id)}
+                  labels={['Producto']}
+                  onClick={handleClose}
+                />
+              </MenuItem>
+            );
+          })}
+        </MenuList>
+      </>
+    );
 
   return (
     <>
@@ -180,7 +234,7 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
         <InputBase
           fullWidth
           autoFocus={open}
-          placeholder="Search..."
+          placeholder="Buscar páginas o productos… (o escanea un código de barras)"
           value={searchQuery}
           onChange={handleSearch}
           startAdornment={
@@ -200,7 +254,10 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
         {notFound ? (
           <SearchNotFound query={searchQuery} sx={{ py: 15, px: 2.5 }} />
         ) : (
-          <Scrollbar sx={{ p: 2.5, height: 400 }}>{renderResults()}</Scrollbar>
+          <Scrollbar sx={{ p: 2.5, height: 400 }}>
+            {renderNavResults()}
+            {renderProductResults()}
+          </Scrollbar>
         )}
       </Dialog>
     </>
