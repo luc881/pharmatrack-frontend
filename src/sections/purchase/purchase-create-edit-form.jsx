@@ -16,8 +16,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
-import { useGetSuppliers } from 'src/actions/supplier';
 import axiosInstance, { endpoints } from 'src/lib/axios';
+import { createSupplier, useGetSuppliers } from 'src/actions/supplier';
 import {
   createPurchase,
   updatePurchase,
@@ -30,6 +30,8 @@ import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
+
+import { InlineCreatableSelect } from '../product/inline-creatable-select';
 
 // ----------------------------------------------------------------------
 
@@ -116,7 +118,14 @@ const buildSchema = (isEdit) => zod.object({
 export function PurchaseCreateEditForm({ currentPurchase, currentDetails = [] }) {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const { suppliers } = useGetSuppliers({ pageSize: 100 });
+  const { suppliers, suppliersLoading, suppliersMutate } = useGetSuppliers({ pageSize: 100 });
+
+  const handleCreateSupplier = async (name) => {
+    const created = await createSupplier({ name, is_active: true });
+    suppliersMutate();
+    toast.success(`Proveedor "${created.name}" creado`);
+    return created;
+  };
 
   const defaultValues = {
     supplier_id: currentPurchase?.supplier_id ?? '',
@@ -202,13 +211,13 @@ export function PurchaseCreateEditForm({ currentPurchase, currentDetails = [] })
                 gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '2fr 1fr 1fr' },
               }}
             >
-              <Field.Select name="supplier_id" label="Proveedor *">
-                {suppliers.map((s) => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {s.name}
-                  </MenuItem>
-                ))}
-              </Field.Select>
+              <InlineCreatableSelect
+                name="supplier_id"
+                label="Proveedor *"
+                options={suppliers}
+                onCreate={handleCreateSupplier}
+                loading={suppliersLoading}
+              />
 
               <Field.Text
                 name="date_emision"
