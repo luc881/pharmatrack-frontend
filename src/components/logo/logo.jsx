@@ -46,7 +46,7 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
   );
 
   const fullLogo = (
-    <svg width="100%" height="100%" viewBox="0 0 230 40" xmlns="http://www.w3.org/2000/svg">
+    <svg width="100%" height="100%" viewBox="0 0 230 40" xmlns="http://www.w3.org/2000/svg" direction="ltr">
       <rect x="0" y="2" width="36" height="36" rx="7" fill="#D32F2F" />
       <rect x="15.5" y="8" width="5" height="24" rx="2" fill="white" />
       <rect x="8" y="15.5" width="20" height="5" rx="2" fill="white" />
