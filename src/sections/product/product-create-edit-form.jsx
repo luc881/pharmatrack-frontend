@@ -44,10 +44,13 @@ import { InlineCreatableSelect } from './inline-creatable-select';
 function normTitle(s) {
   if (!s) return s;
   const clean = s.replace(/\s+/g, ' ').trim();
-  // Capitaliza primera letra de cada palabra alfabética; respeta números (400mg → 400mg)
   return clean
     .split(' ')
-    .map((w) => (w && /^[a-záéíóúñA-ZÁÉÍÓÚÑ]/.test(w) ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .map((w) => {
+      if (!w || !/^[a-záéíóúñA-ZÁÉÍÓÚÑ]/.test(w)) return w; // respeta números (400mg)
+      if (w === w.toUpperCase() && w.length > 1) return w;   // acrónimo (ABC, BBVA) → sin tocar
+      return w[0].toUpperCase() + w.slice(1).toLowerCase();
+    })
     .join(' ');
 }
 

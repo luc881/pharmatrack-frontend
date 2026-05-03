@@ -21,7 +21,11 @@ function normName(s) {
   const clean = s.replace(/\s+/g, ' ').trim();
   return clean
     .split(' ')
-    .map((w) => (w && /^[a-záéíóúñA-ZÁÉÍÓÚÑ]/.test(w) ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .map((w) => {
+      if (!w || !/^[a-záéíóúñA-ZÁÉÍÓÚÑ]/.test(w)) return w; // respeta números
+      if (w === w.toUpperCase() && w.length > 1) return w;   // acrónimo (ABC, BBVA) → sin tocar
+      return w[0].toUpperCase() + w.slice(1).toLowerCase();
+    })
     .join(' ');
 }
 
