@@ -1,8 +1,8 @@
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
-import { useState, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -34,6 +34,22 @@ import { UploadAvatar } from 'src/components/upload';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
 import { InlineCreatableSelect } from './inline-creatable-select';
+
+// ----------------------------------------------------------------------
+
+// Detecta si la unidad indica un empaque (ej. "caja c/10", "frasco c/30")
+const isPackUnit = (unit) => /c\/\d+/i.test(unit ?? '');
+
+// Extrae la cantidad del empaque (ej. "caja c/10" → 10)
+const parsePackQty = (unit) => {
+  const match = (unit ?? '').match(/c\/(\d+)/i);
+  return match ? Number(match[1]) : null;
+};
+
+const BASE_UNIT_OPTIONS = [
+  'tableta', 'cápsula', 'gragea', 'óvulo', 'supositorio', 'parche',
+  'ml', 'g', 'mg', 'ampolleta', 'vial', 'sobre', 'pieza',
+];
 
 // ----------------------------------------------------------------------
 
@@ -80,27 +96,48 @@ const UNIT_OPTIONS = [
 
 // ----------------------------------------------------------------------
 
-const ProductSchema = z.object({
-  title: z.string().min(1, { error: 'El nombre es requerido' }),
-  description: z.string(),
-  sku: z.string().min(1, { error: 'El SKU es requerido' }),
-  product_category_id: schemaUtils.nullableInput(
-    z.coerce.number().min(1, { error: 'La categoría es requerida' }),
-    { error: 'La categoría es requerida' }
-  ),
-  brand_id: z.coerce.number().nullable(),
-  unit_name: z.string().min(1, { error: 'La unidad es requerida' }),
-  is_unit_sale: z.boolean(),
-  price_retail: schemaUtils.nullableInput(
-    z.coerce.number().min(0, { error: 'El precio de venta es requerido' }),
-    { error: 'El precio de venta es requerido' }
-  ),
-  price_cost: z.coerce.number().nullable(),
-  allow_warranty: z.boolean(),
-  warranty_days: z.coerce.number().nullable(),
-  is_active: z.boolean(),
-  image: z.string().nullable(),
-});
+const ProductSchema = z
+  .object({
+    title: z.string().min(1, { error: 'El nombre es requerido' }),
+    description: z.string(),
+    sku: z.string().min(1, { error: 'El SKU es requerido' }),
+    product_category_id: schemaUtils.nullableInput(
+      z.coerce.number().min(1, { error: 'La categoría es requerida' }),
+      { error: 'La categoría es requerida' }
+    ),
+    brand_id: z.coerce.number().nullable(),
+    unit_name: z.string().min(1, { error: 'La unidad es requerida' }),
+    base_unit: z.string().nullable(),
+    quantity: z.coerce.number().positive({ error: 'Debe ser mayor a 0' }).nullable(),
+    is_unit_sale: z.boolean(),
+    price_retail: schemaUtils.nullableInput(
+      z.coerce.number().min(0, { error: 'El precio de venta es requerido' }),
+      { error: 'El precio de venta es requerido' }
+    ),
+    price_cost: z.coerce.number().nullable(),
+    allow_warranty: z.boolean(),
+    warranty_days: z.coerce.number().nullable(),
+    is_active: z.boolean(),
+    image: z.string().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (isPackUnit(data.unit_name)) {
+      if (!data.base_unit) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['base_unit'],
+          message: 'Requerido para presentaciones empaquetadas',
+        });
+      }
+      if (!data.quantity) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['quantity'],
+          message: 'Requerido para presentaciones empaquetadas',
+        });
+      }
+    }
+  });
 
 // ----------------------------------------------------------------------
 
@@ -140,6 +177,8 @@ export function ProductCreateEditForm({ currentProduct }) {
     product_category_id: '',
     brand_id: '',
     unit_name: 'pieza',
+    base_unit: null,
+    quantity: null,
     is_unit_sale: true,
     price_retail: null,
     price_cost: null,
@@ -157,6 +196,8 @@ export function ProductCreateEditForm({ currentProduct }) {
           ...currentProduct,
           brand_id: currentProduct.brand_id ?? '',
           product_category_id: currentProduct.product_category_id ?? '',
+          base_unit: currentProduct.base_unit ?? null,
+          quantity: currentProduct.quantity ?? null,
         }
       : undefined,
   });
@@ -171,6 +212,18 @@ export function ProductCreateEditForm({ currentProduct }) {
   } = methods;
 
   const allowWarranty = watch('allow_warranty');
+  const unitName = watch('unit_name');
+  const isPack = isPackUnit(unitName);
+
+  useEffect(() => {
+    if (isPack) {
+      const qty = parsePackQty(unitName);
+      if (qty) setValue('quantity', qty, { shouldValidate: true });
+    } else {
+      setValue('base_unit', null);
+      setValue('quantity', null);
+    }
+  }, [unitName, isPack, setValue]);
 
   const [imageLoading, setImageLoading] = useState(false);
   const [urlInput, setUrlInput] = useState('');
@@ -211,6 +264,8 @@ export function ProductCreateEditForm({ currentProduct }) {
       product_category_id: data.product_category_id || null,
       price_cost: data.price_cost || null,
       warranty_days: data.allow_warranty ? data.warranty_days : null,
+      base_unit: isPack ? data.base_unit : null,
+      quantity: isPack ? data.quantity : null,
     };
 
     try {
@@ -361,6 +416,32 @@ export function ProductCreateEditForm({ currentProduct }) {
               options={UNIT_OPTIONS}
               slotProps={{ textField: { slotProps: { inputLabel: { shrink: true } } } }}
             />
+
+            {isPack && (
+              <Field.Autocomplete
+                name="base_unit"
+                label="Unidad base *"
+                placeholder="tableta, cápsula, ml…"
+                freeSolo
+                options={BASE_UNIT_OPTIONS}
+                slotProps={{
+                  textField: {
+                    slotProps: { inputLabel: { shrink: true } },
+                    helperText: 'Unidad de cada pieza dentro del empaque',
+                  },
+                }}
+              />
+            )}
+
+            {isPack && (
+              <Field.Text
+                name="quantity"
+                label="Cantidad por empaque *"
+                type="number"
+                slotProps={{ inputLabel: { shrink: true } }}
+                helperText="Número de piezas en el empaque (ej. 10)"
+              />
+            )}
           </Box>
 
           <Field.Switch name="is_unit_sale" label="Venta por unidad individual" />
