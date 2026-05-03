@@ -22,8 +22,9 @@ function normName(s) {
   return clean
     .split(' ')
     .map((w) => {
-      if (!w || !/^[a-záéíóúñA-ZÁÉÍÓÚÑ]/.test(w)) return w; // respeta números
-      if (w === w.toUpperCase() && w.length > 1) return w;   // acrónimo (ABC, BBVA) → sin tocar
+      if (!w || !/^[a-záéíóúñA-ZÁÉÍÓÚÑ]/.test(w)) return w;              // respeta números
+      if (/^([A-Za-záéíóúñÁÉÍÓÚÑ]\.)+$/.test(w)) return w.toUpperCase(); // abreviatura: s.a. → S.A.
+      if (w === w.toUpperCase() && w.length > 1) return w;                // acrónimo: ABC, BBVA
       return w[0].toUpperCase() + w.slice(1).toLowerCase();
     })
     .join(' ');
