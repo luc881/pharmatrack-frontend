@@ -71,11 +71,11 @@ export function useGetProduct(productId) {
 
 export function useGetProductCategories() {
   const url = [endpoints.productCategories.list, { params: { page: 1, page_size: 500 } }];
-  const { data, isLoading } = useSWR(url, fetcher, swrOptions);
+  const { data, isLoading, mutate } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
-    () => ({ categories: data?.data || [], categoriesLoading: isLoading }),
-    [data, isLoading]
+    () => ({ categories: data?.data || [], categoriesLoading: isLoading, categoriesMutate: mutate }),
+    [data, isLoading, mutate]
   );
 }
 
@@ -83,11 +83,11 @@ export function useGetProductCategories() {
 
 export function useGetProductBrands() {
   const url = [endpoints.productBrands.list, { params: { page: 1, page_size: 500 } }];
-  const { data, isLoading } = useSWR(url, fetcher, swrOptions);
+  const { data, isLoading, mutate } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
-    () => ({ brands: data?.data || [], brandsLoading: isLoading }),
-    [data, isLoading]
+    () => ({ brands: data?.data || [], brandsLoading: isLoading, brandsMutate: mutate }),
+    [data, isLoading, mutate]
   );
 }
 

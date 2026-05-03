@@ -11,7 +11,6 @@ import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
 import Collapse from '@mui/material/Collapse';
-import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import CardHeader from '@mui/material/CardHeader';
@@ -25,12 +24,16 @@ import { useRouter } from 'src/routes/hooks';
 import { handleApiError } from 'src/utils/handle-api-error';
 
 import { uploadToCloudinary } from 'src/lib/cloudinary';
+import { createProductBrand } from 'src/actions/product-brand';
+import { createProductCategory } from 'src/actions/product-category';
 import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { UploadAvatar } from 'src/components/upload';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
+
+import { InlineCreatableSelect } from './inline-creatable-select';
 
 // ----------------------------------------------------------------------
 
@@ -64,8 +67,28 @@ export function ProductCreateEditForm({ currentProduct }) {
   const openProperties = useBoolean(true);
   const openPricing = useBoolean(true);
 
-  const { categories } = useGetProductCategories();
-  const { brands } = useGetProductBrands();
+  const { categories, categoriesLoading, categoriesMutate } = useGetProductCategories();
+  const { brands, brandsLoading, brandsMutate } = useGetProductBrands();
+
+  const handleCreateBrand = useCallback(
+    async (name) => {
+      const created = await createProductBrand({ name });
+      brandsMutate();
+      toast.success(`Marca "${created.name}" creada`);
+      return created;
+    },
+    [brandsMutate]
+  );
+
+  const handleCreateCategory = useCallback(
+    async (name) => {
+      const created = await createProductCategory({ name, is_active: true });
+      categoriesMutate();
+      toast.success(`Categoría "${created.name}" creada`);
+      return created;
+    },
+    [categoriesMutate]
+  );
 
   const defaultValues = {
     title: '',
@@ -271,31 +294,21 @@ export function ProductCreateEditForm({ currentProduct }) {
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' },
             }}
           >
-            <Field.Select
+            <InlineCreatableSelect
               name="product_category_id"
-              label="Categoría"
-              slotProps={{ inputLabel: { shrink: true } }}
-            >
-              <MenuItem value="">Sin categoría</MenuItem>
-              {categories.map((cat) => (
-                <MenuItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </MenuItem>
-              ))}
-            </Field.Select>
+              label="Categoría *"
+              options={categories}
+              onCreate={handleCreateCategory}
+              loading={categoriesLoading}
+            />
 
-            <Field.Select
+            <InlineCreatableSelect
               name="brand_id"
               label="Marca"
-              slotProps={{ inputLabel: { shrink: true } }}
-            >
-              <MenuItem value="">Sin marca</MenuItem>
-              {brands.map((brand) => (
-                <MenuItem key={brand.id} value={brand.id}>
-                  {brand.name}
-                </MenuItem>
-              ))}
-            </Field.Select>
+              options={brands}
+              onCreate={handleCreateBrand}
+              loading={brandsLoading}
+            />
 
             <Field.Text name="unit_name" label="Unidad de venta" placeholder="pieza, caja, ml…" />
           </Box>
