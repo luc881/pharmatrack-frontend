@@ -56,6 +56,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       container: {
         maxWidth: false,
         sx: {
+          direction: 'ltr',
           ...(isNavVertical && { px: { [layoutQuery]: 5 } }),
           ...(isNavHorizontal && {
             bgcolor: 'var(--layout-nav-bg)',

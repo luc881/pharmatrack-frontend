@@ -36,8 +36,10 @@ function QuickActionCard({ title, description, icon, color = 'primary', href }) 
         p: 2.5,
         display: 'flex',
         alignItems: 'center',
+        flexDirection: 'row',
         gap: 2,
         textDecoration: 'none',
+        direction: 'ltr',
         transition: theme.transitions.create(['box-shadow', 'transform'], { duration: 200 }),
         '&:hover': {
           boxShadow: theme.customShadows?.z8 ?? theme.shadows[4],
@@ -58,7 +60,7 @@ function QuickActionCard({ title, description, icon, color = 'primary', href }) 
       </Box>
 
       <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-        <Typography variant="subtitle2" noWrap sx={{ color: 'text.primary' }}>
+        <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
           {title}
         </Typography>
         {description && (
