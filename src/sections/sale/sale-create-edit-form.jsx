@@ -131,6 +131,15 @@ const schema = zod.object({
   payments: zod.array(paymentSchema).min(1, 'Agrega al menos un pago'),
 });
 
+// Compute the estimated sale total from form items + product catalog
+function computeTotal(items, products) {
+  return items.reduce((acc, item) => {
+    const product = products.find((p) => p.id === Number(item.product_id));
+    const price = product?.price_retail ?? 0;
+    return acc + (Number(item.quantity) || 0) * price - (Number(item.discount) || 0);
+  }, 0);
+}
+
 // ----------------------------------------------------------------------
 
 export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPayments = [] }) {
@@ -166,7 +175,16 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
 
   const methods = useForm({ resolver: zodResolver(schema), defaultValues });
 
-  const { handleSubmit, setValue, formState: { isSubmitting } } = methods;
+  const { handleSubmit, setValue, watch, formState: { isSubmitting } } = methods;
+
+  // Compute total at the top level so both SaleItems (display) and SalePayments (logic) share it
+  const items = watch('items');
+  const estimatedTotal = computeTotal(items, products);
+
+  // Detect overpayment to block submit
+  const payments = watch('payments');
+  const paidTotal = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const isOverpaid = estimatedTotal > 0 && paidTotal > estimatedTotal + 0.01;
 
   // Auto-fill branch if loaded after init
   useEffect(() => {
@@ -271,12 +289,12 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
 
           {/* Line items */}
           <Card>
-            <SaleItems products={products} />
+            <SaleItems products={products} estimatedTotal={estimatedTotal} />
           </Card>
 
           {/* Payment */}
           <Card>
-            <SalePayments />
+            <SalePayments estimatedTotal={estimatedTotal} />
           </Card>
 
           {/* Actions */}
@@ -284,7 +302,12 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
             <Button variant="outlined" onClick={() => navigate(paths.dashboard.sale.root)}>
               Cancelar
             </Button>
-            <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+            <LoadingButton
+              type="submit"
+              variant="contained"
+              loading={isSubmitting}
+              disabled={isOverpaid}
+            >
               {currentSale ? 'Guardar cambios' : 'Registrar venta'}
             </LoadingButton>
           </Box>
@@ -296,15 +319,13 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
 
 // ----------------------------------------------------------------------
 
-function SaleItems({ products }) {
-  const { control, watch, setValue, getValues } = useFormContext();
+function SaleItems({ products, estimatedTotal }) {
+  const { control, setValue, getValues } = useFormContext();
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const [barcodeInput, setBarcodeInput] = useState('');
-  const [scanFlash, setScanFlash] = useState(null); // 'success' | 'error' | null
+  const [scanFlash, setScanFlash] = useState(null);
   const [lastScanned, setLastScanned] = useState(null);
   const barcodeRef = useRef(null);
-
-  const items = watch('items');
 
   // Auto-foco al montar el formulario
   useEffect(() => {
@@ -323,12 +344,6 @@ function SaleItems({ products }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const estimatedTotal = items.reduce((acc, item) => {
-    const product = products.find((p) => p.id === Number(item.product_id));
-    const price = product?.price_retail ?? 0;
-    return acc + (Number(item.quantity) || 0) * price - (Number(item.discount) || 0);
-  }, 0);
-
   const handleBarcodeScan = useCallback(
     (value) => {
       const trimmed = value.trim();
@@ -341,7 +356,6 @@ function SaleItems({ products }) {
       setBarcodeInput('');
 
       if (found) {
-        // Si el producto ya está en la lista, incrementar cantidad
         const currentItems = getValues('items');
         const existingIndex = currentItems.findIndex(
           (item) => Number(item.product_id) === found.id
@@ -364,7 +378,6 @@ function SaleItems({ products }) {
         toast.error(`Producto no encontrado: "${trimmed}"`);
       }
 
-      // Re-foco para el siguiente escaneo
       setTimeout(() => barcodeRef.current?.focus(), 50);
     },
     [products, append, getValues, setValue]
@@ -415,7 +428,6 @@ function SaleItems({ products }) {
         }}
       />
 
-      {/* Último producto escaneado */}
       {lastScanned && (
         <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 0.75 }}>
           <Iconify icon="solar:check-circle-bold" width={15} sx={{ color: 'success.main' }} />
@@ -444,12 +456,9 @@ function SaleItems({ products }) {
 
         <Box sx={{ textAlign: 'right' }}>
           <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-            Total estimado
+            Total
           </Typography>
           <Typography variant="h4">${estimatedTotal.toFixed(2)}</Typography>
-          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-            El precio final lo calcula el sistema
-          </Typography>
         </Box>
       </Box>
     </Box>
@@ -487,7 +496,6 @@ function SaleItem({ index, products, onRemove }) {
   const selectedBatch = batches.find((b) => b.id === Number(batchId));
   const stockWarning = selectedBatch && Number(quantity) > Number(selectedBatch.quantity);
 
-  // Cargar lotes disponibles cuando cambia el producto y auto-seleccionar el más próximo a vencer
   const loadBatches = useCallback(async (pid) => {
     if (!pid) {
       setBatches([]);
@@ -503,7 +511,6 @@ function SaleItem({ index, products, onRemove }) {
         .filter((b) => Number(b.quantity) > 0)
         .sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date));
       setBatches(available);
-      // Auto-seleccionar el lote más próximo a vencer (FEFO)
       if (available.length > 0) {
         setValue(`items[${index}].batch_id`, available[0].id);
       } else {
@@ -532,7 +539,6 @@ function SaleItem({ index, products, onRemove }) {
     [index, setValue]
   );
 
-  // Build Autocomplete options: null option + available batches
   const batchOptions = [NULL_BATCH, ...batches.map((b) => ({ id: b.id, label: batchLabel(b) }))];
   const selectedBatchOption =
     batchOptions.find((o) => o.id === (batchId === '' ? '' : Number(batchId))) ?? NULL_BATCH;
@@ -566,7 +572,6 @@ function SaleItem({ index, products, onRemove }) {
           )}
         />
 
-        {/* Batch — searchable Autocomplete */}
         <Box>
           <Controller
             name={`items[${index}].batch_id`}
@@ -692,14 +697,223 @@ function SaleItem({ index, products, onRemove }) {
 
 // ----------------------------------------------------------------------
 
+function SalePayments({ estimatedTotal }) {
+  const { control, watch, setValue, getValues } = useFormContext();
+  const { fields, append, remove } = useFieldArray({ control, name: 'payments' });
+
+  const payments = watch('payments');
+  const selectedMethods = payments.map((p) => p.method_payment);
+  const paidTotal = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const remaining = Number((estimatedTotal - paidTotal).toFixed(2));
+  const isOverpaid = remaining < -0.01;
+
+  // Auto-fill the single payment when the sale total changes
+  useEffect(() => {
+    if (estimatedTotal <= 0) return;
+    const currentPayments = getValues('payments');
+    if (currentPayments.length === 1) {
+      setValue('payments[0].amount', Number(estimatedTotal.toFixed(2)), { shouldValidate: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estimatedTotal]);
+
+  // When a payment amount is edited: auto-adjust the "other" payment so the sum stays at total.
+  // Rule: if editing payment[i], adjust the last payment that isn't payment[i].
+  const handleAmountChange = useCallback((changedIndex, rawValue) => {
+    const value = Math.max(0, Number(rawValue) || 0);
+    setValue(`payments[${changedIndex}].amount`, value, { shouldValidate: true });
+
+    const currentPayments = getValues('payments');
+    if (currentPayments.length < 2 || estimatedTotal <= 0) return;
+
+    const lastIdx = currentPayments.length - 1;
+    const adjustIdx = changedIndex !== lastIdx ? lastIdx : lastIdx - 1;
+
+    // Sum everything except the payment being adjusted
+    const sumFixed = currentPayments.reduce((sum, p, i) => {
+      if (i === adjustIdx) return sum;
+      return sum + (i === changedIndex ? value : Number(p.amount) || 0);
+    }, 0);
+
+    setValue(
+      `payments[${adjustIdx}].amount`,
+      Math.max(0, Number((estimatedTotal - sumFixed).toFixed(2))),
+      { shouldValidate: true }
+    );
+  }, [estimatedTotal, getValues, setValue]);
+
+  // When adding a new payment: pre-fill with what's still owed, pick a method not yet used
+  const handleAppend = useCallback(() => {
+    const nextMethod = PAYMENT_METHODS.find((m) => !selectedMethods.includes(m.value))?.value ?? 'cash';
+    const prefillAmount = Math.max(0, Number(remaining.toFixed(2)));
+    append({ ...defaultPayment, method_payment: nextMethod, amount: prefillAmount });
+  }, [append, remaining, selectedMethods]);
+
+  // All 3 methods already selected → hide the add button
+  const canAddPayment = selectedMethods.length < PAYMENT_METHODS.length;
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h6" sx={{ mb: 3 }}>
+        Pago
+      </Typography>
+
+      <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
+        {fields.map((field, index) => (
+          <SalePaymentItem
+            key={field.id}
+            index={index}
+            usedMethods={selectedMethods}
+            onAmountChange={handleAmountChange}
+            onRemove={fields.length > 1 ? () => remove(index) : null}
+          />
+        ))}
+      </Stack>
+
+      <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
+
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+        {canAddPayment ? (
+          <Button
+            size="small"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            onClick={handleAppend}
+          >
+            Agregar forma de pago
+          </Button>
+        ) : (
+          <Box />
+        )}
+
+        {/* Payment summary */}
+        <Box sx={{ textAlign: 'right' }}>
+          {payments.length > 1 && (
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.25 }}>
+              Pagado:{' '}
+              <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                ${paidTotal.toFixed(2)}
+              </Box>
+            </Typography>
+          )}
+          {isOverpaid ? (
+            <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600 }}>
+              Excede el total por ${Math.abs(remaining).toFixed(2)}
+            </Typography>
+          ) : (
+            remaining > 0.01 && payments.length > 1 && (
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Pendiente: ${remaining.toFixed(2)}
+              </Typography>
+            )
+          )}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function SalePaymentItem({ index, onRemove, usedMethods, onAmountChange }) {
+  const { watch, control } = useFormContext();
+  const method = watch(`payments[${index}].method_payment`);
+  const showBankFields = method === 'card' || method === 'transfer';
+
+  return (
+    <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
+      <Box
+        sx={{
+          gap: 2,
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            md: showBankFields ? '1fr 1fr 1fr 1fr' : '1fr 1fr',
+          },
+          alignItems: 'start',
+        }}
+      >
+        {/* Method — disable already-selected methods in other rows */}
+        <Field.Select name={`payments[${index}].method_payment`} label="Método de pago" size="small">
+          {PAYMENT_METHODS.map((m) => (
+            <MenuItem
+              key={m.value}
+              value={m.value}
+              disabled={m.value !== method && usedMethods.includes(m.value)}
+            >
+              {m.label}
+            </MenuItem>
+          ))}
+        </Field.Select>
+
+        {/* Amount — custom onChange feeds the auto-adjust logic */}
+        <Controller
+          name={`payments[${index}].amount`}
+          control={control}
+          render={({ field, fieldState: { error } }) => (
+            <TextField
+              label="Monto"
+              type="number"
+              size="small"
+              value={field.value}
+              onChange={(e) => onAmountChange(index, e.target.value)}
+              onBlur={field.onBlur}
+              error={!!error}
+              helperText={error?.message}
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          )}
+        />
+
+        {showBankFields && (
+          <>
+            <Field.Text
+              name={`payments[${index}].transaction_number`}
+              label="N° de referencia"
+              size="small"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Field.Select name={`payments[${index}].bank`} label="Banco" size="small">
+              <MenuItem value="">Sin especificar</MenuItem>
+              {BANK_OPTIONS.map((b) => (
+                <MenuItem key={b} value={b}>{b}</MenuItem>
+              ))}
+            </Field.Select>
+          </>
+        )}
+      </Box>
+
+      {onRemove && (
+        <Box>
+          <Button
+            size="small"
+            color="error"
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={onRemove}
+          >
+            Eliminar
+          </Button>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+
 function normalize(s) {
   return s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-// Returns YYYY-MM-DD for the last day of the given month.
-// In pharma, "exp 12/2025" means valid through Dec 31 2025.
 function lastDayISO(year, month) {
-  // new Date(year, month, 0) → day 0 of month+1 = last day of month (1-indexed month input)
   const d = new Date(year, month, 0);
   return `${year}-${String(month).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -725,7 +939,6 @@ function ScrollColumn({ items, value, onChange, width }) {
   const timerRef = useRef(null);
   const currentIndex = items.findIndex((item) => item.value === value);
 
-  // Set initial scroll position synchronously before paint
   useLayoutEffect(() => {
     if (ref.current && currentIndex >= 0) {
       ref.current.scrollTop = currentIndex * ITEM_H;
@@ -748,54 +961,20 @@ function ScrollColumn({ items, value, onChange, width }) {
 
   return (
     <Box sx={{ position: 'relative', width, height: ITEM_H * 5, overflow: 'hidden', userSelect: 'none' }}>
-      {/* Selection highlight bar */}
       <Box
         sx={{
-          position: 'absolute',
-          top: ITEM_H * 2,
-          left: 4,
-          right: 4,
-          height: ITEM_H,
-          bgcolor: 'action.selected',
-          borderRadius: 1,
-          pointerEvents: 'none',
-          zIndex: 0,
+          position: 'absolute', top: ITEM_H * 2, left: 4, right: 4, height: ITEM_H,
+          bgcolor: 'action.selected', borderRadius: 1, pointerEvents: 'none', zIndex: 0,
         }}
       />
-      {/* Fade top */}
-      <Box
-        sx={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H * 2,
-          background: (theme) =>
-            `linear-gradient(to bottom, ${theme.palette.background.paper} 10%, transparent)`,
-          pointerEvents: 'none', zIndex: 2,
-        }}
-      />
-      {/* Fade bottom */}
-      <Box
-        sx={{
-          position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H * 2,
-          background: (theme) =>
-            `linear-gradient(to top, ${theme.palette.background.paper} 10%, transparent)`,
-          pointerEvents: 'none', zIndex: 2,
-        }}
-      />
-
-      {/* Scrollable list */}
+      <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H * 2, background: (theme) => `linear-gradient(to bottom, ${theme.palette.background.paper} 10%, transparent)`, pointerEvents: 'none', zIndex: 2 }} />
+      <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H * 2, background: (theme) => `linear-gradient(to top, ${theme.palette.background.paper} 10%, transparent)`, pointerEvents: 'none', zIndex: 2 }} />
       <Box
         ref={ref}
         onScroll={handleScroll}
-        sx={{
-          position: 'absolute', inset: 0,
-          overflowY: 'scroll',
-          scrollbarWidth: 'none',
-          '&::-webkit-scrollbar': { display: 'none' },
-          zIndex: 1,
-        }}
+        sx={{ position: 'absolute', inset: 0, overflowY: 'scroll', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' }, zIndex: 1 }}
       >
-        {/* Top spacer — allows first item to reach center */}
         <Box sx={{ height: ITEM_H * 2 }} />
-
         {items.map((item) => (
           <Box
             key={item.value}
@@ -805,12 +984,8 @@ function ScrollColumn({ items, value, onChange, width }) {
               onChange(item.value);
             }}
             sx={{
-              height: ITEM_H,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              typography: 'body2',
+              height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', typography: 'body2',
               fontWeight: item.value === value ? 700 : 400,
               color: item.value === value ? 'text.primary' : 'text.secondary',
               transition: 'font-weight 0.15s, color 0.15s',
@@ -819,8 +994,6 @@ function ScrollColumn({ items, value, onChange, width }) {
             {item.label}
           </Box>
         ))}
-
-        {/* Bottom spacer — allows last item to reach center */}
         <Box sx={{ height: ITEM_H * 2 }} />
       </Box>
     </Box>
@@ -835,16 +1008,7 @@ function MonthYearPicker({ month, year, onMonthChange, onYearChange }) {
   }));
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        border: '1px solid',
-        borderColor: 'divider',
-        borderRadius: 1,
-        overflow: 'hidden',
-        bgcolor: 'background.paper',
-      }}
-    >
+    <Box sx={{ display: 'flex', border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden', bgcolor: 'background.paper' }}>
       <ScrollColumn items={MONTH_ITEMS} value={month} onChange={onMonthChange} width={130} />
       <Divider orientation="vertical" flexItem />
       <ScrollColumn items={yearItems} value={year} onChange={onYearChange} width={90} />
@@ -856,7 +1020,6 @@ function MonthYearPicker({ month, year, onMonthChange, onYearChange }) {
 
 function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }) {
   const _now = new Date();
-  // Default expiration month: next month (to avoid initializing on a past month)
   const _defaultMonth = _now.getMonth() + 2 > 12 ? 1 : _now.getMonth() + 2;
   const _defaultYear = _now.getMonth() + 2 > 12 ? _now.getFullYear() + 1 : _now.getFullYear();
 
@@ -946,10 +1109,7 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
           />
 
           {similarBatches.length > 0 && (
-            <Alert
-              severity="warning"
-              icon={<Iconify icon="solar:danger-triangle-bold" width={20} />}
-            >
+            <Alert severity="warning" icon={<Iconify icon="solar:danger-triangle-bold" width={20} />}>
               <Typography variant="body2" sx={{ mb: 1 }}>
                 Hay lotes con código similar:{' '}
                 <Box component="span" sx={{ fontWeight: 600 }}>
@@ -958,13 +1118,7 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
                 . ¿Es un lote nuevo?
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <LoadingButton
-                  size="small"
-                  variant="contained"
-                  color="warning"
-                  loading={creating}
-                  onClick={doCreate}
-                >
+                <LoadingButton size="small" variant="contained" color="warning" loading={creating} onClick={doCreate}>
                   Sí, crear &ldquo;{lotCode.trim()}&rdquo;
                 </LoadingButton>
                 <Button size="small" variant="outlined" color="inherit" onClick={resetWarnings}>
@@ -974,7 +1128,6 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
             </Alert>
           )}
 
-          {/* Expiration date — month/year drum picker */}
           <Box>
             <FormControlLabel
               control={
@@ -1045,133 +1198,10 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
 
       <DialogActions>
         <Button onClick={onClose} disabled={creating}>Cancelar</Button>
-        <LoadingButton
-          variant="contained"
-          loading={creating}
-          disabled={pendingCreate}
-          onClick={handleSubmit}
-        >
+        <LoadingButton variant="contained" loading={creating} disabled={pendingCreate} onClick={handleSubmit}>
           Crear lote
         </LoadingButton>
       </DialogActions>
     </Dialog>
-  );
-}
-
-// ----------------------------------------------------------------------
-
-function SalePayments() {
-  const { control } = useFormContext();
-  const { fields, append, remove } = useFieldArray({ control, name: 'payments' });
-
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h6" sx={{ mb: 3 }}>
-        Pago
-      </Typography>
-
-      <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
-        {fields.map((field, index) => (
-          <SalePaymentItem
-            key={field.id}
-            index={index}
-            onRemove={fields.length > 1 ? () => remove(index) : null}
-          />
-        ))}
-      </Stack>
-
-      <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
-
-      <Button
-        size="small"
-        startIcon={<Iconify icon="mingcute:add-line" />}
-        onClick={() => append({ ...defaultPayment })}
-      >
-        Agregar forma de pago
-      </Button>
-    </Box>
-  );
-}
-
-// ----------------------------------------------------------------------
-
-function SalePaymentItem({ index, onRemove }) {
-  const { watch } = useFormContext();
-  const method = watch(`payments[${index}].method_payment`);
-  const showBankFields = method === 'card' || method === 'transfer';
-
-  return (
-    <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
-      <Box
-        sx={{
-          gap: 2,
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            md: showBankFields ? '1fr 1fr 1fr 1fr' : '1fr 1fr',
-          },
-          alignItems: 'start',
-        }}
-      >
-        <Field.Select name={`payments[${index}].method_payment`} label="Método de pago" size="small">
-          {PAYMENT_METHODS.map((m) => (
-            <MenuItem key={m.value} value={m.value}>
-              {m.label}
-            </MenuItem>
-          ))}
-        </Field.Select>
-
-        <Field.Text
-          name={`payments[${index}].amount`}
-          label="Monto"
-          type="number"
-          size="small"
-          slotProps={{
-            inputLabel: { shrink: true },
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-
-        {showBankFields && (
-          <>
-            <Field.Text
-              name={`payments[${index}].transaction_number`}
-              label="N° de referencia"
-              size="small"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-            <Field.Select
-              name={`payments[${index}].bank`}
-              label="Banco"
-              size="small"
-            >
-              <MenuItem value="">Sin especificar</MenuItem>
-              {BANK_OPTIONS.map((b) => (
-                <MenuItem key={b} value={b}>{b}</MenuItem>
-              ))}
-            </Field.Select>
-          </>
-        )}
-      </Box>
-
-      {onRemove && (
-        <Box>
-          <Button
-            size="small"
-            color="error"
-            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={onRemove}
-          >
-            Eliminar
-          </Button>
-        </Box>
-      )}
-    </Box>
   );
 }
