@@ -15,6 +15,16 @@ import { Iconify } from 'src/components/iconify';
 
 const CREATE_ID = '__create__';
 
+// Normaliza nombres (marcas, categorías, proveedores) igual que el backend
+function normName(s) {
+  if (!s) return s;
+  const clean = s.replace(/\s+/g, ' ').trim();
+  return clean
+    .split(' ')
+    .map((w) => (w && /^[a-záéíóúñA-ZÁÉÍÓÚÑ]/.test(w) ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(' ');
+}
+
 function levenshtein(a, b) {
   const m = a.length;
   const n = b.length;
@@ -87,7 +97,7 @@ export function InlineCreatableSelect({ name, label, options = [], onCreate, loa
   };
 
   const attemptCreate = async (raw) => {
-    const trimmed = raw.trim();
+    const trimmed = normName(raw);
     const norm = normalize(trimmed);
 
     const exactMatch = options.find((opt) => normalize(opt.name) === norm);

@@ -37,6 +37,27 @@ import { InlineCreatableSelect } from './inline-creatable-select';
 
 // ----------------------------------------------------------------------
 
+/**
+ * Normalización de texto — espeja la lógica del backend (BeforeValidator en Pydantic).
+ * Siempre se aplica onBlur para que el usuario vea el resultado antes de guardar.
+ */
+function normTitle(s) {
+  if (!s) return s;
+  const clean = s.replace(/\s+/g, ' ').trim();
+  // Capitaliza primera letra de cada palabra alfabética; respeta números (400mg → 400mg)
+  return clean
+    .split(' ')
+    .map((w) => (w && /^[a-záéíóúñA-ZÁÉÍÓÚÑ]/.test(w) ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(' ');
+}
+
+function normSKU(s) {
+  if (!s) return s;
+  return s.replace(/\s+/g, ' ').trim().toUpperCase();
+}
+
+// ----------------------------------------------------------------------
+
 // Unidad de venta (contenedor o unidad simple)
 const UNIT_OPTIONS = [
   'pieza', 'tableta', 'cápsula', 'gragea', 'óvulo', 'supositorio', 'parche',
@@ -243,7 +264,11 @@ export function ProductCreateEditForm({ currentProduct }) {
       <Collapse in={openDetails.value}>
         <Divider />
         <Stack spacing={3} sx={{ p: 3 }}>
-          <Field.Text name="title" label="Nombre del producto" />
+          <Field.Text
+            name="title"
+            label="Nombre del producto"
+            onBlur={(e) => setValue('title', normTitle(e.target.value), { shouldValidate: true })}
+          />
           <Field.Text name="description" label="Descripción" multiline rows={4} />
 
           <Stack spacing={1.5} alignItems="center">
@@ -310,6 +335,7 @@ export function ProductCreateEditForm({ currentProduct }) {
             name="sku"
             label="Código de barras / SKU"
             placeholder="Escanea o escribe el código…"
+            onBlur={(e) => setValue('sku', normSKU(e.target.value), { shouldValidate: true })}
             slotProps={{
               input: {
                 startAdornment: (
