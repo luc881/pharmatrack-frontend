@@ -62,7 +62,7 @@ function QuickActionCard({ title, description, icon, color = 'primary', href }) 
           {title}
         </Typography>
         {description && (
-          <Typography variant="caption" noWrap sx={{ color: 'text.secondary' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', lineHeight: 1.4 }}>
             {description}
           </Typography>
         )}
@@ -198,7 +198,8 @@ function QuickActions({ isAdmin }) {
             xs: 'repeat(1, 1fr)',
             sm: 'repeat(2, 1fr)',
             md: 'repeat(2, 1fr)',
-            lg: 'repeat(4, 1fr)',
+            lg: 'repeat(3, 1fr)',
+            xl: 'repeat(4, 1fr)',
           },
         }}
       >
@@ -329,7 +330,7 @@ export function OverviewAppView() {
 
         {/* Acciones rápidas + Sensor (misma fila en desktop) */}
         <Grid size={{ xs: 12, lg: 8 }}>
-          <QuickActions isAdmin={user?.role === 'admin'} />
+          <QuickActions isAdmin={(user?.permissions ?? []).includes('users.read')} />
         </Grid>
 
         <Grid size={{ xs: 12, lg: 4 }}>
