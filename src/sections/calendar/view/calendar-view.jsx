@@ -121,7 +121,7 @@ export function CalendarView() {
             initialView={view}
             events={events}
             plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
-            onDatesSet={(dateInfo) => {
+            datesSet={(dateInfo) => {
               const d = dateInfo.view.currentStart;
               setCurrentYearMonth(
                 `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
