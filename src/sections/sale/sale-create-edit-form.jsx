@@ -856,6 +856,7 @@ function SalePaymentItem({ index, onRemove, usedMethods, onAmountChange }) {
               size="small"
               value={field.value}
               onChange={(e) => onAmountChange(index, e.target.value)}
+              onFocus={(e) => e.target.select()}
               onBlur={field.onBlur}
               error={!!error}
               helperText={error?.message}
