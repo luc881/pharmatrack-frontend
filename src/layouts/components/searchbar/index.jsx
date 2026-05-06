@@ -203,7 +203,7 @@ export function Searchbar({ data: navItems = [], sx, ...other }) {
                 <ResultItem
                   title={partsTitle}
                   path={partsSku}
-                  href={paths.dashboard.product.edit(product.id)}
+                  href={paths.dashboard.product.details(product.id)}
                   labels={['Producto']}
                   onClick={handleClose}
                 />
