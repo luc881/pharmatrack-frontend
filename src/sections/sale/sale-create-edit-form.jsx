@@ -285,8 +285,8 @@ export function SaleCreateEditForm({
 
       toast.success(currentSale ? 'Venta actualizada' : 'Venta registrada');
       navigate(paths.dashboard.sale.root);
-    } catch {
-      toast.error('Error al guardar la venta');
+    } catch (error) {
+      toast.error(error?.message || 'Error al guardar la venta');
     }
   });
 
