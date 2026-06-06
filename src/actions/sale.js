@@ -100,6 +100,23 @@ export function useGetSalePayments(saleId) {
 
 // ----------------------------------------------------------------------
 
+export function useGetSaleBatchUsagesBySale(saleId) {
+  const url = saleId
+    ? [endpoints.saleBatchUsage.list, { params: { sale_id: saleId } }]
+    : null;
+  const { data, isLoading } = useSWR(url, fetcher, swrOptions);
+
+  return useMemo(
+    () => ({
+      saleBatchUsages: Array.isArray(data) ? data : (data?.data ?? []),
+      saleBatchUsagesLoading: isLoading,
+    }),
+    [data, isLoading]
+  );
+}
+
+// ----------------------------------------------------------------------
+
 export const createSale = (data) =>
   axiosInstance.post(endpoints.sale.create, data).then((r) => r.data);
 

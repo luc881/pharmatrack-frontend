@@ -142,7 +142,13 @@ function computeTotal(items, products) {
 
 // ----------------------------------------------------------------------
 
-export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPayments = [] }) {
+export function SaleCreateEditForm({
+  currentSale,
+  currentDetails = [],
+  currentPayments = [],
+  currentBatchUsages = [],
+  batchUsagesLoading = false,
+}) {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { branches } = useGetBranches();
@@ -151,26 +157,8 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
   const defaultValues = {
     branch_id: currentSale?.branch_id ?? (branches[0]?.id ?? ''),
     description: currentSale?.description ?? '',
-    items:
-      currentDetails.length > 0
-        ? currentDetails.map((d) => ({
-            _detailId: d.id,
-            product_id: d.product_id,
-            quantity: Number(d.quantity),
-            discount: Number(d.discount ?? 0),
-            description: d.description ?? '',
-          }))
-        : [defaultItem],
-    payments:
-      currentPayments.length > 0
-        ? currentPayments.map((p) => ({
-            _paymentId: p.id,
-            method_payment: p.method_payment,
-            amount: Number(p.amount),
-            transaction_number: p.transaction_number ?? '',
-            bank: p.bank ?? '',
-          }))
-        : [{ ...defaultPayment }],
+    items: [defaultItem],
+    payments: [{ ...defaultPayment }],
   };
 
   const methods = useForm({ resolver: zodResolver(schema), defaultValues });
@@ -186,12 +174,47 @@ export function SaleCreateEditForm({ currentSale, currentDetails = [], currentPa
   const paidTotal = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
   const isOverpaid = estimatedTotal > 0 && paidTotal > estimatedTotal + 0.01;
 
-  // Auto-fill branch if loaded after init
+  // Auto-fill branch if loaded after init (create mode)
   useEffect(() => {
     if (!currentSale && branches.length > 0 && methods.getValues('branch_id') === '') {
       setValue('branch_id', branches[0].id);
     }
   }, [branches, currentSale, methods, setValue]);
+
+  // Edit mode: reset the form once when sale data and batch usages are both ready
+  const editResetDone = useRef(false);
+  useEffect(() => {
+    if (!currentSale || editResetDone.current) return;
+    if (!currentDetails.length) return;
+    if (batchUsagesLoading) return;
+
+    editResetDone.current = true;
+    methods.reset({
+      branch_id: currentSale.branch_id ?? '',
+      description: currentSale.description ?? '',
+      items: currentDetails.map((d) => {
+        const usage = currentBatchUsages.find((u) => u.sale_detail_id === d.id);
+        return {
+          _detailId: d.id,
+          product_id: d.product_id,
+          batch_id: usage?.batch_id ?? '',
+          quantity: Number(d.quantity),
+          discount: Number(d.discount ?? 0),
+          description: d.description ?? '',
+        };
+      }),
+      payments:
+        currentPayments.length > 0
+          ? currentPayments.map((p) => ({
+              _paymentId: p.id,
+              method_payment: p.method_payment,
+              amount: Number(p.amount),
+              transaction_number: p.transaction_number ?? '',
+              bank: p.bank ?? '',
+            }))
+          : [{ ...defaultPayment }],
+    });
+  }, [currentSale, currentDetails, currentPayments, currentBatchUsages, batchUsagesLoading, methods]);
 
   const onSubmit = handleSubmit(async (data) => {
     try {

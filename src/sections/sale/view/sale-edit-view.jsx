@@ -8,7 +8,7 @@ import { SaleCreateEditForm } from '../sale-create-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function SaleEditView({ sale, saleDetails, salePayments }) {
+export function SaleEditView({ sale, saleDetails, salePayments, saleBatchUsages, saleBatchUsagesLoading }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -26,6 +26,8 @@ export function SaleEditView({ sale, saleDetails, salePayments }) {
         currentSale={sale}
         currentDetails={saleDetails}
         currentPayments={salePayments}
+        currentBatchUsages={saleBatchUsages}
+        batchUsagesLoading={saleBatchUsagesLoading}
       />
     </DashboardContent>
   );
