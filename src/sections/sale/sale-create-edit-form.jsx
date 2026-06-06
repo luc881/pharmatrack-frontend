@@ -31,6 +31,7 @@ import { createProductBatch } from 'src/actions/product-batch';
 import {
   createSale,
   updateSale,
+  completeSale,
   useGetBranches,
   createSaleDetail,
   deleteSaleDetail,
@@ -254,12 +255,12 @@ export function SaleCreateEditForm({
         )
       );
 
-      // Registrar qué lote se usó en cada línea (best-effort — 404 no aborta la venta)
+      // Registrar qué lote se usó en cada línea (best-effort — no aborta la venta)
       const batchUsages = data.items
         .map((item, i) => ({
           sale_detail_id: createdDetails[i].id,
           batch_id: item.batch_id ? Number(item.batch_id) : null,
-          quantity: Number(item.quantity),
+          quantity_used: Number(item.quantity),
         }))
         .filter((u) => u.batch_id);
 
@@ -278,6 +279,9 @@ export function SaleCreateEditForm({
           })
         )
       );
+
+      // Completar la venta: DRAFT → COMPLETED (el backend recalcula totales y confirma lotes)
+      await completeSale(saleId);
 
       toast.success(currentSale ? 'Venta actualizada' : 'Venta registrada');
       navigate(paths.dashboard.sale.root);

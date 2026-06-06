@@ -126,6 +126,9 @@ export const updateSale = (id, data) =>
 export const deleteSale = (id) =>
   axiosInstance.delete(endpoints.sale.delete(id)).then((r) => r.data);
 
+export const completeSale = (id) =>
+  axiosInstance.post(endpoints.sale.complete(id)).then((r) => r.data);
+
 export const createSaleDetail = (data) =>
   axiosInstance.post(endpoints.saleDetail.create, data).then((r) => r.data);
 

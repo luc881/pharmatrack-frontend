@@ -148,6 +148,7 @@ export const endpoints = {
     create: '/api/v1/sales',
     update: (id) => `/api/v1/sales/${id}`,
     delete: (id) => `/api/v1/sales/${id}`,
+    complete: (id) => `/api/v1/sales/${id}/complete`,
   },
   saleDetail: {
     list: '/api/v1/saledetails',
@@ -160,9 +161,9 @@ export const endpoints = {
     delete: (id) => `/api/v1/salepayments/${id}`,
   },
   saleBatchUsage: {
-    list: '/api/v1/salebatchusages',
-    create: '/api/v1/salebatchusages',
-    delete: (id) => `/api/v1/salebatchusages/${id}`,
+    list: '/api/v1/sale-batch-usages',
+    create: '/api/v1/sale-batch-usages',
+    delete: (id) => `/api/v1/sale-batch-usages/${id}`,
   },
   purchase: {
     list: '/api/v1/purchases',
