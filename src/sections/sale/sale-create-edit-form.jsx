@@ -634,7 +634,7 @@ function SaleItem({ index, products, onRemove }) {
         params: { product_id: pid, page: 1, page_size: 50 },
       });
       const available = (res.data?.data ?? [])
-        .filter((b) => Number(b.quantity) > 0)
+        .filter((b) => Number(b.quantity) > 0 && Number(b.product_id) === pid)
         .sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date));
       setBatches(available);
       if (available.length > 0) {
