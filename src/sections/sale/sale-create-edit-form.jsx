@@ -37,6 +37,7 @@ import {
   createSalePayment,
   deleteSalePayment,
   createSaleBatchUsage,
+  deleteSaleBatchUsage,
 } from 'src/actions/sale';
 
 import { toast } from 'src/components/snackbar';
@@ -229,6 +230,7 @@ export function SaleCreateEditForm({
         await updateSale(currentSale.id, salePayload);
         saleId = currentSale.id;
         await Promise.all([
+          ...currentBatchUsages.map((u) => deleteSaleBatchUsage(u.id)),
           ...currentDetails.map((d) => deleteSaleDetail(d.id)),
           ...currentPayments.map((p) => deleteSalePayment(p.id)),
         ]);
