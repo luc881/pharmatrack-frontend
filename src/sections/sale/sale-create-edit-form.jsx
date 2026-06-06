@@ -264,8 +264,14 @@ export function SaleCreateEditForm({
         }))
         .filter((u) => u.batch_id);
 
+      console.log('[sale] batch usages a crear:', batchUsages);
+
       if (batchUsages.length > 0) {
-        await Promise.allSettled(batchUsages.map((u) => createSaleBatchUsage(u)));
+        const results = await Promise.allSettled(batchUsages.map((u) => createSaleBatchUsage(u)));
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') console.error(`[sale] batch usage ${i} falló:`, r.reason);
+          else console.log(`[sale] batch usage ${i} creado:`, r.value);
+        });
       }
 
       await Promise.all(
