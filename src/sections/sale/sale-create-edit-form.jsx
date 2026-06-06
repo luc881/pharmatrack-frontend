@@ -229,8 +229,11 @@ export function SaleCreateEditForm({
       if (currentSale) {
         await updateSale(currentSale.id, salePayload);
         saleId = currentSale.id;
+        // Batch usages: best-effort — el endpoint puede no existir en el backend todavía
+        if (currentBatchUsages.length > 0) {
+          await Promise.allSettled(currentBatchUsages.map((u) => deleteSaleBatchUsage(u.id)));
+        }
         await Promise.all([
-          ...currentBatchUsages.map((u) => deleteSaleBatchUsage(u.id)),
           ...currentDetails.map((d) => deleteSaleDetail(d.id)),
           ...currentPayments.map((p) => deleteSalePayment(p.id)),
         ]);
@@ -251,7 +254,7 @@ export function SaleCreateEditForm({
         )
       );
 
-      // Registrar qué lote se usó en cada línea (si se seleccionó uno)
+      // Registrar qué lote se usó en cada línea (best-effort — 404 no aborta la venta)
       const batchUsages = data.items
         .map((item, i) => ({
           sale_detail_id: createdDetails[i].id,
@@ -261,7 +264,7 @@ export function SaleCreateEditForm({
         .filter((u) => u.batch_id);
 
       if (batchUsages.length > 0) {
-        await Promise.all(batchUsages.map((u) => createSaleBatchUsage(u)));
+        await Promise.allSettled(batchUsages.map((u) => createSaleBatchUsage(u)));
       }
 
       await Promise.all(
