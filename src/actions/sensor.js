@@ -15,6 +15,7 @@ export function useGetLatestSensorReading() {
     refreshInterval: POLL_INTERVAL,
     revalidateOnFocus: true,
     revalidateOnReconnect: true,
+    shouldRetryOnError: false,
   });
 
   return useMemo(
@@ -36,6 +37,7 @@ export function useGetSensorHistory({ pageSize = 24 } = {}) {
     refreshInterval: POLL_INTERVAL,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
+    shouldRetryOnError: false,
   });
 
   return useMemo(
