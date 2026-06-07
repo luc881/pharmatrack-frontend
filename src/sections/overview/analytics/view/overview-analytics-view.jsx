@@ -6,8 +6,8 @@ import { CONFIG } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useGetDashboardStats } from 'src/actions/dashboard';
 
-import { AnalyticsCurrentVisits } from '../analytics-current-visits';
 import { AnalyticsProfitTrend } from '../analytics-profit-trend';
+import { AnalyticsCurrentVisits } from '../analytics-current-visits';
 import { AnalyticsWebsiteVisits } from '../analytics-website-visits';
 import { AnalyticsWidgetSummary } from '../analytics-widget-summary';
 import { AnalyticsConversionRates } from '../analytics-conversion-rates';
