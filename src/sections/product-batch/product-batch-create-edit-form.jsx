@@ -1,5 +1,6 @@
 import { mutate } from 'swr';
 import { z as zod } from 'zod';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
@@ -56,11 +57,19 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
     },
   });
 
-  const { watch, setError, handleSubmit, formState: { isSubmitting } } = methods;
+  const { watch, setError, setValue, handleSubmit, formState: { isSubmitting } } = methods;
 
   const productId = watch('product_id');
   const selectedProduct = products.find((p) => p.id === Number(productId));
   const tracksBatches = selectedProduct?.tracks_batches !== false;
+
+  // Pre-fill purchase_price from product's reference price when selecting a product in create mode
+  useEffect(() => {
+    if (!isEdit && selectedProduct?.purchase_price != null) {
+      setValue('purchase_price', selectedProduct.purchase_price);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProduct?.id]);
 
   const onSubmit = handleSubmit(async (data) => {
     // Validar fecha de vencimiento solo para productos con lotes
@@ -179,6 +188,7 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
                 name="purchase_price"
                 label="Precio de compra"
                 type="number"
+                helperText="Precio real pagado en esta compra. Se pre-rellena con el precio base del producto — modifícalo si esta compra tuvo un costo distinto."
                 slotProps={{
                   inputLabel: { shrink: true },
                   input: {
