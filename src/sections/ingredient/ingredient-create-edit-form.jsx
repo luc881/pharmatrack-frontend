@@ -62,12 +62,12 @@ export function IngredientCreateEditForm({ currentIngredient }) {
         await createIngredient(payload);
       }
 
-      toast.success(isEdit ? 'Ingrediente actualizado' : 'Ingrediente creado');
+      toast.success(isEdit ? 'Sustancia actualizada' : 'Sustancia creada');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.ingredient.list);
       navigate(paths.dashboard.ingredient.root);
     } catch (error) {
       if (!handleApiError(error, setError)) {
-        toast.error('Error al guardar el ingrediente');
+        toast.error('Error al guardar la sustancia');
       }
     }
   });
@@ -77,7 +77,7 @@ export function IngredientCreateEditForm({ currentIngredient }) {
       <form onSubmit={onSubmit}>
         <Card sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 3 }}>
-            Información del ingrediente
+            Información de la sustancia
           </Typography>
 
           <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
@@ -95,7 +95,7 @@ export function IngredientCreateEditForm({ currentIngredient }) {
 
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
             <Button type="submit" variant="contained" loading={isSubmitting}>
-              {isEdit ? 'Guardar cambios' : 'Crear ingrediente'}
+              {isEdit ? 'Guardar cambios' : 'Crear sustancia'}
             </Button>
           </Box>
         </Card>

@@ -127,10 +127,10 @@ export function ProductMasterListView() {
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
-          heading="Principios activos"
+          heading="Fórmulas genéricas"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Principios activos' },
+            { name: 'Fórmulas genéricas' },
           ]}
           action={
             <Button

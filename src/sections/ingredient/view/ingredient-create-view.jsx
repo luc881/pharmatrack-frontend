@@ -12,10 +12,10 @@ export function IngredientCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Nuevo ingrediente"
+        heading="Nueva sustancia"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Ingredientes', href: paths.dashboard.ingredient.root },
+          { name: 'Sustancias', href: paths.dashboard.ingredient.root },
           { name: 'Nuevo' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

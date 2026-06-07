@@ -12,11 +12,11 @@ export function ProductMasterEditView({ productMaster }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Editar principio activo"
+        heading="Editar fórmula genérica"
         backHref={paths.dashboard.productMaster.root}
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Principios activos', href: paths.dashboard.productMaster.root },
+          { name: 'Fórmulas genéricas', href: paths.dashboard.productMaster.root },
           { name: productMaster?.name },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

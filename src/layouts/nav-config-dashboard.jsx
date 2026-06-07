@@ -125,8 +125,8 @@ export const navData = [
           { title: 'Categorías',         path: paths.dashboard.productCategory.root },
           { title: 'Marcas',             path: paths.dashboard.productBrand.root },
           { title: 'Lotes y Stock',      path: paths.dashboard.productBatch.root },
-          { title: 'Principios activos', path: paths.dashboard.productMaster.root },
-          { title: 'Ingredientes',       path: paths.dashboard.ingredient.root },
+          { title: 'Fórmulas genéricas',  path: paths.dashboard.productMaster.root },
+          { title: 'Sustancias',         path: paths.dashboard.ingredient.root },
         ],
       },
       {

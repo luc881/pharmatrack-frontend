@@ -62,12 +62,12 @@ export function ProductMasterCreateEditForm({ currentProductMaster }) {
         await createProductMaster(payload);
       }
 
-      toast.success(isEdit ? 'Principio activo actualizado' : 'Principio activo creado');
+      toast.success(isEdit ? 'Fórmula genérica actualizada' : 'Fórmula genérica creada');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.productMaster.list);
       navigate(paths.dashboard.productMaster.root);
     } catch (error) {
       if (!handleApiError(error, setError)) {
-        toast.error('Error al guardar el principio activo');
+        toast.error('Error al guardar la fórmula genérica');
       }
     }
   });
@@ -77,7 +77,7 @@ export function ProductMasterCreateEditForm({ currentProductMaster }) {
       <form onSubmit={onSubmit}>
         <Card sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 3 }}>
-            Información del principio activo
+            Información de la fórmula genérica
           </Typography>
 
           <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
@@ -95,7 +95,7 @@ export function ProductMasterCreateEditForm({ currentProductMaster }) {
 
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
             <Button type="submit" variant="contained" loading={isSubmitting}>
-              {isEdit ? 'Guardar cambios' : 'Crear principio activo'}
+              {isEdit ? 'Guardar cambios' : 'Crear fórmula genérica'}
             </Button>
           </Box>
         </Card>

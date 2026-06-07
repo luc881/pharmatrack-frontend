@@ -127,10 +127,10 @@ export function IngredientListView() {
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
-          heading="Ingredientes"
+          heading="Sustancias"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Ingredientes' },
+            { name: 'Sustancias' },
           ]}
           action={
             <Button

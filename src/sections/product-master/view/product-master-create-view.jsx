@@ -12,10 +12,10 @@ export function ProductMasterCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Nuevo principio activo"
+        heading="Nueva fórmula genérica"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Principios activos', href: paths.dashboard.productMaster.root },
+          { name: 'Fórmulas genéricas', href: paths.dashboard.productMaster.root },
           { name: 'Nuevo' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
