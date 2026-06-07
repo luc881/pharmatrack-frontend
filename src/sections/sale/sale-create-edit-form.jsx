@@ -221,7 +221,7 @@ export function SaleCreateEditForm({
   const onSubmit = handleSubmit(async (data) => {
     const itemsWithNoBatch = data.items.filter((item) => item.product_id && !item.batch_id);
     if (itemsWithNoBatch.length > 0) {
-      toast.error('Uno o más productos no tienen lote con stock disponible. Agrega un lote antes de continuar.');
+      toast.error('Uno o más productos no tienen stock disponible. Agrega stock o un lote antes de continuar.');
       return;
     }
 
@@ -657,8 +657,12 @@ function SaleItem({ index, products, onRemove }) {
   const priceRetail = product?.price_retail ?? 0;
   const lineTotal = (Number(quantity) || 0) * priceRetail - (Number(discount) || 0);
 
+  // tracks_batches undefined → default true (existing products before the field was added)
+  const tracksBatches = product?.tracks_batches !== false;
+
   const selectedBatch = batches.find((b) => b.id === Number(batchId));
   const stockWarning = selectedBatch && Number(quantity) > Number(selectedBatch.quantity);
+  const totalStock = batches.reduce((s, b) => s + Number(b.quantity), 0);
 
   const loadBatches = useCallback(async (pid) => {
     if (!pid) {
@@ -737,44 +741,75 @@ function SaleItem({ index, products, onRemove }) {
         />
 
         <Box>
-          <Controller
-            name={`items[${index}].batch_id`}
-            control={control}
-            render={({ fieldState: { error } }) => (
-              <Autocomplete
-                size="small"
-                options={batchOptions}
-                value={selectedBatchOption}
-                getOptionLabel={(o) => o.label ?? ''}
-                isOptionEqualToValue={(o, v) => o.id === v?.id}
-                disabled={!productId || batchesLoading}
-                onChange={(_, newVal) =>
-                  setValue(`items[${index}].batch_id`, newVal?.id ?? '', { shouldValidate: true })
-                }
-                noOptionsText="Sin lotes disponibles"
-                renderInput={(params) => (
-                  <TextField {...params} label="Lote" error={!!error} helperText={error?.message} />
+          {tracksBatches ? (
+            /* Productos con lote: dropdown de lote con número y vencimiento */
+            <>
+              <Controller
+                name={`items[${index}].batch_id`}
+                control={control}
+                render={({ fieldState: { error } }) => (
+                  <Autocomplete
+                    size="small"
+                    options={batchOptions}
+                    value={selectedBatchOption}
+                    getOptionLabel={(o) => o.label ?? ''}
+                    isOptionEqualToValue={(o, v) => o.id === v?.id}
+                    disabled={!productId || batchesLoading}
+                    onChange={(_, newVal) =>
+                      setValue(`items[${index}].batch_id`, newVal?.id ?? '', { shouldValidate: true })
+                    }
+                    noOptionsText="Sin lotes disponibles"
+                    renderInput={(params) => (
+                      <TextField {...params} label="Lote" error={!!error} helperText={error?.message} />
+                    )}
+                  />
                 )}
               />
-            )}
-          />
 
-          {productId && !batchesLoading && batches.length === 0 && (
-            <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
-              Sin stock disponible. Crea un lote antes de vender.
-            </Alert>
-          )}
+              {productId && !batchesLoading && batches.length === 0 && (
+                <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
+                  Sin lotes disponibles. Crea un lote antes de vender.
+                </Alert>
+              )}
 
-          {productId && (
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
-              <Button
-                size="small"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-                onClick={() => setOpenAddBatch(true)}
-              >
-                {batches.length === 0 ? 'Crear lote' : 'Agregar lote'}
-              </Button>
-            </Box>
+              {productId && (
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                  <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />} onClick={() => setOpenAddBatch(true)}>
+                    {batches.length === 0 ? 'Crear lote' : 'Agregar lote'}
+                  </Button>
+                </Box>
+              )}
+            </>
+          ) : (
+            /* Productos sin lote: chip de stock disponible */
+            <>
+              {batchesLoading && productId ? (
+                <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
+                  Cargando stock…
+                </Typography>
+              ) : batches.length > 0 ? (
+                <Chip
+                  size="small"
+                  color="success"
+                  variant="soft"
+                  icon={<Iconify icon="solar:box-bold" width={14} />}
+                  label={`Disponible: ${totalStock} ${product?.unit_name ?? 'unidades'}`}
+                  sx={{ mt: 0.5 }}
+                />
+              ) : productId ? (
+                <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
+                  Sin stock disponible. Agrega stock antes de vender.
+                </Alert>
+              ) : null}
+
+              {productId && (
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
+                  <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />} onClick={() => setOpenAddBatch(true)}>
+                    {batches.length === 0 ? 'Agregar stock' : 'Actualizar stock'}
+                  </Button>
+                </Box>
+              )}
+            </>
           )}
 
           {openAddBatch && (
@@ -784,6 +819,7 @@ function SaleItem({ index, products, onRemove }) {
               productId={Number(productId)}
               existingBatches={batches}
               onCreated={handleBatchCreated}
+              tracksBatches={tracksBatches}
             />
           )}
         </Box>
@@ -1189,7 +1225,7 @@ function MonthYearPicker({ month, year, onMonthChange, onYearChange }) {
 
 // ----------------------------------------------------------------------
 
-function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }) {
+function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated, tracksBatches = true }) {
   const _now = new Date();
   const _defaultMonth = _now.getMonth() + 2 > 12 ? 1 : _now.getMonth() + 2;
   const _defaultYear = _now.getMonth() + 2 > 12 ? _now.getFullYear() + 1 : _now.getFullYear();
@@ -1235,10 +1271,10 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
         quantity: Number(quantity),
         purchase_price: purchasePrice ? Number(purchasePrice) : null,
       });
-      toast.success('Lote creado');
+      toast.success(tracksBatches ? 'Lote creado' : 'Stock actualizado');
       onCreated(created);
     } catch {
-      toast.error('Error al crear el lote');
+      toast.error(tracksBatches ? 'Error al crear el lote' : 'Error al guardar el stock');
     } finally {
       setCreating(false);
     }
@@ -1265,40 +1301,45 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Agregar lote</DialogTitle>
+      <DialogTitle>{tracksBatches ? 'Agregar lote' : 'Agregar stock'}</DialogTitle>
 
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
-          <TextField
-            label="Código de lote"
-            size="small"
-            fullWidth
-            value={lotCode}
-            onChange={(e) => { setLotCode(e.target.value); resetWarnings(); }}
-            error={!!duplicateError}
-            helperText={duplicateError || 'Opcional'}
-          />
+          {tracksBatches && (
+            <>
+              <TextField
+                label="Código de lote"
+                size="small"
+                fullWidth
+                value={lotCode}
+                onChange={(e) => { setLotCode(e.target.value); resetWarnings(); }}
+                error={!!duplicateError}
+                helperText={duplicateError || 'Opcional'}
+              />
 
-          {similarBatches.length > 0 && (
-            <Alert severity="warning" icon={<Iconify icon="solar:danger-triangle-bold" width={20} />}>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                Hay lotes con código similar:{' '}
-                <Box component="span" sx={{ fontWeight: 600 }}>
-                  {similarBatches.map((b) => b.lot_code).join(', ')}
-                </Box>
-                . ¿Es un lote nuevo?
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <LoadingButton size="small" variant="contained" color="warning" loading={creating} onClick={doCreate}>
-                  Sí, crear &ldquo;{lotCode.trim()}&rdquo;
-                </LoadingButton>
-                <Button size="small" variant="outlined" color="inherit" onClick={resetWarnings}>
-                  Cancelar
-                </Button>
-              </Box>
-            </Alert>
+              {similarBatches.length > 0 && (
+                <Alert severity="warning" icon={<Iconify icon="solar:danger-triangle-bold" width={20} />}>
+                  <Typography variant="body2" sx={{ mb: 1 }}>
+                    Hay lotes con código similar:{' '}
+                    <Box component="span" sx={{ fontWeight: 600 }}>
+                      {similarBatches.map((b) => b.lot_code).join(', ')}
+                    </Box>
+                    . ¿Es un lote nuevo?
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <LoadingButton size="small" variant="contained" color="warning" loading={creating} onClick={doCreate}>
+                      Sí, crear &ldquo;{lotCode.trim()}&rdquo;
+                    </LoadingButton>
+                    <Button size="small" variant="outlined" color="inherit" onClick={resetWarnings}>
+                      Cancelar
+                    </Button>
+                  </Box>
+                </Alert>
+              )}
+            </>
           )}
 
+          {tracksBatches && (
           <Box>
             <FormControlLabel
               control={
@@ -1333,6 +1374,7 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
               </Box>
             )}
           </Box>
+          )}
 
           <TextField
             label="Cantidad *"
@@ -1370,7 +1412,7 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated }
       <DialogActions>
         <Button onClick={onClose} disabled={creating}>Cancelar</Button>
         <LoadingButton variant="contained" loading={creating} disabled={pendingCreate} onClick={handleSubmit}>
-          Crear lote
+          {tracksBatches ? 'Crear lote' : 'Guardar stock'}
         </LoadingButton>
       </DialogActions>
     </Dialog>

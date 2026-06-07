@@ -95,6 +95,7 @@ const ProductSchema = z.object({
     { error: 'El precio de venta es requerido' }
   ),
   price_cost: z.coerce.number().nullable(),
+  tracks_batches: z.boolean(),
   allow_warranty: z.boolean(),
   warranty_days: z.coerce.number().nullable(),
   is_active: z.boolean(),
@@ -146,6 +147,7 @@ export function ProductCreateEditForm({ currentProduct }) {
     is_unit_sale: false,
     price_retail: null,
     price_cost: null,
+    tracks_batches: true,
     allow_warranty: false,
     warranty_days: null,
     is_active: true,
@@ -446,6 +448,25 @@ export function ProductCreateEditForm({ currentProduct }) {
               </Box>
             </Box>
           )}
+
+          <Divider sx={{ borderStyle: 'dashed' }} />
+
+          <FormControlLabel
+            label={
+              <Box>
+                <Typography variant="subtitle2">Maneja lotes y fechas de vencimiento</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Actívalo para medicamentos y productos con número de lote. Desactívalo para
+                  productos generales (pilas, artículos de limpieza, etc.) — el sistema solo
+                  controlará la cantidad disponible.
+                </Typography>
+              </Box>
+            }
+            control={<Field.Switch name="tracks_batches" sx={{ mr: 1 }} />}
+            sx={{ alignItems: 'flex-start', ml: 0 }}
+          />
+
+          <Divider sx={{ borderStyle: 'dashed' }} />
 
           <Field.Switch name="allow_warranty" label="Tiene garantía" />
 
