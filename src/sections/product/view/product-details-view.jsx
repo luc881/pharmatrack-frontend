@@ -169,6 +169,7 @@ export function ProductDetailsView({ product, error, loading }) {
                 Detalles
               </Typography>
               <DetailRow label="SKU" value={product.sku} />
+              <DetailRow label="Principio activo" value={product.product_master?.name} />
               <DetailRow label="Categoría" value={product.category?.name} />
               <DetailRow label="Marca" value={product.brand?.name} />
               <DetailRow label="Unidad" value={product.unit_name} />

@@ -27,6 +27,7 @@ import { handleApiError } from 'src/utils/handle-api-error';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { useAllIngredients } from 'src/actions/ingredient';
 import { createProductBrand } from 'src/actions/product-brand';
+import { useAllProductMasters } from 'src/actions/product-master';
 import { createProductCategory } from 'src/actions/product-category';
 import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
 
@@ -119,6 +120,7 @@ export function ProductCreateEditForm({ currentProduct }) {
   const { categories, categoriesLoading, categoriesMutate } = useGetProductCategories();
   const { brands, brandsLoading, brandsMutate } = useGetProductBrands();
   const { allIngredients } = useAllIngredients();
+  const { allProductMasters } = useAllProductMasters();
 
   const buildRows = (raw) =>
     (raw ?? []).map((i) => ({
@@ -128,6 +130,7 @@ export function ProductCreateEditForm({ currentProduct }) {
     }));
 
   const [ingredientRows, setIngredientRows] = useState(() => buildRows(currentProduct?.ingredients));
+  const [selectedProductMaster, setSelectedProductMaster] = useState(currentProduct?.product_master ?? null);
 
   const handleCreateBrand = useCallback(
     async (name) => {
@@ -196,7 +199,10 @@ export function ProductCreateEditForm({ currentProduct }) {
   const allowWarranty = watch('allow_warranty');
 
   useEffect(() => {
-    if (currentProduct?.id) setIngredientRows(buildRows(currentProduct.ingredients));
+    if (currentProduct?.id) {
+      setIngredientRows(buildRows(currentProduct.ingredients));
+      setSelectedProductMaster(currentProduct.product_master ?? null);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentProduct?.id]);
 
@@ -262,6 +268,7 @@ export function ProductCreateEditForm({ currentProduct }) {
       base_unit_name: isPack ? data.base_unit_name : null,
       units_per_base: isPack ? data.units_per_base : null,
       is_unit_sale: isPack ? data.is_unit_sale : false,
+      product_master_id: selectedProductMaster?.id ?? null,
       ingredients: ingredientRows
         .filter((r) => r.ingredient?.id)
         .map((r) => ({ ingredient_id: r.ingredient.id, amount: r.amount, unit: r.unit })),
@@ -410,6 +417,20 @@ export function ProductCreateEditForm({ currentProduct }) {
               options={brands}
               onCreate={handleCreateBrand}
               loading={brandsLoading}
+            />
+
+            <Autocomplete
+              options={allProductMasters}
+              value={selectedProductMaster}
+              getOptionLabel={(o) => o?.name ?? ''}
+              isOptionEqualToValue={(o, v) => o?.id === v?.id}
+              onChange={(_, val) => setSelectedProductMaster(val)}
+              renderInput={(params) => (
+                <TextField {...params} label="Principio activo (genérico)" size="medium" />
+              )}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>{option.name}</li>
+              )}
             />
 
             <Field.Autocomplete

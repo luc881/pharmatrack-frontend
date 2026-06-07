@@ -13,6 +13,17 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
+export function useAllProductMasters() {
+  const url = [endpoints.productMaster.list, { params: { page: 1, page_size: 500 } }];
+  const { data, isLoading } = useSWR(url, fetcher, swrOptions);
+  return useMemo(
+    () => ({ allProductMasters: data?.data ?? [], allProductMastersLoading: isLoading }),
+    [data, isLoading]
+  );
+}
+
+// ----------------------------------------------------------------------
+
 export function useGetProductMasters({ page = 1, pageSize = 25 } = {}) {
   const url = [endpoints.productMaster.list, { params: { page, page_size: pageSize } }];
 
