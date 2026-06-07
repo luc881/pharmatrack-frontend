@@ -1,17 +1,19 @@
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
 import Collapse from '@mui/material/Collapse';
 import TextField from '@mui/material/TextField';
+import Autocomplete from '@mui/material/Autocomplete';
 import IconButton from '@mui/material/IconButton';
 import CardHeader from '@mui/material/CardHeader';
 import Typography from '@mui/material/Typography';
@@ -27,6 +29,7 @@ import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { createProductBrand } from 'src/actions/product-brand';
 import { createProductCategory } from 'src/actions/product-category';
 import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
+import { useAllIngredients } from 'src/actions/ingredient';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -69,6 +72,9 @@ const UNIT_OPTIONS = [
   'ml', 'L', 'g', 'kg', 'mg',
 ];
 
+// Unidades de dosificación para ingredientes activos
+const DOSE_UNIT_OPTIONS = ['mg', 'g', 'mcg', 'ml', 'UI', '%', 'U', 'mEq', 'mmol', 'µg'];
+
 // Unidad base (la pieza individual dentro del empaque)
 const BASE_UNIT_OPTIONS = [
   'tableta', 'cápsula', 'gragea', 'óvulo', 'supositorio', 'parche',
@@ -109,9 +115,20 @@ export function ProductCreateEditForm({ currentProduct }) {
   const openDetails = useBoolean(true);
   const openProperties = useBoolean(true);
   const openPricing = useBoolean(true);
+  const openIngredients = useBoolean(true);
 
   const { categories, categoriesLoading, categoriesMutate } = useGetProductCategories();
   const { brands, brandsLoading, brandsMutate } = useGetProductBrands();
+  const { allIngredients } = useAllIngredients();
+
+  const buildRows = (raw) =>
+    (raw ?? []).map((i) => ({
+      ingredient: i.ingredient_id ? { id: i.ingredient_id, name: i.ingredient?.name ?? '' } : null,
+      amount: i.amount ?? '',
+      unit: i.unit ?? '',
+    }));
+
+  const [ingredientRows, setIngredientRows] = useState(() => buildRows(currentProduct?.ingredients));
 
   const handleCreateBrand = useCallback(
     async (name) => {
@@ -179,6 +196,22 @@ export function ProductCreateEditForm({ currentProduct }) {
 
   const allowWarranty = watch('allow_warranty');
 
+  useEffect(() => {
+    if (currentProduct?.id) setIngredientRows(buildRows(currentProduct.ingredients));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProduct?.id]);
+
+  const addIngredientRow = () =>
+    setIngredientRows((prev) => [...prev, { ingredient: null, amount: '', unit: 'mg' }]);
+
+  const removeIngredientRow = (idx) =>
+    setIngredientRows((prev) => prev.filter((_, i) => i !== idx));
+
+  const updateIngredientRow = (idx, field, value) =>
+    setIngredientRows((prev) =>
+      prev.map((row, i) => (i === idx ? { ...row, [field]: value } : row))
+    );
+
   const handlePackToggle = (enabled) => {
     setIsPack(enabled);
     if (!enabled) {
@@ -230,6 +263,9 @@ export function ProductCreateEditForm({ currentProduct }) {
       base_unit_name: isPack ? data.base_unit_name : null,
       units_per_base: isPack ? data.units_per_base : null,
       is_unit_sale: isPack ? data.is_unit_sale : false,
+      ingredients: ingredientRows
+        .filter((r) => r.ingredient?.id)
+        .map((r) => ({ ingredient_id: r.ingredient.id, amount: r.amount, unit: r.unit })),
     };
 
     try {
@@ -546,6 +582,89 @@ export function ProductCreateEditForm({ currentProduct }) {
     </Card>
   );
 
+  const renderIngredients = () => (
+    <Card>
+      <CardHeader
+        title="Ingredientes activos"
+        subheader="Principios activos y concentración"
+        action={renderCollapseButton(openIngredients.value, openIngredients.onToggle)}
+        sx={{ mb: 3 }}
+      />
+
+      <Collapse in={openIngredients.value}>
+        <Divider />
+        <Stack spacing={2} sx={{ p: 3 }}>
+          {ingredientRows.length === 0 && (
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Sin ingredientes activos registrados.
+            </Typography>
+          )}
+
+          {ingredientRows.map((row, idx) => (
+            <Box
+              key={idx}
+              sx={{
+                display: 'grid',
+                columnGap: 1.5,
+                rowGap: 1.5,
+                gridTemplateColumns: { xs: '1fr', sm: '3fr 1fr 1fr auto' },
+                alignItems: 'center',
+              }}
+            >
+              <Autocomplete
+                options={allIngredients}
+                value={row.ingredient}
+                getOptionLabel={(o) => o?.name ?? ''}
+                isOptionEqualToValue={(o, v) => o?.id === v?.id}
+                onChange={(_, val) => updateIngredientRow(idx, 'ingredient', val)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Ingrediente" size="small" />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>{option.name}</li>
+                )}
+              />
+
+              <TextField
+                label="Cantidad"
+                size="small"
+                value={row.amount}
+                onChange={(e) => updateIngredientRow(idx, 'amount', e.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+
+              <Autocomplete
+                freeSolo
+                options={DOSE_UNIT_OPTIONS}
+                value={row.unit}
+                onInputChange={(_, val) => updateIngredientRow(idx, 'unit', val)}
+                renderInput={(params) => (
+                  <TextField {...params} label="Unidad" size="small" />
+                )}
+              />
+
+              <IconButton
+                size="small"
+                color="error"
+                onClick={() => removeIngredientRow(idx)}
+              >
+                <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+              </IconButton>
+            </Box>
+          ))}
+
+          <Button
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            onClick={addIngredientRow}
+            sx={{ alignSelf: 'flex-start' }}
+          >
+            Agregar ingrediente
+          </Button>
+        </Stack>
+      </Collapse>
+    </Card>
+  );
+
   const renderActions = () => (
     <Box sx={{ gap: 3, display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
       <FormControlLabel
@@ -572,6 +691,7 @@ export function ProductCreateEditForm({ currentProduct }) {
         {renderDetails()}
         {renderProperties()}
         {renderPricing()}
+        {renderIngredients()}
         {renderActions()}
       </Stack>
     </Form>

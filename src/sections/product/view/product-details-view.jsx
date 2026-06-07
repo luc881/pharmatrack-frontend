@@ -144,13 +144,17 @@ export function ProductDetailsView({ product, error, loading }) {
                 <>
                   <Divider />
                   <Typography variant="subtitle2">Ingredientes activos</Typography>
-                  <Stack spacing={0.5}>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                     {product.ingredients.map((item) => (
-                      <Typography key={item.ingredient_id} variant="body2">
-                        • {item.ingredient?.name} — {item.amount} {item.unit}
-                      </Typography>
+                      <Chip
+                        key={item.ingredient_id}
+                        label={`${item.ingredient?.name ?? `#${item.ingredient_id}`}${item.amount ? ` · ${item.amount}${item.unit ?? ''}` : ''}`}
+                        size="small"
+                        variant="soft"
+                        color="info"
+                      />
                     ))}
-                  </Stack>
+                  </Box>
                 </>
               )}
             </Stack>
