@@ -174,21 +174,23 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
               slotProps={{ inputLabel: { shrink: true } }}
             />
 
-            <Field.Text
-              name="purchase_price"
-              label="Precio de compra"
-              type="number"
-              slotProps={{
-                inputLabel: { shrink: true },
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
+            {tracksBatches && (
+              <Field.Text
+                name="purchase_price"
+                label="Precio de compra"
+                type="number"
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            )}
           </Box>
 
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
