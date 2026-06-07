@@ -63,10 +63,13 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
   const selectedProduct = products.find((p) => p.id === Number(productId));
   const tracksBatches = selectedProduct?.tracks_batches !== false;
 
-  // Pre-fill purchase_price from product's reference cost price when selecting a product in create mode
+  // Pre-fill purchase_price from product's reference cost price when no price is set yet
   useEffect(() => {
-    if (!isEdit && selectedProduct != null) {
-      setValue('purchase_price', selectedProduct.price_cost ?? '', { shouldDirty: true });
+    if (selectedProduct != null) {
+      const current = methods.getValues('purchase_price');
+      if (current === '' || current == null) {
+        setValue('purchase_price', selectedProduct.price_cost ?? '', { shouldDirty: !isEdit });
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProduct?.id]);
