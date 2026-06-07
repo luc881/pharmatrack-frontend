@@ -42,14 +42,14 @@ export function SaleDetailView({ currentSale }) {
 
   const products = useAllProducts();
   const productMap = useMemo(
-    () => Object.fromEntries(products.map((p) => [p.id, p.title])),
+    () => Object.fromEntries(products.map((p) => [p.id, { title: p.title, price_retail: p.price_retail }])),
     [products]
   );
 
-  const totalItems = saleDetails.reduce(
-    (acc, d) => acc + (Number(d.quantity) || 0) * (Number(d.unit_price ?? 0)) - (Number(d.discount ?? 0)),
-    0
-  );
+  const totalItems = saleDetails.reduce((acc, d) => {
+    const unitPrice = Number(d.unit_price ?? productMap[d.product_id]?.price_retail ?? 0);
+    return acc + (Number(d.quantity) || 0) * unitPrice - (Number(d.discount ?? 0));
+  }, 0);
 
   const totalPayments = salePayments.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
 
@@ -153,20 +153,17 @@ export function SaleDetailView({ currentSale }) {
                   </TableRow>
                 ) : (
                   saleDetails.map((detail) => {
-                    const subtotal =
-                      (Number(detail.quantity) || 0) * (Number(detail.unit_price ?? 0)) -
-                      (Number(detail.discount ?? 0));
+                    const unitPrice = Number(detail.unit_price ?? productMap[detail.product_id]?.price_retail ?? 0);
+                    const subtotal = (Number(detail.quantity) || 0) * unitPrice - (Number(detail.discount ?? 0));
                     return (
                       <TableRow key={detail.id}>
                         <TableCell>
-                          {productMap[detail.product_id] ?? `Producto #${detail.product_id}`}
+                          {productMap[detail.product_id]?.title ?? `Producto #${detail.product_id}`}
                         </TableCell>
                         <TableCell align="right">{detail.quantity}</TableCell>
+                        <TableCell align="right">${unitPrice.toFixed(2)}</TableCell>
                         <TableCell align="right">
-                          {detail.unit_price != null ? `$${Number(detail.unit_price).toFixed(2)}` : '—'}
-                        </TableCell>
-                        <TableCell align="right">
-                          {detail.discount ? `$${Number(detail.discount).toFixed(2)}` : '—'}
+                          {detail.discount ? `$${Number(detail.discount).toFixed(2)}` : '$0.00'}
                         </TableCell>
                         <TableCell align="right">${subtotal.toFixed(2)}</TableCell>
                         <TableCell>{detail.description ?? '—'}</TableCell>

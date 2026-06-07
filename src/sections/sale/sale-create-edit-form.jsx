@@ -233,15 +233,17 @@ export function SaleCreateEditForm({
       }
 
       await Promise.all(
-        data.items.map((item) =>
-          createSaleDetail({
+        data.items.map((item) => {
+          const prod = products.find((p) => p.id === Number(item.product_id));
+          return createSaleDetail({
             sale_id: saleId,
             product_id: Number(item.product_id),
             quantity: Number(item.quantity),
             discount: Number(item.discount ?? 0),
             description: item.description || null,
-          })
-        )
+            unit_price: prod?.price_retail ?? null,
+          });
+        })
       );
 
       await Promise.all(
