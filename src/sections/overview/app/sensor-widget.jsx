@@ -144,7 +144,7 @@ export function SensorWidget() {
     return () => clearInterval(id);
   }, []);
 
-  const noData = !readingLoading && (readingError || !reading);
+  const noData = !readingLoading && (readingError || !reading || reading.offline);
 
   const isOnline =
     reading?.recorded_at &&
