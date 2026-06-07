@@ -7,6 +7,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { useGetDashboardStats } from 'src/actions/dashboard';
 
 import { AnalyticsCurrentVisits } from '../analytics-current-visits';
+import { AnalyticsProfitTrend } from '../analytics-profit-trend';
 import { AnalyticsWebsiteVisits } from '../analytics-website-visits';
 import { AnalyticsWidgetSummary } from '../analytics-widget-summary';
 import { AnalyticsConversionRates } from '../analytics-conversion-rates';
@@ -39,7 +40,7 @@ export function OverviewAnalyticsView() {
           Estadísticas
         </Typography>
         <Grid container spacing={3}>
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <Grid key={i} size={{ xs: 12, sm: 6, md: 3 }}>
               <Skeleton variant="rounded" height={160} />
             </Grid>
@@ -49,34 +50,65 @@ export function OverviewAnalyticsView() {
     );
   }
 
-  // ── KPI data ──────────────────────────────────────────────────────────────
+  // ── Monthly comparison ────────────────────────────────────────────────────
   const { current_month, previous_month } = stats.monthly_comparison;
 
   const revenuePercent = calcPercent(current_month.revenue, previous_month.revenue);
-  const countPercent   = calcPercent(current_month.count, previous_month.count);
+  const countPercent   = calcPercent(current_month.count,   previous_month.count);
+  const profitPercent  = calcPercent(current_month.profit ?? 0, previous_month.profit ?? 0);
 
-  const last7months     = stats.sales_by_month.slice(-7);
-  const sparkCategories = last7months.map((m) => monthLabel(m.month));
-  const sparkRevenue    = last7months.map((m) => Math.round(m.revenue));
-  const sparkCount      = last7months.map((m) => m.count);
+  const currentMargin  = current_month.revenue > 0
+    ? parseFloat(((current_month.profit ?? 0) / current_month.revenue * 100).toFixed(1))
+    : 0;
+  const previousMargin = previous_month.revenue > 0
+    ? parseFloat(((previous_month.profit ?? 0) / previous_month.revenue * 100).toFixed(1))
+    : 0;
+  const marginPercent  = calcPercent(currentMargin, previousMargin);
 
-  // ── Sales by month chart ──────────────────────────────────────────────────
-  const allMonths    = stats.sales_by_month.map((m) => monthLabel(m.month));
-  const allRevenue   = stats.sales_by_month.map((m) => Math.round(m.revenue));
-  const allCount     = stats.sales_by_month.map((m) => m.count);
+  // ── Sparklines (last 7 months) ────────────────────────────────────────────
+  const last7          = stats.sales_by_month.slice(-7);
+  const sparkCats      = last7.map((m) => monthLabel(m.month));
+  const sparkRevenue   = last7.map((m) => Math.round(m.revenue));
+  const sparkCount     = last7.map((m) => m.count);
+  const sparkProfit    = last7.map((m) => Math.round(m.profit ?? 0));
+  const sparkMargin    = last7.map((m) =>
+    m.revenue > 0 ? Math.round(((m.profit ?? 0) / m.revenue) * 100) : 0
+  );
 
-  // ── Payment methods pie ───────────────────────────────────────────────────
+  // ── Profit trend area chart (all months) ─────────────────────────────────
+  const allMonths  = stats.sales_by_month.map((m) => monthLabel(m.month));
+  const allRevenue = stats.sales_by_month.map((m) => Math.round(m.revenue));
+  const allCosts   = stats.sales_by_month.map((m) => Math.round(m.cost ?? 0));
+  const allProfits = stats.sales_by_month.map((m) => Math.round(m.profit ?? 0));
+
+  // ── Monthly sales bar (count) ─────────────────────────────────────────────
+  const allCount = stats.sales_by_month.map((m) => m.count);
+
+  // ── Payment methods ───────────────────────────────────────────────────────
   const paymentSeries = stats.payment_methods.map((p) => ({
     label: PAYMENT_LABELS[p.method] ?? p.method,
     value: p.count,
   }));
 
-  // ── Top products horizontal bar ───────────────────────────────────────────
-  const topCategories = stats.top_products.map((p) =>
-    p.title.length > 20 ? `${p.title.slice(0, 20)}…` : p.title
+  // ── Sales by category ─────────────────────────────────────────────────────
+  const categorySeries = (stats.sales_by_category ?? []).map((c) => ({
+    label: c.category || 'Sin categoría',
+    value: Math.round(c.revenue),
+  }));
+
+  // ── Sales by branch ───────────────────────────────────────────────────────
+  const branchData       = stats.sales_by_branch ?? [];
+  const showBranchChart  = branchData.length > 1;
+  const branchCategories = branchData.map((b) => b.branch);
+  const branchRevenue    = branchData.map((b) => Math.round(b.revenue));
+  const branchCount      = branchData.map((b) => b.count);
+
+  // ── Top products ──────────────────────────────────────────────────────────
+  const topLabels     = stats.top_products.map((p) =>
+    p.title.length > 22 ? `${p.title.slice(0, 22)}…` : p.title
   );
   const topQuantities = stats.top_products.map((p) => Math.round(p.quantity_sold));
-  const topRevenues   = stats.top_products.map((p) => Math.round(p.revenue));
+  const topProfits    = stats.top_products.map((p) => Math.round(p.profit ?? 0));
 
   return (
     <DashboardContent maxWidth="xl">
@@ -85,7 +117,8 @@ export function OverviewAnalyticsView() {
       </Typography>
 
       <Grid container spacing={3}>
-        {/* KPI — Ingresos del mes */}
+
+        {/* ── KPI Row 1 — Financiero ──────────────────────────────────────── */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <AnalyticsWidgetSummary
             title="Ingresos este mes"
@@ -93,11 +126,21 @@ export function OverviewAnalyticsView() {
             total={Math.round(current_month.revenue)}
             color="primary"
             icon={<img alt="ingresos" src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-bag.svg`} />}
-            chart={{ categories: sparkCategories, series: sparkRevenue }}
+            chart={{ categories: sparkCats, series: sparkRevenue }}
           />
         </Grid>
 
-        {/* KPI — Ventas del mes */}
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <AnalyticsWidgetSummary
+            title="Ganancia este mes"
+            percent={profitPercent}
+            total={Math.round(current_month.profit ?? 0)}
+            color="success"
+            icon={<img alt="ganancia" src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-bag.svg`} />}
+            chart={{ categories: sparkCats, series: sparkProfit }}
+          />
+        </Grid>
+
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <AnalyticsWidgetSummary
             title="Ventas este mes"
@@ -105,35 +148,72 @@ export function OverviewAnalyticsView() {
             total={current_month.count}
             color="secondary"
             icon={<img alt="ventas" src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-buy.svg`} />}
-            chart={{ categories: sparkCategories, series: sparkCount }}
+            chart={{ categories: sparkCats, series: sparkCount }}
           />
         </Grid>
 
-        {/* KPI — Lotes por vencer */}
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <AnalyticsWidgetSummary
+            title="Margen este mes (%)"
+            percent={marginPercent}
+            total={currentMargin}
+            color="info"
+            icon={<img alt="margen" src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-buy.svg`} />}
+            chart={{ categories: sparkCats, series: sparkMargin }}
+          />
+        </Grid>
+
+        {/* ── KPI Row 2 — Inventario ──────────────────────────────────────── */}
+        <Grid size={{ xs: 12, sm: 4 }}>
           <AnalyticsWidgetSummary
             title="Lotes por vencer (≤30d)"
             percent={0}
             total={stats.expiring_soon}
             color="warning"
             icon={<img alt="vencer" src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-message.svg`} />}
-            chart={{ categories: sparkCategories, series: sparkCategories.map(() => 0) }}
+            chart={{ categories: sparkCats, series: sparkCats.map(() => 0) }}
           />
         </Grid>
 
-        {/* KPI — Lotes bajo stock */}
-        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid size={{ xs: 12, sm: 4 }}>
+          <AnalyticsWidgetSummary
+            title="Lotes vencidos"
+            percent={0}
+            total={stats.expired_batches ?? 0}
+            color="error"
+            icon={<img alt="vencidos" src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-message.svg`} />}
+            chart={{ categories: sparkCats, series: sparkCats.map(() => 0) }}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, sm: 4 }}>
           <AnalyticsWidgetSummary
             title="Lotes con bajo stock"
             percent={0}
             total={stats.low_stock_batches}
             color="error"
             icon={<img alt="stock" src={`${CONFIG.assetsDir}/assets/icons/glass/ic-glass-users.svg`} />}
-            chart={{ categories: sparkCategories, series: sparkCategories.map(() => 0) }}
+            chart={{ categories: sparkCats, series: sparkCats.map(() => 0) }}
           />
         </Grid>
 
-        {/* Métodos de pago */}
+        {/* ── Tendencia financiera ────────────────────────────────────────── */}
+        <Grid size={{ xs: 12, md: 8 }}>
+          <AnalyticsProfitTrend
+            title="Tendencia financiera"
+            subheader="Ingresos, costos y ganancia — últimos 12 meses"
+            chart={{
+              categories: allMonths,
+              series: [
+                { name: 'Ingresos ($)',  data: allRevenue },
+                { name: 'Costo ($)',     data: allCosts   },
+                { name: 'Ganancia ($)', data: allProfits  },
+              ],
+            }}
+          />
+        </Grid>
+
+        {/* ── Métodos de pago ─────────────────────────────────────────────── */}
         <Grid size={{ xs: 12, md: 4 }}>
           <AnalyticsCurrentVisits
             title="Métodos de pago"
@@ -142,35 +222,66 @@ export function OverviewAnalyticsView() {
           />
         </Grid>
 
-        {/* Ventas e ingresos por mes */}
-        <Grid size={{ xs: 12, md: 8 }}>
-          <AnalyticsWebsiteVisits
-            title="Ventas e ingresos por mes"
-            subheader="Últimos 12 meses"
+        {/* ── Ventas por categoría ────────────────────────────────────────── */}
+        {categorySeries.length > 0 && (
+          <Grid size={{ xs: 12, md: 4 }}>
+            <AnalyticsCurrentVisits
+              title="Ventas por categoría"
+              subheader="Ingresos por categoría — últimos 12 meses"
+              chart={{ series: categorySeries }}
+            />
+          </Grid>
+        )}
+
+        {/* ── Ventas por sucursal (solo si hay más de una) ─────────────────── */}
+        {showBranchChart && (
+          <Grid size={{ xs: 12, md: categorySeries.length > 0 ? 8 : 12 }}>
+            <AnalyticsWebsiteVisits
+              title="Ventas por sucursal"
+              subheader="Ingresos y número de ventas — últimos 12 meses"
+              chart={{
+                categories: branchCategories,
+                series: [
+                  { name: 'Ingresos ($)', data: branchRevenue },
+                  { name: 'N° ventas',    data: branchCount   },
+                ],
+              }}
+            />
+          </Grid>
+        )}
+
+        {/* ── N° ventas por mes (si no hay gráfica de sucursales) ─────────── */}
+        {!showBranchChart && (
+          <Grid size={{ xs: 12, md: categorySeries.length > 0 ? 8 : 12 }}>
+            <AnalyticsWebsiteVisits
+              title="Ventas por mes"
+              subheader="Últimos 12 meses"
+              chart={{
+                categories: allMonths,
+                series: [
+                  { name: 'Ingresos ($)', data: allRevenue },
+                  { name: 'N° ventas',    data: allCount   },
+                ],
+              }}
+            />
+          </Grid>
+        )}
+
+        {/* ── Top 10 productos más rentables ──────────────────────────────── */}
+        <Grid size={{ xs: 12 }}>
+          <AnalyticsConversionRates
+            title="Top 10 productos más rentables"
+            subheader="Por ganancia neta generada"
             chart={{
-              categories: allMonths,
+              categories: topLabels,
               series: [
-                { name: 'Ingresos ($)', data: allRevenue },
-                { name: 'N° ventas', data: allCount },
+                { name: 'Unidades vendidas', data: topQuantities },
+                { name: 'Ganancia ($)',       data: topProfits    },
               ],
             }}
           />
         </Grid>
 
-        {/* Top 10 productos */}
-        <Grid size={{ xs: 12 }}>
-          <AnalyticsConversionRates
-            title="Top 10 productos más vendidos"
-            subheader="Por cantidad de unidades"
-            chart={{
-              categories: topCategories,
-              series: [
-                { name: 'Unidades vendidas', data: topQuantities },
-                { name: 'Ingresos ($)',       data: topRevenues },
-              ],
-            }}
-          />
-        </Grid>
       </Grid>
     </DashboardContent>
   );
