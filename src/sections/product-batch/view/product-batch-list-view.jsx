@@ -166,10 +166,11 @@ export function ProductBatchListView() {
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
-          heading="Lotes de productos"
+          heading="Lotes y Stock"
+          subheader="Medicamentos con número de lote · Productos generales con stock"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Lotes' },
+            { name: 'Lotes y Stock' },
           ]}
           action={
             <Button
