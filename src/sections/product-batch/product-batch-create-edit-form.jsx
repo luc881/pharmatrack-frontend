@@ -65,8 +65,8 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
 
   // Pre-fill purchase_price from product's reference price when selecting a product in create mode
   useEffect(() => {
-    if (!isEdit && selectedProduct?.purchase_price != null) {
-      setValue('purchase_price', selectedProduct.purchase_price);
+    if (!isEdit && selectedProduct != null) {
+      setValue('purchase_price', selectedProduct.purchase_price ?? '', { shouldDirty: true });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProduct?.id]);
