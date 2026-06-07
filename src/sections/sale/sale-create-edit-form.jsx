@@ -219,6 +219,12 @@ export function SaleCreateEditForm({
   }, [currentSale, currentDetails, currentPayments, currentBatchUsages, batchUsagesLoading, methods]);
 
   const onSubmit = handleSubmit(async (data) => {
+    const itemsWithNoBatch = data.items.filter((item) => item.product_id && !item.batch_id);
+    if (itemsWithNoBatch.length > 0) {
+      toast.error('Uno o más productos no tienen lote con stock disponible. Agrega un lote antes de continuar.');
+      return;
+    }
+
     try {
       const salePayload = {
         user_id: user.id,
@@ -752,6 +758,12 @@ function SaleItem({ index, products, onRemove }) {
               />
             )}
           />
+
+          {productId && !batchesLoading && batches.length === 0 && (
+            <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
+              Sin stock disponible. Crea un lote antes de vender.
+            </Alert>
+          )}
 
           {productId && (
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
