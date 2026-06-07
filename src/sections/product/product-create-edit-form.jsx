@@ -426,7 +426,12 @@ export function ProductCreateEditForm({ currentProduct }) {
               isOptionEqualToValue={(o, v) => o?.id === v?.id}
               onChange={(_, val) => setSelectedProductMaster(val)}
               renderInput={(params) => (
-                <TextField {...params} label="Principio activo (genérico)" size="medium" />
+                <TextField
+                  {...params}
+                  label="Fórmula genérica (DCI/INN)"
+                  helperText="Nombre genérico del medicamento, puede ser una combinación. Ej: Amoxicilina / Ácido Clavulánico"
+                  size="medium"
+                />
               )}
               renderOption={(props, option) => (
                 <li {...props} key={option.id}>{option.name}</li>
@@ -605,8 +610,8 @@ export function ProductCreateEditForm({ currentProduct }) {
   const renderIngredients = () => (
     <Card>
       <CardHeader
-        title="Ingredientes activos"
-        subheader="Principios activos y concentración"
+        title="Composición"
+        subheader="Sustancias individuales con su concentración (amount + unidad)"
         action={renderCollapseButton(openIngredients.value, openIngredients.onToggle)}
         sx={{ mb: 3 }}
       />
@@ -638,7 +643,7 @@ export function ProductCreateEditForm({ currentProduct }) {
                 isOptionEqualToValue={(o, v) => o?.id === v?.id}
                 onChange={(_, val) => updateIngredientRow(idx, 'ingredient', val)}
                 renderInput={(params) => (
-                  <TextField {...params} label="Ingrediente" size="small" />
+                  <TextField {...params} label="Sustancia" size="small" />
                 )}
                 renderOption={(props, option) => (
                   <li {...props} key={option.id}>{option.name}</li>
@@ -678,7 +683,7 @@ export function ProductCreateEditForm({ currentProduct }) {
             onClick={addIngredientRow}
             sx={{ alignSelf: 'flex-start' }}
           >
-            Agregar ingrediente
+            Agregar sustancia
           </Button>
         </Stack>
       </Collapse>

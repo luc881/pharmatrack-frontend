@@ -143,7 +143,7 @@ export function ProductDetailsView({ product, error, loading }) {
               {product.ingredients?.length > 0 && (
                 <>
                   <Divider />
-                  <Typography variant="subtitle2">Ingredientes activos</Typography>
+                  <Typography variant="subtitle2">Composición</Typography>
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                     {product.ingredients.map((item) => (
                       <Chip
@@ -169,7 +169,7 @@ export function ProductDetailsView({ product, error, loading }) {
                 Detalles
               </Typography>
               <DetailRow label="SKU" value={product.sku} />
-              <DetailRow label="Principio activo" value={product.product_master?.name} />
+              <DetailRow label="Fórmula genérica" value={product.product_master?.name} />
               <DetailRow label="Categoría" value={product.category?.name} />
               <DetailRow label="Marca" value={product.brand?.name} />
               <DetailRow label="Unidad" value={product.unit_name} />
