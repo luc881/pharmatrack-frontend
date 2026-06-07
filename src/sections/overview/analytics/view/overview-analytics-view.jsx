@@ -28,6 +28,28 @@ function calcPercent(current, previous) {
   return parseFloat((((current - previous) / previous) * 100).toFixed(1));
 }
 
+// Backend monthly_comparison can return all-zeros while sales_by_month has correct data.
+// This derives current/previous month totals from sales_by_month as a fallback.
+function resolveMonthlyComparison(stats) {
+  const { current_month, previous_month } = stats.monthly_comparison;
+  if (current_month.revenue > 0 || current_month.count > 0) {
+    return { current_month, previous_month };
+  }
+
+  const now = new Date();
+  const curKey  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevKey  = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+
+  const byMonth = Object.fromEntries((stats.sales_by_month ?? []).map((m) => [m.month, m]));
+  const empty   = { revenue: 0, count: 0, cost: 0, profit: 0 };
+
+  return {
+    current_month:  byMonth[curKey]  ?? empty,
+    previous_month: byMonth[prevKey] ?? empty,
+  };
+}
+
 // ----------------------------------------------------------------------
 
 export function OverviewAnalyticsView() {
@@ -51,7 +73,7 @@ export function OverviewAnalyticsView() {
   }
 
   // ── Monthly comparison ────────────────────────────────────────────────────
-  const { current_month, previous_month } = stats.monthly_comparison;
+  const { current_month, previous_month } = resolveMonthlyComparison(stats);
 
   const revenuePercent = calcPercent(current_month.revenue, previous_month.revenue);
   const countPercent   = calcPercent(current_month.count,   previous_month.count);
