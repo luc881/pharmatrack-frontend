@@ -42,12 +42,16 @@ export function SaleDetailView({ currentSale }) {
 
   const products = useAllProducts();
   const productMap = useMemo(
-    () => Object.fromEntries(products.map((p) => [p.id, { title: p.title, price_retail: p.price_retail }])),
+    () => Object.fromEntries(products.map((p) => [p.id, p.title])),
+    [products]
+  );
+  const productPriceMap = useMemo(
+    () => Object.fromEntries(products.map((p) => [p.id, p.price_retail])),
     [products]
   );
 
   const totalItems = saleDetails.reduce((acc, d) => {
-    const unitPrice = Number(d.unit_price ?? productMap[d.product_id]?.price_retail ?? 0);
+    const unitPrice = Number(d.unit_price ?? productPriceMap[d.product_id] ?? 0);
     return acc + (Number(d.quantity) || 0) * unitPrice - (Number(d.discount ?? 0));
   }, 0);
 
@@ -153,12 +157,12 @@ export function SaleDetailView({ currentSale }) {
                   </TableRow>
                 ) : (
                   saleDetails.map((detail) => {
-                    const unitPrice = Number(detail.unit_price ?? productMap[detail.product_id]?.price_retail ?? 0);
+                    const unitPrice = Number(detail.unit_price ?? productPriceMap[detail.product_id] ?? 0);
                     const subtotal = (Number(detail.quantity) || 0) * unitPrice - (Number(detail.discount ?? 0));
                     return (
                       <TableRow key={detail.id}>
                         <TableCell>
-                          {productMap[detail.product_id]?.title ?? `Producto #${detail.product_id}`}
+                          {productMap[detail.product_id] ?? `Producto #${detail.product_id}`}
                         </TableCell>
                         <TableCell align="right">{detail.quantity}</TableCell>
                         <TableCell align="right">${unitPrice.toFixed(2)}</TableCell>
