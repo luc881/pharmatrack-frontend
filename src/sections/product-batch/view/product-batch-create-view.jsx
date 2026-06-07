@@ -12,10 +12,11 @@ export function ProductBatchCreateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Nuevo lote"
+        heading="Nuevo lote / Stock"
+        subheader="Selecciona el producto — el formulario se adapta automáticamente"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Lotes', href: paths.dashboard.productBatch.root },
+          { name: 'Lotes y Stock', href: paths.dashboard.productBatch.root },
           { name: 'Nuevo' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

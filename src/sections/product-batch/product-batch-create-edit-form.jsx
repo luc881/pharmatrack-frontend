@@ -6,6 +6,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
@@ -27,23 +28,14 @@ import { useAllProducts } from './use-all-products';
 
 const todayISO = () => new Date().toLocaleDateString('en-CA');
 
-const baseSchema = zod.object({
+const schema = zod.object({
   product_id: zod
     .union([zod.string(), zod.number()])
     .refine((v) => v !== '' && Number(v) > 0, { message: 'Selecciona un producto' }),
-  expiration_date: zod.string().min(1, 'La fecha de vencimiento es requerida'),
+  expiration_date: zod.string().optional().nullable(),
   quantity: zod.number({ coerce: true }).int().nonnegative('La cantidad no puede ser negativa'),
   lot_code: zod.string().optional(),
   purchase_price: zod.number({ coerce: true }).nonnegative().optional().nullable(),
-});
-
-const createSchema = baseSchema.extend({
-  expiration_date: zod
-    .string()
-    .min(1, 'La fecha de vencimiento es requerida')
-    .refine((v) => v >= todayISO(), {
-      message: 'La fecha de vencimiento debe ser hoy o una fecha futura',
-    }),
 });
 
 // ----------------------------------------------------------------------
@@ -52,7 +44,6 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
   const navigate = useNavigate();
   const products = useAllProducts();
   const isEdit = !!currentBatch;
-  const schema = isEdit ? baseSchema : createSchema;
 
   const methods = useForm({
     resolver: zodResolver(schema),
@@ -65,15 +56,31 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
     },
   });
 
-  const { setError, handleSubmit, formState: { isSubmitting } } = methods;
+  const { watch, setError, handleSubmit, formState: { isSubmitting } } = methods;
+
+  const productId = watch('product_id');
+  const selectedProduct = products.find((p) => p.id === Number(productId));
+  const tracksBatches = selectedProduct?.tracks_batches !== false;
 
   const onSubmit = handleSubmit(async (data) => {
+    // Validar fecha de vencimiento solo para productos con lotes
+    if (tracksBatches) {
+      if (!data.expiration_date) {
+        setError('expiration_date', { message: 'La fecha de vencimiento es requerida' });
+        return;
+      }
+      if (!isEdit && data.expiration_date < todayISO()) {
+        setError('expiration_date', { message: 'La fecha de vencimiento debe ser hoy o una fecha futura' });
+        return;
+      }
+    }
+
     try {
       const payload = {
         product_id: Number(data.product_id),
-        expiration_date: data.expiration_date,
+        expiration_date: tracksBatches ? data.expiration_date : null,
         quantity: Number(data.quantity),
-        lot_code: data.lot_code || null,
+        lot_code: tracksBatches ? (data.lot_code || null) : null,
         purchase_price: data.purchase_price !== '' && data.purchase_price != null
           ? Number(data.purchase_price)
           : null,
@@ -85,23 +92,43 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
         await createProductBatch(payload);
       }
 
-      toast.success(isEdit ? 'Lote actualizado' : 'Lote registrado');
+      const successMsg = isEdit
+        ? (tracksBatches ? 'Lote actualizado' : 'Stock actualizado')
+        : (tracksBatches ? 'Lote registrado' : 'Stock registrado');
+
+      toast.success(successMsg);
       mutate((key) => Array.isArray(key) && key[0] === endpoints.productBatch.list);
       navigate(paths.dashboard.productBatch.root);
     } catch (error) {
       if (!handleApiError(error, setError)) {
-        toast.error('Error al guardar el lote');
+        toast.error(tracksBatches ? 'Error al guardar el lote' : 'Error al guardar el stock');
       }
     }
   });
+
+  const formTitle = tracksBatches
+    ? 'Información del lote'
+    : 'Información de stock';
+
+  const submitLabel = isEdit
+    ? 'Guardar cambios'
+    : (tracksBatches ? 'Registrar lote' : 'Registrar stock');
 
   return (
     <FormProvider {...methods}>
       <form onSubmit={onSubmit}>
         <Card sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>
-            Información del lote
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+            <Typography variant="h6">{formTitle}</Typography>
+            {productId && (
+              <Chip
+                size="small"
+                label={tracksBatches ? 'Con lote y vencimiento' : 'Solo stock'}
+                color={tracksBatches ? 'info' : 'success'}
+                variant="soft"
+              />
+            )}
+          </Box>
 
           <Box
             sx={{
@@ -123,18 +150,22 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
               ))}
             </Field.Select>
 
-            <Field.Text
-              name="lot_code"
-              label="Código de lote"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
+            {tracksBatches && (
+              <>
+                <Field.Text
+                  name="lot_code"
+                  label="Código de lote"
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
 
-            <Field.Text
-              name="expiration_date"
-              label="Fecha de vencimiento *"
-              type="date"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
+                <Field.Text
+                  name="expiration_date"
+                  label="Fecha de vencimiento *"
+                  type="date"
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+              </>
+            )}
 
             <Field.Text
               name="quantity"
@@ -162,7 +193,7 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
 
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
             <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
-              {isEdit ? 'Guardar cambios' : 'Registrar lote'}
+              {submitLabel}
             </LoadingButton>
           </Box>
         </Card>

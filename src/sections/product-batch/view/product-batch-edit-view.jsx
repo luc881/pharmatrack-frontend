@@ -12,12 +12,12 @@ export function ProductBatchEditView({ batch }) {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Editar lote"
+        heading="Editar lote / Stock"
         backHref={paths.dashboard.productBatch.root}
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Lotes', href: paths.dashboard.productBatch.root },
-          { name: batch?.lot_code ?? `Lote #${batch?.id ?? ''}` },
+          { name: 'Lotes y Stock', href: paths.dashboard.productBatch.root },
+          { name: batch?.lot_code ?? `#${batch?.id ?? ''}` },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
