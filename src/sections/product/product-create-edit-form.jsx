@@ -451,19 +451,19 @@ export function ProductCreateEditForm({ currentProduct }) {
 
           <Divider sx={{ borderStyle: 'dashed' }} />
 
-          <FormControlLabel
+          <Field.Switch
+            name="tracks_batches"
             label={
               <Box>
                 <Typography variant="subtitle2">Maneja lotes y fechas de vencimiento</Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Actívalo para medicamentos y productos con número de lote. Desactívalo para
-                  productos generales (pilas, artículos de limpieza, etc.) — el sistema solo
-                  controlará la cantidad disponible.
+                  Actívalo para medicamentos con número de lote. Desactívalo para productos
+                  generales (pilas, artículos de limpieza, etc.) — el sistema solo controlará
+                  la cantidad disponible.
                 </Typography>
               </Box>
             }
-            control={<Field.Switch name="tracks_batches" sx={{ mr: 1 }} />}
-            sx={{ alignItems: 'flex-start', ml: 0 }}
+            sx={{ alignItems: 'flex-start' }}
           />
 
           <Divider sx={{ borderStyle: 'dashed' }} />
