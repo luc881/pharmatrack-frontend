@@ -37,7 +37,6 @@ import {
   deleteSaleDetail,
   createSalePayment,
   deleteSalePayment,
-  createSaleBatchUsage,
   deleteSaleBatchUsage,
 } from 'src/actions/sale';
 
@@ -100,7 +99,7 @@ const BANK_OPTIONS = [
   'Azteca', 'Spin by OXXO', 'Mercado Pago', 'Clip', 'Otro',
 ];
 
-const defaultItem = { product_id: '', batch_id: '', quantity: 1, discount: 0, description: '' };
+const defaultItem = { product_id: '', quantity: 1, discount: 0, description: '' };
 
 const defaultPayment = { method_payment: 'cash', amount: 0, transaction_number: '', bank: '' };
 
@@ -108,10 +107,6 @@ const itemSchema = zod.object({
   product_id: zod
     .union([zod.string(), zod.number()])
     .refine((v) => v !== '' && Number(v) > 0, { message: 'Selecciona un producto' }),
-  batch_id: zod
-    .union([zod.string(), zod.number()])
-    .optional()
-    .nullable(),
   quantity: zod.number({ coerce: true }).positive('La cantidad debe ser mayor a 0'),
   discount: zod.number({ coerce: true }).nonnegative().default(0),
   description: zod.string().optional(),
@@ -149,7 +144,6 @@ export function SaleCreateEditForm({
   currentDetails = [],
   currentPayments = [],
   currentBatchUsages = [],
-  batchUsagesLoading = false,
 }) {
   const navigate = useNavigate();
   const { user } = useAuthContext();
@@ -183,28 +177,23 @@ export function SaleCreateEditForm({
     }
   }, [branches, currentSale, methods, setValue]);
 
-  // Edit mode: reset the form once when sale data and batch usages are both ready
+  // Edit mode: reset the form once when sale data is ready
   const editResetDone = useRef(false);
   useEffect(() => {
     if (!currentSale || editResetDone.current) return;
     if (!currentDetails.length) return;
-    if (batchUsagesLoading) return;
 
     editResetDone.current = true;
     methods.reset({
       branch_id: currentSale.branch_id ?? '',
       description: currentSale.description ?? '',
-      items: currentDetails.map((d) => {
-        const usage = currentBatchUsages.find((u) => u.sale_detail_id === d.id);
-        return {
-          _detailId: d.id,
-          product_id: d.product_id,
-          batch_id: usage?.batch_id ?? '',
-          quantity: Number(d.quantity),
-          discount: Number(d.discount ?? 0),
-          description: d.description ?? '',
-        };
-      }),
+      items: currentDetails.map((d) => ({
+        _detailId: d.id,
+        product_id: d.product_id,
+        quantity: Number(d.quantity),
+        discount: Number(d.discount ?? 0),
+        description: d.description ?? '',
+      })),
       payments:
         currentPayments.length > 0
           ? currentPayments.map((p) => ({
@@ -216,15 +205,9 @@ export function SaleCreateEditForm({
             }))
           : [{ ...defaultPayment }],
     });
-  }, [currentSale, currentDetails, currentPayments, currentBatchUsages, batchUsagesLoading, methods]);
+  }, [currentSale, currentDetails, currentPayments, methods]);
 
   const onSubmit = handleSubmit(async (data) => {
-    const itemsWithNoBatch = data.items.filter((item) => item.product_id && !item.batch_id);
-    if (itemsWithNoBatch.length > 0) {
-      toast.error('Uno o más productos no tienen stock disponible. Agrega stock o un lote antes de continuar.');
-      return;
-    }
-
     try {
       const salePayload = {
         user_id: user.id,
@@ -260,19 +243,6 @@ export function SaleCreateEditForm({
           })
         )
       );
-
-      // Registrar qué lote se usó en cada línea (best-effort — no aborta la venta)
-      const batchUsages = data.items
-        .map((item, i) => ({
-          sale_detail_id: createdDetails[i].id,
-          batch_id: item.batch_id ? Number(item.batch_id) : null,
-          quantity_used: Number(item.quantity),
-        }))
-        .filter((u) => u.batch_id);
-
-      if (batchUsages.length > 0) {
-        await Promise.allSettled(batchUsages.map((u) => createSaleBatchUsage(u)));
-      }
 
       await Promise.all(
         data.payments.map((payment) =>
@@ -631,85 +601,48 @@ function SaleItems({ products, estimatedTotal }) {
 
 // ----------------------------------------------------------------------
 
-// Label shown in the batch Autocomplete for a given batch
-function batchLabel(b) {
-  const parts = [];
-  if (b.lot_code) parts.push(b.lot_code);
-  parts.push(b.expiration_date ? `Vence: ${b.expiration_date}` : `Lote #${b.id}`);
-  parts.push(`Stock: ${b.quantity}`);
-  return parts.join(' — ');
-}
-
-const NULL_BATCH = { id: '', label: 'Sin lote' };
-
 function SaleItem({ index, products, onRemove }) {
-  const { watch, setValue, control } = useFormContext();
+  const { watch, control } = useFormContext();
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
   const [openAddBatch, setOpenAddBatch] = useState(false);
 
   const productId = watch(`items[${index}].product_id`);
-  const batchId = watch(`items[${index}].batch_id`);
   const quantity = watch(`items[${index}].quantity`);
   const discount = watch(`items[${index}].discount`);
 
   const product = products.find((p) => p.id === Number(productId));
   const priceRetail = product?.price_retail ?? 0;
   const lineTotal = (Number(quantity) || 0) * priceRetail - (Number(discount) || 0);
-
-  // tracks_batches undefined → default true (existing products before the field was added)
   const tracksBatches = product?.tracks_batches !== false;
-
-  const selectedBatch = batches.find((b) => b.id === Number(batchId));
-  const stockWarning = selectedBatch && Number(quantity) > Number(selectedBatch.quantity);
   const totalStock = batches.reduce((s, b) => s + Number(b.quantity), 0);
 
   const loadBatches = useCallback(async (pid) => {
-    if (!pid) {
-      setBatches([]);
-      setValue(`items[${index}].batch_id`, '');
-      return;
-    }
+    if (!pid) { setBatches([]); return; }
     setBatchesLoading(true);
     try {
       const res = await axiosInstance.get(endpoints.productBatch.list, {
         params: { product_id: pid, page: 1, page_size: 50 },
       });
-      const available = (res.data?.data ?? [])
-        .filter((b) => Number(b.quantity) > 0 && Number(b.product_id) === pid)
-        .sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date));
-      setBatches(available);
-      if (available.length > 0) {
-        setValue(`items[${index}].batch_id`, available[0].id);
-      } else {
-        setValue(`items[${index}].batch_id`, '');
-      }
+      setBatches(
+        (res.data?.data ?? []).filter((b) => Number(b.quantity) > 0 && Number(b.product_id) === pid)
+      );
     } catch {
       setBatches([]);
     } finally {
       setBatchesLoading(false);
     }
-  }, [index, setValue]);
+  }, []);
 
   useEffect(() => {
     loadBatches(productId ? Number(productId) : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
-  const handleBatchCreated = useCallback(
-    (newBatch) => {
-      setBatches((prev) =>
-        [...prev, newBatch].sort((a, b) => new Date(a.expiration_date) - new Date(b.expiration_date))
-      );
-      setValue(`items[${index}].batch_id`, newBatch.id);
-      setOpenAddBatch(false);
-    },
-    [index, setValue]
-  );
-
-  const batchOptions = [NULL_BATCH, ...batches.map((b) => ({ id: b.id, label: batchLabel(b) }))];
-  const selectedBatchOption =
-    batchOptions.find((o) => o.id === (batchId === '' ? '' : Number(batchId))) ?? NULL_BATCH;
+  const handleBatchCreated = useCallback((newBatch) => {
+    setBatches((prev) => [...prev, newBatch]);
+    setOpenAddBatch(false);
+  }, []);
 
   return (
     <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
@@ -717,110 +650,61 @@ function SaleItem({ index, products, onRemove }) {
         sx={{
           gap: 2,
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '2fr 2fr 1fr 1fr' },
+          gridTemplateColumns: { xs: '1fr', md: '3fr 1fr 1fr' },
           alignItems: 'start',
         }}
       >
-        <Controller
-          name={`items[${index}].product_id`}
-          control={control}
-          render={({ field: { value }, fieldState: { error } }) => (
-            <Autocomplete
-              size="small"
-              options={products}
-              getOptionLabel={(opt) => (typeof opt === 'object' ? opt.title : products.find((p) => p.id === Number(opt))?.title ?? '')}
-              isOptionEqualToValue={(opt, val) => opt.id === (typeof val === 'object' ? val?.id : Number(val))}
-              value={products.find((p) => p.id === Number(value)) ?? null}
-              onChange={(_, newValue) => setValue(`items[${index}].product_id`, newValue?.id ?? '', { shouldValidate: true })}
-              noOptionsText="Sin resultados"
-              renderInput={(params) => (
-                <TextField {...params} label="Producto *" error={!!error} helperText={error?.message} />
-              )}
-            />
-          )}
-        />
-
         <Box>
-          {tracksBatches ? (
-            /* Productos con lote: dropdown de lote con número y vencimiento */
-            <>
-              <Controller
-                name={`items[${index}].batch_id`}
-                control={control}
-                render={({ fieldState: { error } }) => (
-                  <Autocomplete
-                    size="small"
-                    options={batchOptions}
-                    value={selectedBatchOption}
-                    getOptionLabel={(o) => o.label ?? ''}
-                    isOptionEqualToValue={(o, v) => o.id === v?.id}
-                    disabled={!productId || batchesLoading}
-                    onChange={(_, newVal) =>
-                      setValue(`items[${index}].batch_id`, newVal?.id ?? '', { shouldValidate: true })
-                    }
-                    noOptionsText="Sin lotes disponibles"
-                    renderInput={(params) => (
-                      <TextField {...params} label="Lote / Stock" error={!!error} helperText={error?.message} />
-                    )}
-                  />
+          <Controller
+            name={`items[${index}].product_id`}
+            control={control}
+            render={({ field: { value }, fieldState: { error } }) => (
+              <Autocomplete
+                size="small"
+                options={products}
+                getOptionLabel={(opt) => (typeof opt === 'object' ? opt.title : products.find((p) => p.id === Number(opt))?.title ?? '')}
+                isOptionEqualToValue={(opt, val) => opt.id === (typeof val === 'object' ? val?.id : Number(val))}
+                value={products.find((p) => p.id === Number(value)) ?? null}
+                onChange={(_, newValue) => setValue(`items[${index}].product_id`, newValue?.id ?? '', { shouldValidate: true })}
+                noOptionsText="Sin resultados"
+                renderInput={(params) => (
+                  <TextField {...params} label="Producto *" error={!!error} helperText={error?.message} />
                 )}
               />
+            )}
+          />
 
-              {selectedBatch && (
-                <Chip
-                  size="small"
-                  color={selectedBatch.quantity <= 5 ? 'warning' : 'info'}
-                  variant="soft"
-                  icon={<Iconify icon="solar:box-bold" width={14} />}
-                  label={`Disponible en este lote: ${selectedBatch.quantity} ${product?.unit_name ?? 'unidades'}`}
-                  sx={{ mt: 0.5 }}
-                />
-              )}
+          {/* Stock availability feedback */}
+          {productId && (
+            batchesLoading ? (
+              <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
+                Cargando stock…
+              </Typography>
+            ) : batches.length > 0 ? (
+              <Chip
+                size="small"
+                color={totalStock <= 5 ? 'warning' : 'success'}
+                variant="soft"
+                icon={<Iconify icon="solar:box-bold" width={14} />}
+                label={`Disponible: ${totalStock} ${product?.unit_name ?? 'unidades'}`}
+                sx={{ mt: 0.5 }}
+              />
+            ) : (
+              <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
+                Sin stock disponible.{' '}
+                {tracksBatches ? 'Crea un lote antes de vender.' : 'Agrega stock antes de vender.'}
+              </Alert>
+            )
+          )}
 
-              {productId && !batchesLoading && batches.length === 0 && (
-                <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
-                  Sin lotes disponibles. Crea un lote o agrega stock antes de vender.
-                </Alert>
-              )}
-
-              {productId && (
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
-                  <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />} onClick={() => setOpenAddBatch(true)}>
-                    {batches.length === 0 ? 'Crear lote' : 'Agregar lote'}
-                  </Button>
-                </Box>
-              )}
-            </>
-          ) : (
-            /* Productos sin lote: chip de stock disponible */
-            <>
-              {batchesLoading && productId ? (
-                <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
-                  Cargando stock…
-                </Typography>
-              ) : batches.length > 0 ? (
-                <Chip
-                  size="small"
-                  color="success"
-                  variant="soft"
-                  icon={<Iconify icon="solar:box-bold" width={14} />}
-                  label={`Disponible: ${totalStock} ${product?.unit_name ?? 'unidades'}`}
-                  sx={{ mt: 0.5 }}
-                />
-              ) : productId ? (
-                <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
-                  Sin stock disponible. Agrega stock antes de vender.
-                </Alert>
-              ) : null}
-
-              {productId && (
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
-                  <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />} onClick={() => setOpenAddBatch(true)}>
-                    {batches.length === 0 ? 'Agregar stock' : 'Actualizar stock'}
-                  </Button>
-                </Box>
-              )}
-            </>
+          {productId && (
+            <Box sx={{ display: 'flex', mt: 0.5 }}>
+              <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />} onClick={() => setOpenAddBatch(true)}>
+                {batches.length === 0
+                  ? (tracksBatches ? 'Crear lote' : 'Agregar stock')
+                  : (tracksBatches ? 'Agregar lote' : 'Actualizar stock')}
+              </Button>
+            </Box>
           )}
 
           {openAddBatch && (
@@ -876,7 +760,7 @@ function SaleItem({ index, products, onRemove }) {
           slotProps={{ inputLabel: { shrink: true } }}
         />
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
           <Button
             size="small"
             color="error"
@@ -890,11 +774,11 @@ function SaleItem({ index, products, onRemove }) {
 
       {product && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
-          {stockWarning ? (
+          {productId && !batchesLoading && totalStock > 0 && Number(quantity) > totalStock ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
               <Iconify icon="solar:danger-triangle-bold" width={15} sx={{ color: 'warning.main' }} />
               <Typography variant="caption" sx={{ color: 'warning.main' }}>
-                Stock disponible en este lote: {selectedBatch.quantity} unidades
+                Stock total disponible: {totalStock} {product?.unit_name ?? 'unidades'}
               </Typography>
             </Box>
           ) : (
