@@ -232,7 +232,7 @@ export function SaleCreateEditForm({
         saleId = created.id;
       }
 
-      const createdDetails = await Promise.all(
+      await Promise.all(
         data.items.map((item) =>
           createSaleDetail({
             sale_id: saleId,
@@ -602,7 +602,7 @@ function SaleItems({ products, estimatedTotal }) {
 // ----------------------------------------------------------------------
 
 function SaleItem({ index, products, onRemove }) {
-  const { watch, control } = useFormContext();
+  const { watch, setValue, control } = useFormContext();
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
   const [openAddBatch, setOpenAddBatch] = useState(false);
