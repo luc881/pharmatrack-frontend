@@ -253,9 +253,17 @@ export function ProductDetailsView({ product, error, loading }) {
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
-                            {batch.purchase_price != null
-                              ? <Typography variant="body2">{fCurrency(batch.purchase_price)}</Typography>
-                              : <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>}
+                            {batch.purchase_price != null ? (
+                              <Typography variant="body2">{fCurrency(batch.purchase_price)}</Typography>
+                            ) : product.price_cost > 0 ? (
+                              <Tooltip title="Precio de referencia del producto (no registrado en este lote)">
+                                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                                  {fCurrency(product.price_cost)}
+                                </Typography>
+                              </Tooltip>
+                            ) : (
+                              <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>
+                            )}
                           </TableCell>
                           <TableCell align="right">
                             <Label variant="soft" color={status.color}>
