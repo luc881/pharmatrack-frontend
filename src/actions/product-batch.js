@@ -13,8 +13,10 @@ const swrOptions = {
 
 // ----------------------------------------------------------------------
 
-export function useGetProductBatches({ page = 1, pageSize = 10 } = {}) {
-  const url = [endpoints.productBatch.list, { params: { page, page_size: pageSize } }];
+export function useGetProductBatches({ page = 1, pageSize = 10, productId = null } = {}) {
+  const params = { page, page_size: pageSize };
+  if (productId) params.product_id = productId;
+  const url = [endpoints.productBatch.list, { params }];
 
   const { data, isLoading, error, isValidating, mutate } = useSWR(url, fetcher, {
     ...swrOptions,
@@ -30,6 +32,21 @@ export function useGetProductBatches({ page = 1, pageSize = 10 } = {}) {
       batchesMutate: mutate,
     }),
     [data, error, isLoading, isValidating, mutate]
+  );
+}
+
+// ----------------------------------------------------------------------
+
+export function useGetBatchesByProduct(productId) {
+  const url = productId
+    ? [endpoints.productBatch.list, { params: { product_id: productId, page: 1, page_size: 100 } }]
+    : null;
+
+  const { data, isLoading } = useSWR(url, fetcher, swrOptions);
+
+  return useMemo(
+    () => ({ batches: data?.data ?? [], batchesLoading: isLoading }),
+    [data, isLoading]
   );
 }
 
