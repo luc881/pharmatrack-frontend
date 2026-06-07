@@ -7,10 +7,12 @@ import Table from '@mui/material/Table';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import TableContainer from '@mui/material/TableContainer';
 
@@ -183,76 +185,134 @@ export function ProductDetailsView({ product, error, loading }) {
               )}
             </Card>
 
-            <Card sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="subtitle2">
+          </Stack>
+        </Grid>
+
+        {/* Fila completa — Lotes y Stock */}
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+              <Box>
+                <Typography variant="h6">
                   {tracksBatches ? 'Lotes y Stock' : 'Stock disponible'}
                 </Typography>
-                <Button
-                  component={RouterLink}
-                  href={paths.dashboard.productBatch.new}
-                  size="small"
-                  startIcon={<Iconify icon="mingcute:add-line" />}
-                >
-                  {tracksBatches ? 'Agregar lote' : 'Agregar stock'}
-                </Button>
+                {tracksBatches && batches.length > 0 && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
+                    {batches.length} {batches.length === 1 ? 'lote' : 'lotes'} ·{' '}
+                    <strong>{totalStock} {product.unit_name ?? 'unidades'}</strong> en total
+                  </Typography>
+                )}
               </Box>
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.productBatch.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                {tracksBatches ? 'Agregar lote' : 'Agregar stock'}
+              </Button>
+            </Box>
 
-              {batchesLoading ? (
-                <Typography variant="body2" sx={{ color: 'text.disabled' }}>Cargando…</Typography>
-              ) : batches.length === 0 ? (
+            {batchesLoading ? (
+              <Typography variant="body2" sx={{ color: 'text.disabled' }}>Cargando…</Typography>
+            ) : batches.length === 0 ? (
+              <Box sx={{ py: 4, textAlign: 'center' }}>
+                <Iconify icon="solar:box-bold" width={40} sx={{ color: 'text.disabled', mb: 1 }} />
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  Sin stock disponible
+                  Sin stock registrado
                 </Typography>
-              ) : tracksBatches ? (
-                <>
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Lote</TableCell>
-                          <TableCell align="right">Cantidad</TableCell>
-                          <TableCell align="right">Vencimiento</TableCell>
+              </Box>
+            ) : tracksBatches ? (
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Código de lote</TableCell>
+                      <TableCell align="right">Cantidad</TableCell>
+                      <TableCell align="right">P. Compra</TableCell>
+                      <TableCell align="right">Vencimiento</TableCell>
+                      <TableCell align="right"> </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {batches.map((batch) => {
+                      const status = expiryStatus(batch.expiration_date);
+                      return (
+                        <TableRow key={batch.id} hover>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {batch.lot_code ?? <Box component="span" sx={{ color: 'text.disabled' }}>Sin código</Box>}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {batch.quantity}
+                            </Typography>
+                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                              {product.unit_name ?? 'uds'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            {batch.purchase_price != null
+                              ? <Typography variant="body2">{fCurrency(batch.purchase_price)}</Typography>
+                              : <Typography variant="body2" sx={{ color: 'text.disabled' }}>—</Typography>}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Label variant="soft" color={status.color}>
+                              {status.label}
+                            </Label>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Tooltip title="Editar">
+                              <IconButton
+                                component={RouterLink}
+                                href={paths.dashboard.productBatch.edit(batch.id)}
+                                size="small"
+                              >
+                                <Iconify icon="solar:pen-bold" width={16} />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
                         </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {batches.map((batch) => {
-                          const status = expiryStatus(batch.expiration_date);
-                          return (
-                            <TableRow key={batch.id}>
-                              <TableCell>{batch.lot_code ?? `#${batch.id}`}</TableCell>
-                              <TableCell align="right">{batch.quantity} {product.unit_name ?? ''}</TableCell>
-                              <TableCell align="right">
-                                <Label variant="soft" color={status.color} sx={{ fontSize: '0.7rem' }}>
-                                  {status.label}
-                                </Label>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                  <Box sx={{ mt: 1.5, display: 'flex', justifyContent: 'flex-end' }}>
-                    <Chip
-                      size="small"
-                      variant="soft"
-                      color="primary"
-                      label={`Total: ${totalStock} ${product.unit_name ?? 'unidades'}`}
-                    />
-                  </Box>
-                </>
-              ) : (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Iconify icon="solar:box-bold" width={20} sx={{ color: 'success.main' }} />
-                  <Typography variant="h6">{totalStock}</Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              /* Stock-only: tarjeta grande con total */
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  p: 3,
+                  borderRadius: 2,
+                  bgcolor: 'background.neutral',
+                }}
+              >
+                <Iconify icon="solar:box-bold" width={48} sx={{ color: 'success.main', flexShrink: 0 }} />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h3" sx={{ color: 'success.main', lineHeight: 1 }}>
+                    {totalStock}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: 'text.secondary' }}>
                     {product.unit_name ?? 'unidades'} disponibles
                   </Typography>
                 </Box>
-              )}
-            </Card>
-          </Stack>
+                {batches[0] && (
+                  <Tooltip title="Editar stock">
+                    <IconButton
+                      component={RouterLink}
+                      href={paths.dashboard.productBatch.edit(batches[0].id)}
+                    >
+                      <Iconify icon="solar:pen-bold" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            )}
+          </Card>
         </Grid>
       </Grid>
     </DashboardContent>
