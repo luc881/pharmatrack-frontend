@@ -14,7 +14,7 @@ const swrOptions = {
 // ----------------------------------------------------------------------
 
 export function useAllIngredients() {
-  const url = [endpoints.ingredient.list, { params: { page: 1, page_size: 500 } }];
+  const url = [endpoints.ingredient.list, { params: { page: 1, page_size: 100 } }];
   const { data, isLoading } = useSWR(url, fetcher, swrOptions);
   return useMemo(() => ({ allIngredients: data?.data ?? [], allIngredientsLoading: isLoading }), [data, isLoading]);
 }
