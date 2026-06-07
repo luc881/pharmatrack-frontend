@@ -766,6 +766,17 @@ function SaleItem({ index, products, onRemove }) {
                 )}
               />
 
+              {selectedBatch && (
+                <Chip
+                  size="small"
+                  color={selectedBatch.quantity <= 5 ? 'warning' : 'info'}
+                  variant="soft"
+                  icon={<Iconify icon="solar:box-bold" width={14} />}
+                  label={`Disponible en este lote: ${selectedBatch.quantity} ${product?.unit_name ?? 'unidades'}`}
+                  sx={{ mt: 0.5 }}
+                />
+              )}
+
               {productId && !batchesLoading && batches.length === 0 && (
                 <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
                   Sin lotes disponibles. Crea un lote o agrega stock antes de vender.
