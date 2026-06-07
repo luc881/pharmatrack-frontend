@@ -17,7 +17,6 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import Typography from '@mui/material/Typography';
-import LoadingButton from '@mui/lab/LoadingButton';
 import TableContainer from '@mui/material/TableContainer';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
@@ -402,9 +401,9 @@ export function RoleCreateEditForm({ currentRole }) {
           </Card>
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+            <Button type="submit" variant="contained" loading={isSubmitting}>
               {isEdit ? 'Guardar cambios' : 'Crear rol'}
-            </LoadingButton>
+            </Button>
           </Box>
         </Stack>
       </form>

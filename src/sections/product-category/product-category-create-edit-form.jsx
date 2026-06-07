@@ -6,9 +6,9 @@ import { useForm, FormProvider } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
-import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
 
@@ -106,9 +106,9 @@ export function ProductCategoryCreateEditForm({ currentCategory }) {
           </Box>
 
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-            <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+            <Button type="submit" variant="contained" loading={isSubmitting}>
               {isEdit ? 'Guardar cambios' : 'Crear categoría'}
-            </LoadingButton>
+            </Button>
           </Box>
         </Card>
       </form>

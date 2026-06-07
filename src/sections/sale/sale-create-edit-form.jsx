@@ -16,7 +16,6 @@ import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import LoadingButton from '@mui/lab/LoadingButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
@@ -312,14 +311,14 @@ export function SaleCreateEditForm({
             <Button variant="outlined" onClick={() => navigate(paths.dashboard.sale.root)}>
               Cancelar
             </Button>
-            <LoadingButton
+            <Button
               type="submit"
               variant="contained"
               loading={isSubmitting}
               disabled={isOverpaid}
             >
               {currentSale ? 'Guardar cambios' : 'Registrar venta'}
-            </LoadingButton>
+            </Button>
           </Box>
         </Stack>
       </form>
@@ -1224,9 +1223,9 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated, 
                     . ¿Es un lote nuevo?
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 1 }}>
-                    <LoadingButton size="small" variant="contained" color="warning" loading={creating} onClick={doCreate}>
+                    <Button size="small" variant="contained" color="warning" loading={creating} onClick={doCreate}>
                       Sí, crear &ldquo;{lotCode.trim()}&rdquo;
-                    </LoadingButton>
+                    </Button>
                     <Button size="small" variant="outlined" color="inherit" onClick={resetWarnings}>
                       Cancelar
                     </Button>
@@ -1308,9 +1307,9 @@ function AddBatchDialog({ open, onClose, productId, existingBatches, onCreated, 
 
       <DialogActions>
         <Button onClick={onClose} disabled={creating}>Cancelar</Button>
-        <LoadingButton variant="contained" loading={creating} disabled={pendingCreate} onClick={handleSubmit}>
+        <Button variant="contained" loading={creating} disabled={pendingCreate} onClick={handleSubmit}>
           {tracksBatches ? 'Crear lote' : 'Guardar stock'}
-        </LoadingButton>
+        </Button>
       </DialogActions>
     </Dialog>
   );

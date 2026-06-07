@@ -8,9 +8,9 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
-import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
 
@@ -295,9 +295,9 @@ export function UserCreateEditForm({ currentUser }) {
           </Card>
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+            <Button type="submit" variant="contained" loading={isSubmitting}>
               {isEdit ? 'Guardar cambios' : 'Crear usuario'}
-            </LoadingButton>
+            </Button>
           </Box>
         </Stack>
       </form>

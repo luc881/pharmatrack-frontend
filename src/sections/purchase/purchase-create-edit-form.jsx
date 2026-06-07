@@ -11,7 +11,6 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
-import LoadingButton from '@mui/lab/LoadingButton';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
@@ -244,9 +243,9 @@ export function PurchaseCreateEditForm({ currentPurchase, currentDetails = [] })
             <Button variant="outlined" onClick={() => navigate(paths.dashboard.purchase.root)}>
               Cancelar
             </Button>
-            <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
+            <Button type="submit" variant="contained" loading={isSubmitting}>
               {currentPurchase ? 'Guardar cambios' : 'Registrar compra'}
-            </LoadingButton>
+            </Button>
           </Box>
         </Stack>
       </form>
