@@ -760,7 +760,7 @@ function SaleItem({ index, products, onRemove }) {
                     }
                     noOptionsText="Sin lotes disponibles"
                     renderInput={(params) => (
-                      <TextField {...params} label="Lote" error={!!error} helperText={error?.message} />
+                      <TextField {...params} label="Lote / Stock" error={!!error} helperText={error?.message} />
                     )}
                   />
                 )}
@@ -768,7 +768,7 @@ function SaleItem({ index, products, onRemove }) {
 
               {productId && !batchesLoading && batches.length === 0 && (
                 <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
-                  Sin lotes disponibles. Crea un lote antes de vender.
+                  Sin lotes disponibles. Crea un lote o agrega stock antes de vender.
                 </Alert>
               )}
 

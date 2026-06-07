@@ -179,7 +179,7 @@ export function ProductBatchListView() {
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Nuevo lote
+              Nuevo lote / Stock
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}

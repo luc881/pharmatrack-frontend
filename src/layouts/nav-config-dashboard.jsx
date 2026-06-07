@@ -124,7 +124,7 @@ export const navData = [
           { title: 'Nuevo',              path: paths.dashboard.product.new,          allowedRoles: ['products.create'] },
           { title: 'Categorías',         path: paths.dashboard.productCategory.root },
           { title: 'Marcas',             path: paths.dashboard.productBrand.root },
-          { title: 'Lotes',              path: paths.dashboard.productBatch.root },
+          { title: 'Lotes y Stock',      path: paths.dashboard.productBatch.root },
           { title: 'Principios activos', path: paths.dashboard.productMaster.root },
           { title: 'Ingredientes',       path: paths.dashboard.ingredient.root },
         ],
