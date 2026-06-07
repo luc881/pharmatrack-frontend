@@ -1,12 +1,11 @@
 import * as z from 'zod';
+import { useBoolean } from 'minimal-shared/hooks';
 import { useForm } from 'react-hook-form';
 import { useState, useEffect, useCallback } from 'react';
-import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
@@ -26,10 +25,10 @@ import { useRouter } from 'src/routes/hooks';
 import { handleApiError } from 'src/utils/handle-api-error';
 
 import { uploadToCloudinary } from 'src/lib/cloudinary';
+import { useAllIngredients } from 'src/actions/ingredient';
 import { createProductBrand } from 'src/actions/product-brand';
 import { createProductCategory } from 'src/actions/product-category';
 import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
-import { useAllIngredients } from 'src/actions/ingredient';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
