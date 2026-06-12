@@ -72,13 +72,13 @@ export function useGetSaleDetails(saleId) {
     : null;
   const { data, isLoading } = useSWR(url, fetcher, swrOptions);
 
-  return useMemo(
-    () => ({
-      saleDetails: Array.isArray(data) ? data : (data?.data ?? []),
+  return useMemo(() => {
+    const all = Array.isArray(data) ? data : (data?.data ?? []);
+    return {
+      saleDetails: saleId ? all.filter((d) => Number(d.sale_id) === Number(saleId)) : all,
       saleDetailsLoading: isLoading,
-    }),
-    [data, isLoading]
-  );
+    };
+  }, [data, isLoading, saleId]);
 }
 
 // ----------------------------------------------------------------------
@@ -89,13 +89,13 @@ export function useGetSalePayments(saleId) {
     : null;
   const { data, isLoading } = useSWR(url, fetcher, swrOptions);
 
-  return useMemo(
-    () => ({
-      salePayments: Array.isArray(data) ? data : (data?.data ?? []),
+  return useMemo(() => {
+    const all = Array.isArray(data) ? data : (data?.data ?? []);
+    return {
+      salePayments: saleId ? all.filter((p) => Number(p.sale_id) === Number(saleId)) : all,
       salePaymentsLoading: isLoading,
-    }),
-    [data, isLoading]
-  );
+    };
+  }, [data, isLoading, saleId]);
 }
 
 // ----------------------------------------------------------------------
