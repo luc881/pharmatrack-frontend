@@ -232,15 +232,15 @@ export function SaleCreateEditForm({
       }
 
       await Promise.all(
-        data.items.map((item) => {
-          return createSaleDetail({
+        data.items.map((item) =>
+          createSaleDetail({
             sale_id: saleId,
             product_id: Number(item.product_id),
             quantity: Number(item.quantity),
             discount: Number(item.discount ?? 0),
             description: item.description || null,
-          });
-        })
+          })
+        )
       );
 
       await Promise.all(
