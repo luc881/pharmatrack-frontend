@@ -10,7 +10,7 @@ import { useGetLatestSensorReading } from 'src/actions/sensor';
 
 // ----------------------------------------------------------------------
 
-const OFFLINE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutos
+const OFFLINE_THRESHOLD_MS = 75_000; // 2.5× el intervalo del ESP32 (30 s)
 
 const MX_TIME = new Intl.DateTimeFormat('es-MX', {
   timeZone: 'America/Mexico_City',
@@ -35,7 +35,7 @@ export function SensorStatusChip() {
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
+    const id = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(id);
   }, []);
 

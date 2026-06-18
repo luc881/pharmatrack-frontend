@@ -130,7 +130,7 @@ const pulse = keyframes`
   100% { transform: scale(1);   opacity: 1; }
 `;
 
-const OFFLINE_THRESHOLD_MS = 2 * 60 * 1000;
+const OFFLINE_THRESHOLD_MS = 75_000; // 2.5× el intervalo del ESP32 (30 s)
 
 // ----------------------------------------------------------------------
 
@@ -140,7 +140,7 @@ export function SensorWidget() {
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
+    const id = setInterval(() => setNow(Date.now()), 15_000);
     return () => clearInterval(id);
   }, []);
 

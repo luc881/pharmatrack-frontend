@@ -5,8 +5,8 @@ import { fetcher, endpoints } from 'src/lib/axios';
 
 // ----------------------------------------------------------------------
 
-// Poll every 30 seconds to keep readings fresh
-const POLL_INTERVAL = 30_000;
+// Poll every 15 seconds to detect offline faster
+const POLL_INTERVAL = 15_000;
 
 // ----------------------------------------------------------------------
 
