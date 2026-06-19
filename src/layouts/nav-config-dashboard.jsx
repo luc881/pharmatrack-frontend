@@ -135,7 +135,7 @@ export const navData = [
         icon: ICONS.ecommerce,
         children: [
           { title: 'Lista', path: paths.dashboard.sale.root },
-          { title: 'Nueva', path: paths.dashboard.sale.new },
+          { title: 'Nueva', path: paths.dashboard.sale.new, allowedRoles: ['sales.create'] },
         ],
       },
       { title: 'Calendario', path: paths.dashboard.calendar, icon: ICONS.calendar },
@@ -154,7 +154,7 @@ export const navData = [
         icon: ICONS.label,
         children: [
           { title: 'Lista', path: paths.dashboard.refundProduct.root },
-          { title: 'Nueva', path: paths.dashboard.refundProduct.new },
+          { title: 'Nueva', path: paths.dashboard.refundProduct.new, allowedRoles: ['refundproducts.create'] },
         ],
       },
       {
