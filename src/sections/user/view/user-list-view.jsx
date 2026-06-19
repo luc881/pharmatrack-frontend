@@ -11,7 +11,6 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { useGetRoles } from 'src/actions/role';
-import { useAuthContext } from 'src/auth/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteUser, useGetUsers } from 'src/actions/user';
 
@@ -32,6 +31,8 @@ import {
   CustomToolbarColumnsButton,
   CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 

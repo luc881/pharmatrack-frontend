@@ -10,7 +10,6 @@ import { DataGrid, gridClasses } from '@mui/x-data-grid';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAuthContext } from 'src/auth/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteProduct, useGetProducts, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
 
@@ -29,6 +28,8 @@ import {
   RenderCellPriceCost,
   RenderCellCreatedAt,
 } from '../product-table-row';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 

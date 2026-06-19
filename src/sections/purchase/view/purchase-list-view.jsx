@@ -12,7 +12,6 @@ import { RouterLink } from 'src/routes/components';
 import { fDate } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
 
-import { useAuthContext } from 'src/auth/hooks';
 import { useGetSuppliers } from 'src/actions/supplier';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deletePurchase, useGetPurchases } from 'src/actions/purchase';
@@ -33,6 +32,8 @@ import {
   CustomToolbarColumnsButton,
   CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 

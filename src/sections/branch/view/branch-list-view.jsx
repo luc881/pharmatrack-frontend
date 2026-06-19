@@ -11,7 +11,6 @@ import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { useAuthContext } from 'src/auth/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteBranch, restoreBranch, useGetBranches } from 'src/actions/branch';
 
@@ -31,6 +30,8 @@ import {
   CustomToolbarColumnsButton,
   CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 

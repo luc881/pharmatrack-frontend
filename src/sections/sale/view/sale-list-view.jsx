@@ -18,7 +18,6 @@ import { RouterLink } from 'src/routes/components';
 import { fDate } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
 
-import { useAuthContext } from 'src/auth/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteSale, useGetSales } from 'src/actions/sale';
 
@@ -41,6 +40,8 @@ import {
 } from 'src/components/custom-data-grid';
 
 import { useAllProducts } from 'src/sections/product-batch/use-all-products';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { SalePDFRowButton } from '../sale-pdf';
 

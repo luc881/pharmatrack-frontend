@@ -13,7 +13,6 @@ import { RouterLink } from 'src/routes/components';
 import { fDate } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
 
-import { useAuthContext } from 'src/auth/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteProductBatch, useGetProductBatches } from 'src/actions/product-batch';
 
@@ -34,6 +33,8 @@ import {
   CustomToolbarColumnsButton,
   CustomToolbarSettingsButton,
 } from 'src/components/custom-data-grid';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { useAllProducts } from '../use-all-products';
 
