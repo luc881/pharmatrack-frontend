@@ -639,7 +639,7 @@ function SaleItems({ products, productIdsWithStock, estimatedTotal }) {
 // ----------------------------------------------------------------------
 
 function SaleItem({ index, products, productIdsWithStock, onRemove }) {
-  const { watch, setValue, control } = useFormContext();
+  const { watch, setValue, control, getValues } = useFormContext();
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
   const [openAddBatch, setOpenAddBatch] = useState(false);
@@ -709,7 +709,24 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
                 getOptionLabel={(opt) => (typeof opt === 'object' ? opt.title : products.find((p) => p.id === Number(opt))?.title ?? '')}
                 isOptionEqualToValue={(opt, val) => opt.id === (typeof val === 'object' ? val?.id : Number(val))}
                 value={products.find((p) => p.id === Number(value)) ?? null}
-                onChange={(_, newValue) => setValue(`items[${index}].product_id`, newValue?.id ?? '', { shouldValidate: true })}
+                onChange={(_, newValue) => {
+                  if (!newValue) {
+                    setValue(`items[${index}].product_id`, '', { shouldValidate: true });
+                    return;
+                  }
+                  const currentItems = getValues('items');
+                  const existingIndex = currentItems.findIndex(
+                    (item, i) => i !== index && Number(item.product_id) === newValue.id
+                  );
+                  if (existingIndex >= 0) {
+                    const existingQty = Number(currentItems[existingIndex].quantity) || 1;
+                    const currentQty = Number(currentItems[index].quantity) || 1;
+                    setValue(`items[${existingIndex}].quantity`, existingQty + currentQty);
+                    onRemove();
+                  } else {
+                    setValue(`items[${index}].product_id`, newValue.id, { shouldValidate: true });
+                  }
+                }}
                 noOptionsText={productIdsWithStock ? 'Sin productos con stock' : 'Sin resultados'}
                 renderInput={(params) => (
                   <TextField {...params} label="Producto con stock *" error={!!error} helperText={error?.message} />
