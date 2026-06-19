@@ -125,6 +125,7 @@ export const endpoints = {
   },
   user: {
     list: '/api/v1/users',
+    me: '/api/v1/users/me',
     details: (id) => `/api/v1/users/${id}`,
     create: '/api/v1/users',
     update: (id) => `/api/v1/users/${id}`,

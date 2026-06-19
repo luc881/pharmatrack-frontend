@@ -15,6 +15,16 @@ import { JWT_STORAGE_KEY, JWT_REFRESH_KEY, JWT_REMEMBER_KEY } from './constant';
  * Customer will need to do some extra handling yourself if you want to extend the logic and other features...
  */
 
+// Fetch live permissions from /me. Falls back to JWT-embedded permissions on error.
+async function fetchLivePermissions(jwtPermissions) {
+  try {
+    const res = await axios.get(endpoints.user.me);
+    return res.data?.role?.permissions?.map((p) => p.name) ?? jwtPermissions;
+  } catch {
+    return jwtPermissions;
+  }
+}
+
 export function AuthProvider({ children }) {
   const { state, setState } = useSetState({ user: null, loading: true });
 
@@ -26,11 +36,12 @@ export function AuthProvider({ children }) {
         await setSession(accessToken);
 
         const decoded = jwtDecode(accessToken);
+        const permissions = await fetchLivePermissions(decoded.permissions ?? []);
         const user = {
           id: decoded.id,
           email: decoded.sub,
           role: decoded.role,
-          permissions: decoded.permissions ?? [],
+          permissions,
           displayName: decoded.sub,
         };
         setState({ user: { ...user, accessToken }, loading: false });
@@ -57,11 +68,12 @@ export function AuthProvider({ children }) {
         await setSession(access_token);
 
         const decoded = jwtDecode(access_token);
+        const permissions = await fetchLivePermissions(decoded.permissions ?? []);
         const user = {
           id: decoded.id,
           email: decoded.sub,
           role: decoded.role,
-          permissions: decoded.permissions ?? [],
+          permissions,
           displayName: decoded.sub,
         };
         setState({ user: { ...user, accessToken: access_token }, loading: false });
