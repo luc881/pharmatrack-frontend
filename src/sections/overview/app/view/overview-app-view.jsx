@@ -75,115 +75,26 @@ function QuickActionCard({ title, description, icon, color = 'primary', href }) 
 
 // ----------------------------------------------------------------------
 
-function QuickActions({ isAdmin }) {
+function QuickActions({ permissions }) {
+  const can = (perm) => !perm || permissions.includes(perm);
+
   const allActions = [
-    {
-      title: 'Nueva venta',
-      description: 'Registrar venta',
-      icon: 'solar:cart-plus-bold-duotone',
-      color: 'primary',
-      href: paths.dashboard.sale.new,
-      adminOnly: false,
-    },
-    {
-      title: 'Ver ventas',
-      description: 'Historial de ventas',
-      icon: 'solar:bill-list-bold-duotone',
-      color: 'info',
-      href: paths.dashboard.sale.root,
-      adminOnly: false,
-    },
-    {
-      title: 'Ver productos',
-      description: 'Catálogo de productos',
-      icon: 'solar:pills-bold-duotone',
-      color: 'success',
-      href: paths.dashboard.product.root,
-      adminOnly: false,
-    },
-    {
-      title: 'Ver lotes',
-      description: 'Stock y fechas de vencimiento',
-      icon: 'solar:box-bold-duotone',
-      color: 'warning',
-      href: paths.dashboard.productBatch.root,
-      adminOnly: false,
-    },
-    {
-      title: 'Nueva compra',
-      description: 'Registrar compra a proveedor',
-      icon: 'solar:bag-2-bold-duotone',
-      color: 'secondary',
-      href: paths.dashboard.purchase.new,
-      adminOnly: true,
-    },
-    {
-      title: 'Ver compras',
-      description: 'Historial de compras',
-      icon: 'solar:bag-smile-bold-duotone',
-      color: 'secondary',
-      href: paths.dashboard.purchase.root,
-      adminOnly: true,
-    },
-    {
-      title: 'Nuevo producto',
-      description: 'Agregar al catálogo',
-      icon: 'solar:add-circle-bold-duotone',
-      color: 'success',
-      href: paths.dashboard.product.new,
-      adminOnly: true,
-    },
-    {
-      title: 'Nuevo lote',
-      description: 'Ingresar stock',
-      icon: 'solar:inbox-in-bold-duotone',
-      color: 'warning',
-      href: paths.dashboard.productBatch.new,
-      adminOnly: false,
-    },
-    {
-      title: 'Nueva devolución',
-      description: 'Registrar devolución',
-      icon: 'solar:arrow-left-down-bold-duotone',
-      color: 'error',
-      href: paths.dashboard.refundProduct.new,
-      adminOnly: false,
-    },
-    {
-      title: 'Ver devoluciones',
-      description: 'Historial de devoluciones',
-      icon: 'solar:archive-down-minimlistic-bold-duotone',
-      color: 'error',
-      href: paths.dashboard.refundProduct.root,
-      adminOnly: false,
-    },
-    {
-      title: 'Calendario',
-      description: 'Vencimientos por fecha',
-      icon: 'solar:calendar-bold-duotone',
-      color: 'info',
-      href: paths.dashboard.calendar,
-      adminOnly: false,
-    },
-    {
-      title: 'Ver proveedores',
-      description: 'Gestión de proveedores',
-      icon: 'solar:truck-bold-duotone',
-      color: 'secondary',
-      href: paths.dashboard.supplier.root,
-      adminOnly: true,
-    },
-    {
-      title: 'Ver usuarios',
-      description: 'Gestión de equipo',
-      icon: 'solar:users-group-rounded-bold-duotone',
-      color: 'primary',
-      href: paths.dashboard.user.root,
-      adminOnly: true,
-    },
+    { title: 'Nueva venta',      description: 'Registrar venta',              icon: 'solar:cart-plus-bold-duotone',                   color: 'primary',   href: paths.dashboard.sale.new,           permission: null },
+    { title: 'Ver ventas',       description: 'Historial de ventas',          icon: 'solar:bill-list-bold-duotone',                   color: 'info',      href: paths.dashboard.sale.root,          permission: null },
+    { title: 'Ver productos',    description: 'Catálogo de productos',        icon: 'solar:pills-bold-duotone',                       color: 'success',   href: paths.dashboard.product.root,       permission: null },
+    { title: 'Ver lotes',        description: 'Stock y fechas de vencimiento',icon: 'solar:box-bold-duotone',                         color: 'warning',   href: paths.dashboard.productBatch.root,  permission: null },
+    { title: 'Nueva compra',     description: 'Registrar compra a proveedor', icon: 'solar:bag-2-bold-duotone',                       color: 'secondary', href: paths.dashboard.purchase.new,       permission: 'purchases.create' },
+    { title: 'Ver compras',      description: 'Historial de compras',         icon: 'solar:bag-smile-bold-duotone',                   color: 'secondary', href: paths.dashboard.purchase.root,      permission: 'purchases.read' },
+    { title: 'Nuevo producto',   description: 'Agregar al catálogo',          icon: 'solar:add-circle-bold-duotone',                  color: 'success',   href: paths.dashboard.product.new,        permission: 'products.create' },
+    { title: 'Nuevo lote',       description: 'Ingresar stock',               icon: 'solar:inbox-in-bold-duotone',                    color: 'warning',   href: paths.dashboard.productBatch.new,   permission: 'productbatches.create' },
+    { title: 'Nueva devolución', description: 'Registrar devolución',         icon: 'solar:arrow-left-down-bold-duotone',             color: 'error',     href: paths.dashboard.refundProduct.new,  permission: 'refundproducts.create' },
+    { title: 'Ver devoluciones', description: 'Historial de devoluciones',    icon: 'solar:archive-down-minimlistic-bold-duotone',    color: 'error',     href: paths.dashboard.refundProduct.root, permission: null },
+    { title: 'Calendario',       description: 'Vencimientos por fecha',       icon: 'solar:calendar-bold-duotone',                    color: 'info',      href: paths.dashboard.calendar,           permission: null },
+    { title: 'Ver proveedores',  description: 'Gestión de proveedores',       icon: 'solar:truck-bold-duotone',                       color: 'secondary', href: paths.dashboard.supplier.root,      permission: 'suppliers.read' },
+    { title: 'Ver usuarios',     description: 'Gestión de equipo',            icon: 'solar:users-group-rounded-bold-duotone',         color: 'primary',   href: paths.dashboard.user.root,          permission: 'users.read' },
   ];
 
-  const actions = allActions.filter((a) => !a.adminOnly || isAdmin);
+  const actions = allActions.filter((a) => can(a.permission));
 
   return (
     <Box>
@@ -330,7 +241,7 @@ export function OverviewAppView() {
 
         {/* Acciones rápidas + Sensor (misma fila en desktop) */}
         <Grid size={{ xs: 12, lg: 8 }}>
-          <QuickActions isAdmin={(user?.permissions ?? []).includes('users.read')} />
+          <QuickActions permissions={user?.permissions ?? []} />
         </Grid>
 
         <Grid size={{ xs: 12, lg: 4 }}>
