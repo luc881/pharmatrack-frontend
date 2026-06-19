@@ -84,6 +84,43 @@ function useAllProducts() {
   return products;
 }
 
+// Cache of product IDs that have at least one batch with quantity > 0
+let _stockProductIdsCache = null;
+
+async function loadProductIdsWithStock() {
+  if (_stockProductIdsCache !== null) return _stockProductIdsCache;
+  const BATCH_PAGE_SIZE = 500;
+  const first = await axiosInstance
+    .get(endpoints.productBatch.list, { params: { page: 1, page_size: BATCH_PAGE_SIZE } })
+    .then((r) => r.data);
+  let items = first.data ?? [];
+  if ((first.total ?? 0) > BATCH_PAGE_SIZE) {
+    const remaining = Math.ceil(first.total / BATCH_PAGE_SIZE) - 1;
+    const pages = await Promise.all(
+      Array.from({ length: remaining }, (_, i) =>
+        axiosInstance
+          .get(endpoints.productBatch.list, { params: { page: i + 2, page_size: BATCH_PAGE_SIZE } })
+          .then((r) => r.data.data)
+      )
+    );
+    items = [...items, ...pages.flat()];
+  }
+  _stockProductIdsCache = new Set(
+    items.filter((b) => Number(b.quantity) > 0).map((b) => Number(b.product_id))
+  );
+  return _stockProductIdsCache;
+}
+
+function useProductIdsWithStock() {
+  const [productIds, setProductIds] = useState(_stockProductIdsCache);
+  useEffect(() => {
+    if (_stockProductIdsCache === null) {
+      loadProductIdsWithStock().then(setProductIds);
+    }
+  }, []);
+  return productIds; // null while loading, Set<number> when ready
+}
+
 // ----------------------------------------------------------------------
 
 const PAYMENT_METHODS = [
@@ -148,6 +185,7 @@ export function SaleCreateEditForm({
   const { user } = useAuthContext();
   const { branches } = useGetBranches();
   const products = useAllProducts();
+  const productIdsWithStock = useProductIdsWithStock();
 
   const defaultValues = {
     branch_id: currentSale?.branch_id ?? (branches[0]?.id ?? ''),
@@ -296,7 +334,7 @@ export function SaleCreateEditForm({
 
           {/* Line items */}
           <Card>
-            <SaleItems products={products} estimatedTotal={estimatedTotal} />
+            <SaleItems products={products} productIdsWithStock={productIdsWithStock} estimatedTotal={estimatedTotal} />
           </Card>
 
           {/* Payment */}
@@ -326,7 +364,7 @@ export function SaleCreateEditForm({
 
 // ----------------------------------------------------------------------
 
-function SaleItems({ products, estimatedTotal }) {
+function SaleItems({ products, productIdsWithStock, estimatedTotal }) {
   const { control, setValue, getValues } = useFormContext();
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -572,7 +610,7 @@ function SaleItems({ products, estimatedTotal }) {
 
       <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
         {fields.map((field, index) => (
-          <SaleItem key={field.id} index={index} products={products} onRemove={() => remove(index)} />
+          <SaleItem key={field.id} index={index} products={products} productIdsWithStock={productIdsWithStock} onRemove={() => remove(index)} />
         ))}
       </Stack>
 
@@ -600,7 +638,7 @@ function SaleItems({ products, estimatedTotal }) {
 
 // ----------------------------------------------------------------------
 
-function SaleItem({ index, products, onRemove }) {
+function SaleItem({ index, products, productIdsWithStock, onRemove }) {
   const { watch, setValue, control } = useFormContext();
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
@@ -615,6 +653,11 @@ function SaleItem({ index, products, onRemove }) {
   const lineTotal = (Number(quantity) || 0) * priceRetail - (Number(discount) || 0);
   const tracksBatches = product?.tracks_batches !== false;
   const totalStock = batches.reduce((s, b) => s + Number(b.quantity), 0);
+
+  // While the stock index is loading show all products; once ready filter to only those with stock.
+  const autocompleteOptions = productIdsWithStock
+    ? products.filter((p) => productIdsWithStock.has(p.id))
+    : products;
 
   const loadBatches = useCallback(async (pid) => {
     if (!pid) { setBatches([]); return; }
@@ -641,7 +684,9 @@ function SaleItem({ index, products, onRemove }) {
   const handleBatchCreated = useCallback((newBatch) => {
     setBatches((prev) => [...prev, newBatch]);
     setOpenAddBatch(false);
-  }, []);
+    // Keep the module-level stock cache in sync so the autocomplete shows this product immediately
+    _stockProductIdsCache?.add(Number(productId));
+  }, [productId]);
 
   return (
     <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
@@ -660,12 +705,12 @@ function SaleItem({ index, products, onRemove }) {
             render={({ field: { value }, fieldState: { error } }) => (
               <Autocomplete
                 size="small"
-                options={products}
+                options={autocompleteOptions}
                 getOptionLabel={(opt) => (typeof opt === 'object' ? opt.title : products.find((p) => p.id === Number(opt))?.title ?? '')}
                 isOptionEqualToValue={(opt, val) => opt.id === (typeof val === 'object' ? val?.id : Number(val))}
                 value={products.find((p) => p.id === Number(value)) ?? null}
                 onChange={(_, newValue) => setValue(`items[${index}].product_id`, newValue?.id ?? '', { shouldValidate: true })}
-                noOptionsText="Sin resultados"
+                noOptionsText={productIdsWithStock ? 'Sin productos con stock' : 'Sin resultados'}
                 renderInput={(params) => (
                   <TextField {...params} label="Producto *" error={!!error} helperText={error?.message} />
                 )}
