@@ -20,6 +20,8 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/custom-data-grid';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { ProductTableToolbar } from '../product-table-toolbar';
 import {
   RenderCellPrice,
@@ -28,8 +30,6 @@ import {
   RenderCellPriceCost,
   RenderCellCreatedAt,
 } from '../product-table-row';
-
-import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
