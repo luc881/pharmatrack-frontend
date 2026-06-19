@@ -712,7 +712,7 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
                 onChange={(_, newValue) => setValue(`items[${index}].product_id`, newValue?.id ?? '', { shouldValidate: true })}
                 noOptionsText={productIdsWithStock ? 'Sin productos con stock' : 'Sin resultados'}
                 renderInput={(params) => (
-                  <TextField {...params} label="Producto *" error={!!error} helperText={error?.message} />
+                  <TextField {...params} label="Producto con stock *" error={!!error} helperText={error?.message} />
                 )}
               />
             )}
