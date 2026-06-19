@@ -9,6 +9,7 @@ import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { useAuthContext } from 'src/auth/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteProductCategory, useGetAllProductCategories } from 'src/actions/product-category';
 
@@ -35,6 +36,11 @@ export function ProductCategoryListView() {
   const theme = useTheme();
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
+
+  const { user } = useAuthContext();
+  const canCreate = user?.permissions?.includes('productscategories.create');
+  const canUpdate = user?.permissions?.includes('productscategories.update');
+  const canDelete = user?.permissions?.includes('productscategories.delete');
 
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
@@ -103,23 +109,12 @@ export function ProductCategoryListView() {
         filterable: false,
         disableColumnMenu: true,
         getActions: (params) => [
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Editar"
-            icon={<Iconify icon="solar:pen-bold" />}
-            href={paths.dashboard.productCategory.edit(params.row.id)}
-          />,
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Eliminar"
-            icon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={() => handleDeleteRow(params.row.id)}
-            style={{ color: theme.vars.palette.error.main }}
-          />,
+          ...(canUpdate ? [<CustomGridActionsCellItem showInMenu label="Editar" icon={<Iconify icon="solar:pen-bold" />} href={paths.dashboard.productCategory.edit(params.row.id)} />] : []),
+          ...(canDelete ? [<CustomGridActionsCellItem showInMenu label="Eliminar" icon={<Iconify icon="solar:trash-bin-trash-bold" />} onClick={() => handleDeleteRow(params.row.id)} style={{ color: theme.vars.palette.error.main }} />] : []),
         ],
       },
     ],
-    [categoryMap, handleDeleteRow, theme.vars.palette.error.main]
+    [canDelete, canUpdate, categoryMap, handleDeleteRow, theme.vars.palette.error.main]
   );
 
   return (
@@ -131,7 +126,7 @@ export function ProductCategoryListView() {
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Categorías' },
           ]}
-          action={
+          action={canCreate && (
             <Button
               component={RouterLink}
               href={paths.dashboard.productCategory.new}
@@ -140,7 +135,7 @@ export function ProductCategoryListView() {
             >
               Nueva categoría
             </Button>
-          }
+          )}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
@@ -173,7 +168,7 @@ export function ProductCategoryListView() {
                       <CustomToolbarQuickFilter />
                     </ToolbarLeftPanel>
                     <ToolbarRightPanel>
-                      {!!(selectedRows.ids?.size > 0) && (
+                      {!!(canDelete && selectedRows.ids?.size > 0) && (
                         <Button
                           size="small"
                           color="error"

@@ -11,6 +11,7 @@ import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { useAuthContext } from 'src/auth/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteBranch, restoreBranch, useGetBranches } from 'src/actions/branch';
 
@@ -37,6 +38,11 @@ export function BranchListView() {
   const theme = useTheme();
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
+
+  const { user } = useAuthContext();
+  const canCreate = user?.permissions?.includes('branches.create');
+  const canUpdate = user?.permissions?.includes('branches.update');
+  const canDelete = user?.permissions?.includes('branches.delete');
 
   const [showDeleted, setShowDeleted] = useState(false);
   const [rowToDelete, setRowToDelete] = useState(null);
@@ -118,34 +124,17 @@ export function BranchListView() {
         getActions: (params) => {
           if (params.row.deleted_at) {
             return [
-              <CustomGridActionsCellItem
-                showInMenu
-                label="Restaurar"
-                icon={<Iconify icon="solar:restart-bold" />}
-                onClick={() => handleRestoreRow(params.row.id)}
-                style={{ color: theme.vars.palette.success.main }}
-              />,
+              ...(canUpdate ? [<CustomGridActionsCellItem showInMenu label="Restaurar" icon={<Iconify icon="solar:restart-bold" />} onClick={() => handleRestoreRow(params.row.id)} style={{ color: theme.vars.palette.success.main }} />] : []),
             ];
           }
           return [
-            <CustomGridActionsCellItem
-              showInMenu
-              label="Editar"
-              icon={<Iconify icon="solar:pen-bold" />}
-              href={paths.dashboard.branch.edit(params.row.id)}
-            />,
-            <CustomGridActionsCellItem
-              showInMenu
-              label="Eliminar"
-              icon={<Iconify icon="solar:trash-bin-trash-bold" />}
-              onClick={() => handleDeleteRow(params.row.id)}
-              style={{ color: theme.vars.palette.error.main }}
-            />,
+            ...(canUpdate ? [<CustomGridActionsCellItem showInMenu label="Editar" icon={<Iconify icon="solar:pen-bold" />} href={paths.dashboard.branch.edit(params.row.id)} />] : []),
+            ...(canDelete ? [<CustomGridActionsCellItem showInMenu label="Eliminar" icon={<Iconify icon="solar:trash-bin-trash-bold" />} onClick={() => handleDeleteRow(params.row.id)} style={{ color: theme.vars.palette.error.main }} />] : []),
           ];
         },
       },
     ],
-    [handleDeleteRow, handleRestoreRow, theme.vars.palette.error.main, theme.vars.palette.success.main]
+    [canDelete, canUpdate, handleDeleteRow, handleRestoreRow, theme.vars.palette.error.main, theme.vars.palette.success.main]
   );
 
   return (
@@ -157,7 +146,7 @@ export function BranchListView() {
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Sucursales' },
           ]}
-          action={
+          action={canCreate && (
             <Button
               component={RouterLink}
               href={paths.dashboard.branch.new}
@@ -166,7 +155,7 @@ export function BranchListView() {
             >
               Nueva sucursal
             </Button>
-          }
+          )}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
@@ -211,7 +200,7 @@ export function BranchListView() {
                       />
                     </ToolbarLeftPanel>
                     <ToolbarRightPanel>
-                      {!!(selectedRows.ids?.size > 0) && (
+                      {!!(canDelete && selectedRows.ids?.size > 0) && (
                         <Button
                           size="small"
                           color="error"

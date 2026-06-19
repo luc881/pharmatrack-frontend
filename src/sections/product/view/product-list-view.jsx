@@ -10,6 +10,7 @@ import { DataGrid, gridClasses } from '@mui/x-data-grid';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { useAuthContext } from 'src/auth/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteProduct, useGetProducts, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
 
@@ -48,6 +49,11 @@ const toOrdering = (sortModel) => {
 export function ProductListView() {
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
+
+  const { user } = useAuthContext();
+  const canCreate = user?.permissions?.includes('products.create');
+  const canUpdate = user?.permissions?.includes('products.update');
+  const canDelete = user?.permissions?.includes('products.delete');
 
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 20 });
   const [sortModel, setSortModel] = useState([]);
@@ -125,7 +131,7 @@ export function ProductListView() {
     setPaginationModel((p) => ({ ...p, page: 0 }));
   }, []);
 
-  const columns = useGetColumns({ onDeleteRow: handleDeleteRow, brandsMap, categoriesMap });
+  const columns = useGetColumns({ onDeleteRow: handleDeleteRow, brandsMap, categoriesMap, canUpdate, canDelete });
 
   const deleteCount = rowToDelete ? 1 : selectedRows.ids.size;
 
@@ -140,14 +146,16 @@ export function ProductListView() {
             { name: 'Lista' },
           ]}
           action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.product.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Nuevo producto
-            </Button>
+            canCreate && (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.product.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Nuevo producto
+              </Button>
+            )
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -244,7 +252,7 @@ export function ProductListView() {
 
 // ----------------------------------------------------------------------
 
-const useGetColumns = ({ onDeleteRow, brandsMap, categoriesMap }) => {
+const useGetColumns = ({ onDeleteRow, brandsMap, categoriesMap, canUpdate, canDelete }) => {
   const theme = useTheme();
 
   return useMemo(
@@ -318,22 +326,11 @@ const useGetColumns = ({ onDeleteRow, brandsMap, categoriesMap }) => {
             icon={<Iconify icon="solar:eye-bold" />}
             href={paths.dashboard.product.details(params.row.id)}
           />,
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Editar"
-            icon={<Iconify icon="solar:pen-bold" />}
-            href={paths.dashboard.product.edit(params.row.id)}
-          />,
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Eliminar"
-            icon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={() => onDeleteRow(params.row.id)}
-            style={{ color: theme.vars.palette.error.main }}
-          />,
+          ...(canUpdate ? [<CustomGridActionsCellItem showInMenu label="Editar" icon={<Iconify icon="solar:pen-bold" />} href={paths.dashboard.product.edit(params.row.id)} />] : []),
+          ...(canDelete ? [<CustomGridActionsCellItem showInMenu label="Eliminar" icon={<Iconify icon="solar:trash-bin-trash-bold" />} onClick={() => onDeleteRow(params.row.id)} style={{ color: theme.vars.palette.error.main }} />] : []),
         ],
       },
     ],
-    [onDeleteRow, brandsMap, categoriesMap, theme.vars.palette.error.main]
+    [onDeleteRow, brandsMap, categoriesMap, canUpdate, canDelete, theme.vars.palette.error.main]
   );
 };
