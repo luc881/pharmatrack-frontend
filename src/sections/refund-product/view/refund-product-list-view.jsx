@@ -11,6 +11,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { fDate } from 'src/utils/format-time';
 
+import { useAuthContext } from 'src/auth/hooks';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteRefundProduct, useGetRefundProducts } from 'src/actions/refund-product';
 
@@ -38,6 +39,10 @@ export function RefundProductListView() {
   const theme = useTheme();
   const confirmDialog = useBoolean();
   const toolbarOptions = useToolbarSettings();
+
+  const { user } = useAuthContext();
+  const canCreate = user?.permissions?.includes('refundproducts.create');
+  const canDelete = user?.permissions?.includes('refundproducts.delete');
 
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
@@ -111,15 +116,18 @@ export function RefundProductListView() {
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
-        getActions: (params) => [
-          <CustomGridActionsCellItem
-            showInMenu
-            label="Eliminar"
-            icon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={() => handleDeleteRow(params.row.id)}
-            style={{ color: theme.vars.palette.error.main }}
-          />,
-        ],
+        getActions: (params) =>
+          canDelete
+            ? [
+                <CustomGridActionsCellItem
+                  showInMenu
+                  label="Eliminar"
+                  icon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                  onClick={() => handleDeleteRow(params.row.id)}
+                  style={{ color: theme.vars.palette.error.main }}
+                />,
+              ]
+            : [],
       },
     ],
     [productMap, handleDeleteRow, theme.vars.palette.error.main]
@@ -135,14 +143,16 @@ export function RefundProductListView() {
             { name: 'Devoluciones' },
           ]}
           action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.refundProduct.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Nueva devolución
-            </Button>
+            canCreate && (
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.refundProduct.new}
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+              >
+                Nueva devolución
+              </Button>
+            )
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -176,7 +186,7 @@ export function RefundProductListView() {
                       <CustomToolbarQuickFilter />
                     </ToolbarLeftPanel>
                     <ToolbarRightPanel>
-                      {!!(selectedRows.ids?.size > 0) && (
+                      {!!(canDelete && selectedRows.ids?.size > 0) && (
                         <Button
                           size="small"
                           color="error"

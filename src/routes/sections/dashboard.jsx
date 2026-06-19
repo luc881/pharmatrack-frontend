@@ -114,6 +114,9 @@ const P = {
   branchesRead:   ['branches.read'],
   branchesCreate: ['branches.create'],
   branchesUpdate: ['branches.update'],
+  // Refund products
+  refundProductsCreate: ['refundproducts.create'],
+  refundProductsDelete: ['refundproducts.delete'],
 };
 
 function guard(allowedPermissions, element) {
@@ -279,7 +282,7 @@ export const dashboardRoutes = [
         children: [
           { index: true,  element: <RefundProductListPage /> },
           { path: 'list', element: <RefundProductListPage /> },
-          { path: 'new',  element: <RefundProductCreatePage /> },
+          { path: 'new',  element: guard(P.refundProductsCreate, <RefundProductCreatePage />) },
         ],
       },
 
