@@ -447,7 +447,14 @@ function SaleItems({ products, productsLoading, productIdsWithStock, estimatedTo
           const currentQty = Number(currentItems[existingIndex].quantity) || 1;
           setValue(`items[${existingIndex}].quantity`, currentQty + 1);
         } else {
-          append({ ...defaultItem, product_id: found.id });
+          // Reutilizar la primera línea sin producto (la fila inicial vacía bloqueaba
+          // el registro de la venta y había que eliminarla a mano)
+          const emptyIndex = currentItems.findIndex((item) => !item.product_id);
+          if (emptyIndex >= 0) {
+            setValue(`items[${emptyIndex}].product_id`, found.id, { shouldValidate: true });
+          } else {
+            append({ ...defaultItem, product_id: found.id });
+          }
         }
 
         setScanFlash('success');
