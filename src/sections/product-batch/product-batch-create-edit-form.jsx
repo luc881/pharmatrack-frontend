@@ -1,8 +1,8 @@
 import { mutate } from 'swr';
 import { z as zod } from 'zod';
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useForm, Controller, FormProvider } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -47,10 +47,14 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
   const products = useAllProducts();
   const isEdit = !!currentBatch;
 
+  // ?product_id=N — pre-selecciona el producto al llegar desde su página de detalle
+  const [searchParams] = useSearchParams();
+  const prefillProductId = Number(searchParams.get('product_id')) || '';
+
   const methods = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
-      product_id: currentBatch?.product_id ?? '',
+      product_id: currentBatch?.product_id ?? prefillProductId,
       expiration_date: currentBatch?.expiration_date ?? '',
       quantity: currentBatch?.quantity ?? 0,
       lot_code: currentBatch?.lot_code ?? '',

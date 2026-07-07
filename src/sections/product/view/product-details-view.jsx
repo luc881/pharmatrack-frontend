@@ -210,7 +210,7 @@ export function ProductDetailsView({ product, error, loading }) {
               </Box>
               <Button
                 component={RouterLink}
-                href={paths.dashboard.productBatch.new}
+                href={`${paths.dashboard.productBatch.new}?product_id=${product.id}`}
                 variant="contained"
                 startIcon={<Iconify icon="mingcute:add-line" />}
               >
