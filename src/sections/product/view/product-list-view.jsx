@@ -193,7 +193,30 @@ export function ProductListView() {
             onColumnVisibilityModelChange={setColumnVisibilityModel}
             onRowSelectionModelChange={(newSelectionModel) => setSelectedRows(newSelectionModel)}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              noRowsOverlay: () => (
+                // Con búsqueda activa (p.ej. un código de barras escaneado) y sin resultados,
+                // ofrecer crear el producto con ese código ya pre-llenado
+                appliedSearch ? (
+                  <EmptyContent
+                    title={`Sin resultados para "${appliedSearch}"`}
+                    action={
+                      canCreate && (
+                        <Button
+                          component={RouterLink}
+                          href={`${paths.dashboard.product.new}?sku=${encodeURIComponent(appliedSearch)}`}
+                          variant="contained"
+                          startIcon={<Iconify icon="mingcute:add-line" />}
+                          sx={{ mt: 2 }}
+                        >
+                          Agregar producto con este código
+                        </Button>
+                      )
+                    }
+                  />
+                ) : (
+                  <EmptyContent />
+                )
+              ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               toolbar: ProductTableToolbar,
             }}

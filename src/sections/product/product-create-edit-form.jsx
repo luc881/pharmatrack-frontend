@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
+import { useSearchParams } from 'react-router';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect, useCallback } from 'react';
@@ -154,10 +155,14 @@ export function ProductCreateEditForm({ currentProduct }) {
 
   const [isPack, setIsPack] = useState(!!(currentProduct?.base_unit_name));
 
+  // ?sku=CODIGO — pre-llenar el código de barras al llegar desde una búsqueda sin resultados
+  const [searchParams] = useSearchParams();
+  const prefillSku = normSKU(searchParams.get('sku') ?? '');
+
   const defaultValues = {
     title: '',
     description: '',
-    sku: '',
+    sku: prefillSku,
     product_category_id: '',
     brand_id: '',
     unit_name: 'pieza',

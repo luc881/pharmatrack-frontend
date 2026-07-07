@@ -1,5 +1,5 @@
 import { useBoolean } from 'minimal-shared/hooks';
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -62,24 +62,46 @@ export function ProductBatchListView() {
   const canCreate = user?.permissions?.includes('productbatches.create');
   const canUpdate = user?.permissions?.includes('productbatches.update');
   const canDelete = user?.permissions?.includes('productbatches.delete');
+  const canCreateProduct = user?.permissions?.includes('products.create');
 
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
+  const [filterModel, setFilterModel] = useState({ items: [], quickFilterValues: [] });
 
-  const { batches, batchesTotal, batchesLoading, batchesMutate } = useGetProductBatches({
-    page: paginationModel.page + 1,
-    pageSize: paginationModel.pageSize,
-  });
+  const quickSearch = (filterModel.quickFilterValues ?? []).join(' ').trim();
 
   const products = useAllProducts();
   const productMap = useMemo(
     () => Object.fromEntries(products.map((p) => [p.id, p.title])),
     [products]
   );
+  const productSkuMap = useMemo(
+    () => Object.fromEntries(products.map((p) => [p.id, p.sku])),
+    [products]
+  );
+
+  // Si lo buscado es exactamente un SKU/código de barras del catálogo, filtrar por ese
+  // producto en el servidor — el filtro rápido solo ve la página actual y un código
+  // escaneado casi nunca estaría en ella
+  const skuMatch = useMemo(() => {
+    if (!quickSearch) return null;
+    const q = quickSearch.toLowerCase();
+    return products.find((p) => p.sku && p.sku.toLowerCase() === q) ?? null;
+  }, [products, quickSearch]);
+
+  useEffect(() => {
+    setPaginationModel((p) => (p.page === 0 ? p : { ...p, page: 0 }));
+  }, [skuMatch?.id]);
+
+  const { batches, batchesTotal, batchesLoading, batchesMutate } = useGetProductBatches({
+    page: paginationModel.page + 1,
+    pageSize: paginationModel.pageSize,
+    productId: skuMatch?.id ?? null,
+  });
 
   const rowCountRef = useRef(batchesTotal);
-  if (batchesTotal > 0) rowCountRef.current = batchesTotal;
+  if (!batchesLoading) rowCountRef.current = batchesTotal;
 
   const handleDeleteRow = useCallback(
     (id) => {
@@ -118,6 +140,13 @@ export function ProductBatchListView() {
         hideable: false,
         valueGetter: (value) => productMap[value] ?? `ID ${value}`,
       },
+      {
+        field: 'sku',
+        headerName: 'SKU',
+        width: 150,
+        sortable: false,
+        valueGetter: (_, row) => productSkuMap[row.product_id] ?? '—',
+      },
       { field: 'lot_code', headerName: 'Lote', width: 140, valueGetter: (v) => v ?? '—' },
       { field: 'quantity', headerName: 'Cantidad', width: 100, type: 'number' },
       {
@@ -155,7 +184,20 @@ export function ProductBatchListView() {
         ],
       },
     ],
-    [canDelete, canUpdate, handleDeleteRow, productMap, theme.vars.palette.error.main]
+    [canDelete, canUpdate, handleDeleteRow, productMap, productSkuMap, theme.vars.palette.error.main]
+  );
+
+  // Botón para dar de alta el producto con el código buscado ya pre-llenado
+  const addProductAction = canCreateProduct && (
+    <Button
+      component={RouterLink}
+      href={`${paths.dashboard.product.new}?sku=${encodeURIComponent(quickSearch)}`}
+      variant="contained"
+      startIcon={<Iconify icon="mingcute:add-line" />}
+      sx={{ mt: 2 }}
+    >
+      Agregar producto con este código
+    </Button>
   );
 
   return (
@@ -216,10 +258,40 @@ export function ProductBatchListView() {
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
             pageSizeOptions={[10, 25, 50]}
+            filterModel={filterModel}
+            onFilterModelChange={setFilterModel}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
-              noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
+              noRowsOverlay: () =>
+                skuMatch ? (
+                  // El producto existe pero no tiene lotes/stock registrados
+                  <EmptyContent
+                    title={`"${skuMatch.title}" no tiene lotes registrados`}
+                    action={
+                      canCreate && (
+                        <Button
+                          component={RouterLink}
+                          href={`${paths.dashboard.productBatch.new}?product_id=${skuMatch.id}`}
+                          variant="contained"
+                          startIcon={<Iconify icon="mingcute:add-line" />}
+                          sx={{ mt: 2 }}
+                        >
+                          Registrar lote
+                        </Button>
+                      )
+                    }
+                  />
+                ) : quickSearch ? (
+                  <EmptyContent title={`Sin resultados para "${quickSearch}"`} action={addProductAction} />
+                ) : (
+                  <EmptyContent />
+                ),
+              noResultsOverlay: () =>
+                quickSearch && !skuMatch ? (
+                  <EmptyContent title={`Sin resultados para "${quickSearch}"`} action={addProductAction} />
+                ) : (
+                  <EmptyContent title="Sin resultados" />
+                ),
               toolbar: () => (
                 <Toolbar>
                   <ToolbarContainer>
