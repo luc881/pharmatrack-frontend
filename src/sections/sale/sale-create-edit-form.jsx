@@ -76,12 +76,16 @@ async function loadAllProducts() {
 
 function useAllProducts() {
   const [products, setProducts] = useState(_productsCache);
+  const [productsLoading, setProductsLoading] = useState(!_productsLoaded);
   useEffect(() => {
     if (!_productsLoaded) {
-      loadAllProducts().then(setProducts);
+      loadAllProducts().then((items) => {
+        setProducts(items);
+        setProductsLoading(false);
+      });
     }
   }, []);
-  return products;
+  return { products, productsLoading };
 }
 
 // Cache of product IDs that have at least one batch with quantity > 0
@@ -184,7 +188,7 @@ export function SaleCreateEditForm({
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { branches } = useGetBranches();
-  const products = useAllProducts();
+  const { products, productsLoading } = useAllProducts();
   const productIdsWithStock = useProductIdsWithStock();
 
   const defaultValues = {
@@ -334,7 +338,12 @@ export function SaleCreateEditForm({
 
           {/* Line items */}
           <Card>
-            <SaleItems products={products} productIdsWithStock={productIdsWithStock} estimatedTotal={estimatedTotal} />
+            <SaleItems
+              products={products}
+              productsLoading={productsLoading}
+              productIdsWithStock={productIdsWithStock}
+              estimatedTotal={estimatedTotal}
+            />
           </Card>
 
           {/* Payment */}
@@ -364,7 +373,7 @@ export function SaleCreateEditForm({
 
 // ----------------------------------------------------------------------
 
-function SaleItems({ products, productIdsWithStock, estimatedTotal }) {
+function SaleItems({ products, productsLoading, productIdsWithStock, estimatedTotal }) {
   const { control, setValue, getValues } = useFormContext();
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -393,22 +402,34 @@ function SaleItems({ products, productIdsWithStock, estimatedTotal }) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Click de ratón fuera de la zona de escaneo → desactivar modo
+  // Click de ratón fuera de la zona de escaneo → desactivar modo.
+  // Se usa 'click' (no 'mousedown') para que el clic del usuario se complete sobre su objetivo
+  // antes de que el banner colapse y desplace el layout — con 'mousedown' el primer clic se perdía.
   useEffect(() => {
     if (!isScanMode) return undefined;
-    const onMouseDown = (e) => {
+    const onClickOutside = (e) => {
       if (scanZoneRef.current && !scanZoneRef.current.contains(e.target)) {
         setIsScanMode(false);
       }
     };
-    document.addEventListener('mousedown', onMouseDown);
-    return () => document.removeEventListener('mousedown', onMouseDown);
+    document.addEventListener('click', onClickOutside);
+    return () => document.removeEventListener('click', onClickOutside);
   }, [isScanMode]);
 
   const handleBarcodeScan = useCallback(
     (value) => {
       const trimmed = value.trim();
       if (!trimmed) return;
+
+      // El catálogo aún no termina de cargar: no podemos saber si el SKU existe
+      if (productsLoading) {
+        setBarcodeInput('');
+        setScanFlash('error');
+        setTimeout(() => setScanFlash(null), 500);
+        toast.warning('El catálogo aún está cargando, escanea de nuevo en unos segundos');
+        setTimeout(() => barcodeRef.current?.focus(), 50);
+        return;
+      }
 
       const found = products.find(
         (p) => p.sku && p.sku.toLowerCase() === trimmed.toLowerCase()
@@ -441,7 +462,7 @@ function SaleItems({ products, productIdsWithStock, estimatedTotal }) {
 
       setTimeout(() => barcodeRef.current?.focus(), 50);
     },
-    [products, append, getValues, setValue]
+    [products, productsLoading, append, getValues, setValue]
   );
 
   return (
@@ -642,6 +663,7 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
   const { watch, setValue, control, getValues } = useFormContext();
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
+  const [batchesError, setBatchesError] = useState(false);
   const [openAddBatch, setOpenAddBatch] = useState(false);
 
   const productId = watch(`items[${index}].product_id`);
@@ -660,8 +682,9 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
     : products;
 
   const loadBatches = useCallback(async (pid) => {
-    if (!pid) { setBatches([]); return; }
+    if (!pid) { setBatches([]); setBatchesError(false); return; }
     setBatchesLoading(true);
+    setBatchesError(false);
     try {
       const res = await axiosInstance.get(endpoints.productBatch.list, {
         params: { product_id: pid, page: 1, page_size: 50 },
@@ -670,7 +693,9 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
         (res.data?.data ?? []).filter((b) => Number(b.quantity) > 0 && Number(b.product_id) === pid)
       );
     } catch {
+      // Un fallo de red o rate limit NO significa que no haya stock — no lo disfraces de "sin stock"
       setBatches([]);
+      setBatchesError(true);
     } finally {
       setBatchesLoading(false);
     }
@@ -741,6 +766,18 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
               <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
                 Cargando stock…
               </Typography>
+            ) : batchesError ? (
+              <Alert
+                severity="error"
+                sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}
+                action={
+                  <Button color="inherit" size="small" onClick={() => loadBatches(Number(productId))}>
+                    Reintentar
+                  </Button>
+                }
+              >
+                No se pudo verificar el stock.
+              </Alert>
             ) : batches.length > 0 ? (
               <Chip
                 size="small"
@@ -758,7 +795,7 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
             )
           )}
 
-          {productId && (
+          {productId && !batchesError && (
             <Box sx={{ display: 'flex', mt: 0.5 }}>
               <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />} onClick={() => setOpenAddBatch(true)}>
                 {batches.length === 0
