@@ -3,14 +3,15 @@ import { z as zod } from 'zod';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, Controller, FormProvider } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
-import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import Autocomplete from '@mui/material/Autocomplete';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
@@ -57,7 +58,7 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
     },
   });
 
-  const { watch, setError, setValue, handleSubmit, formState: { isSubmitting } } = methods;
+  const { watch, control, setError, setValue, handleSubmit, formState: { isSubmitting } } = methods;
 
   const productId = watch('product_id');
   const selectedProduct = products.find((p) => p.id === Number(productId));
@@ -149,18 +150,49 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
               gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
             }}
           >
-            <Field.Select
+            <Controller
               name="product_id"
-              label="Producto *"
-              disabled={isEdit}
-              sx={{ gridColumn: { sm: 'span 2' } }}
-            >
-              {products.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.title}
-                </MenuItem>
-              ))}
-            </Field.Select>
+              control={control}
+              render={({ field: { value }, fieldState: { error } }) => (
+                <Autocomplete
+                  options={products}
+                  disabled={isEdit}
+                  getOptionLabel={(opt) =>
+                    typeof opt === 'object'
+                      ? opt.title
+                      : products.find((p) => p.id === Number(opt))?.title ?? ''
+                  }
+                  isOptionEqualToValue={(opt, val) =>
+                    opt.id === (typeof val === 'object' ? val?.id : Number(val))
+                  }
+                  value={products.find((p) => p.id === Number(value)) ?? null}
+                  onChange={(_, newValue) =>
+                    setValue('product_id', newValue ? newValue.id : '', { shouldValidate: true })
+                  }
+                  noOptionsText="Sin resultados"
+                  sx={{ gridColumn: { sm: 'span 2' } }}
+                  renderOption={(props, option) => {
+                    // key por id: MUI mete el título como key dentro de props y hay títulos duplicados
+                    // en el catálogo, lo que rompe la reconciliación y deja opciones viejas en el listbox
+                    const { key: _key, ...optionProps } = props;
+                    return (
+                      <li key={option.id} {...optionProps}>
+                        {option.title}
+                      </li>
+                    );
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Producto *"
+                      placeholder="Escribe para buscar…"
+                      error={!!error}
+                      helperText={error?.message}
+                    />
+                  )}
+                />
+              )}
+            />
 
             {tracksBatches && (
               <>

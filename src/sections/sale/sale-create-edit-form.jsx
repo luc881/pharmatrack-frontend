@@ -753,6 +753,16 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
                   }
                 }}
                 noOptionsText={productIdsWithStock ? 'Sin productos con stock' : 'Sin resultados'}
+                renderOption={(props, option) => {
+                  // key por id: MUI mete el título como key dentro de props y hay títulos duplicados
+                  // en el catálogo, lo que rompe la reconciliación y deja opciones viejas en el listbox
+                  const { key: _key, ...optionProps } = props;
+                  return (
+                    <li key={option.id} {...optionProps}>
+                      {option.title}
+                    </li>
+                  );
+                }}
                 renderInput={(params) => (
                   <TextField {...params} label="Producto con stock *" error={!!error} helperText={error?.message} />
                 )}
