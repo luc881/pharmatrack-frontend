@@ -1,4 +1,4 @@
-import { list } from './list';
+﻿import { list } from './list';
 import { card } from './card';
 import { menu } from './menu';
 import { chip } from './chip';
@@ -36,7 +36,6 @@ import { pagination } from './pagination';
 import { iconButton } from './button-icon';
 import { breadcrumbs } from './breadcrumbs';
 import { dataGrid } from './mui-x-data-grid';
-import { treeView } from './mui-x-tree-view';
 import { buttonGroup } from './button-group';
 import { autocomplete } from './autocomplete';
 import { toggleButton } from './button-toggle';
@@ -71,7 +70,7 @@ export const components = {
   ...accordion,
   ...pagination,
   ...breadcrumbs,
-  // ➤➤ Forms ➤➤
+  // âž¤âž¤ Forms âž¤âž¤
   ...form,
   ...radio,
   ...select,
@@ -81,14 +80,13 @@ export const components = {
   ...checkbox,
   ...textField,
   ...autocomplete,
-  // ➤➤ Buttons ➤➤
+  // âž¤âž¤ Buttons âž¤âž¤
   ...fab,
   ...button,
   ...iconButton,
   ...buttonGroup,
   ...toggleButton,
-  // ➤➤ MUI X ➤➤
-  ...treeView,
+  // âž¤âž¤ MUI X âž¤âž¤
   ...dataGrid,
   ...datePicker,
 };

@@ -12,21 +12,13 @@
 /** **************************************
 * Fonts: options
 *************************************** */
-@import '@fontsource-variable/dm-sans';
 @import '@fontsource-variable/inter';
-@import '@fontsource-variable/nunito-sans';
 
 /** **************************************
 * Plugins
 *************************************** */
 /* scrollbar */
 @import './components/scrollbar/styles.css';
-
-/* map */
-@import './components/map/styles.css';
-
-/* lightbox */
-@import './components/lightbox/styles.css';
 
 /* chart */
 @import './components/chart/styles.css';

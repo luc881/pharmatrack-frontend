@@ -70,7 +70,7 @@ export function useGetProduct(productId) {
 // ----------------------------------------------------------------------
 
 export function useGetProductCategories() {
-  const url = [endpoints.productCategories.list, { params: { page: 1, page_size: 500 } }];
+  const url = [endpoints.productCategory.list, { params: { page: 1, page_size: 500 } }];
   const { data, isLoading, mutate } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
@@ -82,7 +82,7 @@ export function useGetProductCategories() {
 // ----------------------------------------------------------------------
 
 export function useGetProductBrands() {
-  const url = [endpoints.productBrands.list, { params: { page: 1, page_size: 500 } }];
+  const url = [endpoints.productBrand.list, { params: { page: 1, page_size: 500 } }];
   const { data, isLoading, mutate } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(

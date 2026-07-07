@@ -35,11 +35,11 @@ vi.mock('src/auth/hooks', () => ({
 // ----------------------------------------------------------------------
 
 describe('RoleBasedGuard', () => {
-  it('muestra el contenido si el usuario tiene el rol permitido', () => {
-    mockUseAuthContext.mockReturnValue({ user: { role: 'admin' } });
+  it('muestra el contenido si el usuario tiene el permiso requerido', () => {
+    mockUseAuthContext.mockReturnValue({ user: { permissions: ['users.read'] } });
 
     render(
-      <RoleBasedGuard allowedRoles={['admin']}>
+      <RoleBasedGuard allowedPermissions={['users.read']}>
         <p>Panel de administración</p>
       </RoleBasedGuard>
     );
@@ -48,11 +48,11 @@ describe('RoleBasedGuard', () => {
     expect(screen.queryByText('Acceso denegado')).not.toBeInTheDocument();
   });
 
-  it('muestra "Acceso denegado" si el usuario no tiene el rol requerido', () => {
-    mockUseAuthContext.mockReturnValue({ user: { role: 'empleado' } });
+  it('muestra "Acceso denegado" si el usuario no tiene el permiso requerido', () => {
+    mockUseAuthContext.mockReturnValue({ user: { permissions: ['sales.read'] } });
 
     render(
-      <RoleBasedGuard allowedRoles={['admin']}>
+      <RoleBasedGuard allowedPermissions={['users.read']}>
         <p>Panel de administración</p>
       </RoleBasedGuard>
     );
@@ -65,7 +65,7 @@ describe('RoleBasedGuard', () => {
     mockUseAuthContext.mockReturnValue({ user: null });
 
     render(
-      <RoleBasedGuard allowedRoles={['admin']}>
+      <RoleBasedGuard allowedPermissions={['users.read']}>
         <p>Contenido protegido</p>
       </RoleBasedGuard>
     );
@@ -73,15 +73,27 @@ describe('RoleBasedGuard', () => {
     expect(screen.getByText('Acceso denegado')).toBeInTheDocument();
   });
 
-  it('permite acceso cuando allowedRoles incluye múltiples roles', () => {
-    mockUseAuthContext.mockReturnValue({ user: { role: 'empleado' } });
+  it('permite acceso si el usuario tiene al menos uno de los permisos', () => {
+    mockUseAuthContext.mockReturnValue({ user: { permissions: ['sales.create'] } });
 
     render(
-      <RoleBasedGuard allowedRoles={['admin', 'empleado']}>
+      <RoleBasedGuard allowedPermissions={['sales.read', 'sales.create']}>
         <p>Ventas</p>
       </RoleBasedGuard>
     );
 
     expect(screen.getByText('Ventas')).toBeInTheDocument();
+  });
+
+  it('permite acceso cuando la ruta no exige permisos', () => {
+    mockUseAuthContext.mockReturnValue({ user: { permissions: [] } });
+
+    render(
+      <RoleBasedGuard>
+        <p>Público interno</p>
+      </RoleBasedGuard>
+    );
+
+    expect(screen.getByText('Público interno')).toBeInTheDocument();
   });
 });

@@ -8,7 +8,6 @@ import { usePathname } from 'src/routes/hooks';
 
 import { LocalizationProvider } from 'src/locales';
 import { themeConfig, ThemeProvider } from 'src/theme';
-import { I18nProvider } from 'src/locales/i18n-provider';
 
 import { Snackbar } from 'src/components/snackbar';
 import { ProgressBar } from 'src/components/progress-bar';
@@ -40,27 +39,25 @@ export default function App({ children }) {
   useScrollToTop();
 
   return (
-    <I18nProvider>
-      <AuthProvider>
-        <UserSettingsProvider>
-          <LocalizationProvider>
-            <ThemeProvider
-              modeStorageKey={themeConfig.modeStorageKey}
-              defaultMode={themeConfig.defaultMode}
-            >
-              <MotionLazy>
-                <Snackbar />
-                <ProgressBar />
-                <SettingsDrawer defaultSettings={defaultSettings} />
-                {children}
-                <Analytics />
-                <SpeedInsights />
-              </MotionLazy>
-            </ThemeProvider>
-          </LocalizationProvider>
-        </UserSettingsProvider>
-      </AuthProvider>
-    </I18nProvider>
+    <AuthProvider>
+      <UserSettingsProvider>
+        <LocalizationProvider>
+          <ThemeProvider
+            modeStorageKey={themeConfig.modeStorageKey}
+            defaultMode={themeConfig.defaultMode}
+          >
+            <MotionLazy>
+              <Snackbar />
+              <ProgressBar />
+              <SettingsDrawer defaultSettings={defaultSettings} />
+              {children}
+              <Analytics />
+              <SpeedInsights />
+            </MotionLazy>
+          </ThemeProvider>
+        </LocalizationProvider>
+      </UserSettingsProvider>
+    </AuthProvider>
   );
 }
 

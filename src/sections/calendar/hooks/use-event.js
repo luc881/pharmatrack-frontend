@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { useMemo } from 'react';
 
-import { CALENDAR_COLOR_OPTIONS } from 'src/_mock/_calendar';
+import { secondary } from 'src/theme/core';
 
 // ----------------------------------------------------------------------
 
@@ -13,7 +13,7 @@ export function useEvent(events, selectedEventId, selectedRange, openForm) {
       id: '',
       title: '',
       description: '',
-      color: CALENDAR_COLOR_OPTIONS[1],
+      color: secondary.main,
       allDay: false,
       start: selectedRange ? selectedRange.start : dayjs(new Date()).format(),
       end: selectedRange ? selectedRange.end : dayjs(new Date()).format(),

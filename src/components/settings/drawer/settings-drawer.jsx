@@ -253,12 +253,7 @@ export function SettingsDrawer({ sx, defaultSettings }) {
             onChangeOption={(newOption) => {
               settings.setState({ fontFamily: newOption });
             }}
-            options={[
-              themeConfig.fontFamily.primary,
-              'Inter Variable',
-              'DM Sans Variable',
-              'Nunito Sans Variable',
-            ]}
+            options={[themeConfig.fontFamily.primary, 'Inter Variable']}
             icon={<SvgIcon sx={{ width: 28, height: 28 }}>{settingIcons.font}</SvgIcon>}
           />
         </SmallBlock>
