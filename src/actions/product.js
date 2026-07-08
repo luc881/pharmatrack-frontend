@@ -93,13 +93,6 @@ export function useGetProductBrands() {
 
 // ----------------------------------------------------------------------
 
-// Stub para el buscador del shop (no usado en el dashboard)
-export function useSearchProducts() {
-  return { searchResults: [], searchLoading: false, searchError: null, searchEmpty: true };
-}
-
-// ----------------------------------------------------------------------
-
 export const createProduct = (data) =>
   axiosInstance.post(endpoints.product.create, data).then((res) => res.data);
 
