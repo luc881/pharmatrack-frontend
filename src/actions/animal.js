@@ -17,6 +17,15 @@ const ALL = { page: 1, page_size: 100 };
 
 // ----------------------------------------------------------------------
 
+// Árbol completo de grupos (anidado vía children)
+export function useAnimalGroupTree() {
+  const { data, isLoading, mutate } = useSWR(endpoints.animalGroup.tree, fetcher, swrOptions);
+  return useMemo(
+    () => ({ groupTree: data ?? [], groupTreeLoading: isLoading, groupTreeMutate: mutate }),
+    [data, isLoading, mutate]
+  );
+}
+
 export function useAllGenera() {
   const url = [endpoints.genus.list, { params: ALL }];
   const { data, isLoading, mutate } = useSWR(url, fetcher, swrOptions);
@@ -46,12 +55,14 @@ export function useAllMorphs(speciesId) {
 
 // ----------------------------------------------------------------------
 
-export function useGetAnimals({ page = 1, pageSize = 10, speciesId, status } = {}) {
+export function useGetAnimals({ page = 1, pageSize = 10, speciesId, status, groupId } = {}) {
   const params = {
     page,
     page_size: pageSize,
     ...(speciesId ? { species_id: speciesId } : {}),
     ...(status ? { status } : {}),
+    // group_id incluye todo el subárbol del grupo
+    ...(groupId ? { group_id: groupId } : {}),
   };
   const url = [endpoints.animal.list, { params }];
 
@@ -83,6 +94,10 @@ export function useGetAnimal(animalId) {
 }
 
 // ----------------------------------------------------------------------
+
+export const createAnimalGroup = (data) => axiosInstance.post(endpoints.animalGroup.create, data).then((r) => r.data);
+export const updateAnimalGroup = (id, data) => axiosInstance.put(endpoints.animalGroup.update(id), data).then((r) => r.data);
+export const deleteAnimalGroup = (id) => axiosInstance.delete(endpoints.animalGroup.delete(id)).then((r) => r.data);
 
 export const createGenus = (data) => axiosInstance.post(endpoints.genus.create, data).then((r) => r.data);
 export const updateGenus = (id, data) => axiosInstance.put(endpoints.genus.update(id), data).then((r) => r.data);

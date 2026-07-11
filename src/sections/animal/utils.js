@@ -10,6 +10,15 @@ export const STATUS_LABELS = { available: 'Disponible', reserved: 'Reservado', s
 
 export const STATUS_COLORS = { available: 'success', reserved: 'warning', sold: 'default' };
 
+// Aplana el árbol de grupos en orden jerárquico, con depth (para sangría)
+// y ancestors (para excluir descendientes al elegir padre)
+export function flattenGroupTree(nodes = [], depth = 0, ancestors = []) {
+  return nodes.flatMap((node) => [
+    { ...node, depth, ancestors },
+    ...flattenGroupTree(node.children ?? [], depth + 1, [...ancestors, node.id]),
+  ]);
+}
+
 // "Ball Python (Python regius)" o "Python regius" si no hay nombre común
 export function speciesLabel(species) {
   if (!species) return '';

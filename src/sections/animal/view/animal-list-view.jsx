@@ -14,7 +14,7 @@ import { RouterLink } from 'src/routes/components';
 import { fCurrency } from 'src/utils/format-number';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { deleteAnimal, useGetAnimals, useAllSpecies } from 'src/actions/animal';
+import { deleteAnimal, useGetAnimals, useAllSpecies, useAnimalGroupTree } from 'src/actions/animal';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -34,7 +34,7 @@ import {
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { SEX_LABELS, speciesLabel, STATUS_COLORS, STATUS_LABELS } from '../utils';
+import { SEX_LABELS, speciesLabel, STATUS_COLORS, STATUS_LABELS, flattenGroupTree } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -49,15 +49,19 @@ export function AnimalListView() {
   const canDelete = user?.permissions?.includes('animals.delete');
 
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 });
+  const [groupFilter, setGroupFilter] = useState('');
   const [speciesFilter, setSpeciesFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [rowToDelete, setRowToDelete] = useState(null);
 
   const { species: allSpecies } = useAllSpecies();
+  const { groupTree } = useAnimalGroupTree();
+  const groupsFlat = flattenGroupTree(groupTree);
 
   const { animals, animalsTotal, animalsLoading, animalsMutate } = useGetAnimals({
     page: paginationModel.page + 1,
     pageSize: paginationModel.pageSize,
+    groupId: groupFilter || undefined,
     speciesId: speciesFilter || undefined,
     status: statusFilter || undefined,
   });
@@ -204,6 +208,21 @@ export function AnimalListView() {
                 <Toolbar>
                   <ToolbarContainer>
                     <ToolbarLeftPanel>
+                      <TextField
+                        select
+                        size="small"
+                        label="Grupo"
+                        value={groupFilter}
+                        onChange={handleFilter(setGroupFilter)}
+                        sx={{ minWidth: 180 }}
+                      >
+                        <MenuItem value="">Todos</MenuItem>
+                        {groupsFlat.map((g) => (
+                          <MenuItem key={g.id} value={g.id} sx={{ pl: 2 + g.depth * 2 }}>
+                            {g.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
                       <TextField
                         select
                         size="small"

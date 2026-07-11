@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 
+import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
@@ -29,6 +30,10 @@ import {
   updateSpecies,
   deleteSpecies,
   useAllSpecies,
+  createAnimalGroup,
+  updateAnimalGroup,
+  deleteAnimalGroup,
+  useAnimalGroupTree,
 } from 'src/actions/animal';
 
 import { toast } from 'src/components/snackbar';
@@ -40,17 +45,19 @@ import { CustomGridActionsCellItem } from 'src/components/custom-data-grid';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { speciesLabel } from '../utils';
+import { speciesLabel, flattenGroupTree } from '../utils';
 
 // ----------------------------------------------------------------------
 
 const TABS = [
+  { value: 'groups', label: 'Grupos', singular: 'grupo', resource: 'animalgroups' },
   { value: 'genera', label: 'Géneros', singular: 'género', resource: 'genera' },
   { value: 'species', label: 'Especies', singular: 'especie', resource: 'species' },
   { value: 'morphs', label: 'Morphs', singular: 'morph', resource: 'morphs' },
 ];
 
 const ACTIONS = {
+  groups: { create: createAnimalGroup, update: updateAnimalGroup, delete: deleteAnimalGroup },
   genera: { create: createGenus, update: updateGenus, delete: deleteGenus },
   species: { create: createSpecies, update: updateSpecies, delete: deleteSpecies },
   morphs: { create: createMorph, update: updateMorph, delete: deleteMorph },
@@ -63,21 +70,29 @@ export function AnimalTaxonomyView() {
 
   const { user } = useAuthContext();
 
-  const [tabValue, setTabValue] = useState('genera');
+  const [tabValue, setTabValue] = useState('groups');
   const [morphSpeciesFilter, setMorphSpeciesFilter] = useState('');
   const [dialog, setDialog] = useState(null); // { current } — abierto si no es null
   const [rowToDelete, setRowToDelete] = useState(null);
 
+  const { groupTree, groupTreeLoading, groupTreeMutate } = useAnimalGroupTree();
   const { genera, generaLoading, generaMutate } = useAllGenera();
   const { species: allSpecies, speciesLoading, speciesMutate } = useAllSpecies();
   const { morphs, morphsLoading, morphsMutate } = useAllMorphs(morphSpeciesFilter || undefined);
 
+  const groupsFlat = flattenGroupTree(groupTree);
   const speciesById = Object.fromEntries(allSpecies.map((s) => [s.id, s]));
 
   const can = (action) =>
     user?.permissions?.includes(`${TABS.find((t) => t.value === tabValue).resource}.${action}`);
 
-  const mutateCurrent = { genera: generaMutate, species: speciesMutate, morphs: morphsMutate }[tabValue];
+  const mutateCurrent = {
+    // renombrar/mover un grupo cambia lo que muestran los géneros
+    groups: () => Promise.all([groupTreeMutate(), generaMutate()]),
+    genera: generaMutate,
+    species: speciesMutate,
+    morphs: morphsMutate,
+  }[tabValue];
 
   const handleConfirmDelete = useCallback(async () => {
     try {
@@ -109,11 +124,32 @@ export function AnimalTaxonomyView() {
   };
 
   const gridProps = {
+    groups: {
+      rows: groupsFlat,
+      loading: groupTreeLoading,
+      columns: [
+        {
+          field: 'name',
+          headerName: 'Nombre',
+          flex: 1,
+          minWidth: 240,
+          sortable: false, // el orden del árbol es la jerarquía
+          renderCell: (params) => (
+            <Box sx={{ pl: params.row.depth * 3 }}>
+              {params.row.depth > 0 && '└ '}
+              {params.row.name}
+            </Box>
+          ),
+        },
+        actionsColumn,
+      ],
+    },
     genera: {
       rows: genera,
       loading: generaLoading,
       columns: [
         { field: 'name', headerName: 'Nombre', flex: 1, minWidth: 200 },
+        { field: 'group', headerName: 'Grupo', flex: 1, minWidth: 160, valueGetter: (v) => v?.name ?? '—' },
         actionsColumn,
       ],
     },
@@ -223,6 +259,7 @@ export function AnimalTaxonomyView() {
           current={dialog.current}
           genera={genera}
           allSpecies={allSpecies}
+          groupsFlat={groupsFlat}
           onClose={() => setDialog(null)}
           onSaved={mutateCurrent}
         />
@@ -249,7 +286,7 @@ export function AnimalTaxonomyView() {
 
 // ----------------------------------------------------------------------
 
-function TaxonDialog({ tab, singular, current, genera, allSpecies, onClose, onSaved }) {
+function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, onClose, onSaved }) {
   const isEdit = !!current;
 
   const [form, setForm] = useState({
@@ -258,10 +295,17 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, onClose, onSa
     description: current?.description ?? '',
     genus_id: current?.genus_id ?? current?.genus?.id ?? '',
     species_id: current?.species_id ?? '',
+    parent_id: current?.parent_id ?? '',
+    group_id: current?.group_id ?? current?.group?.id ?? '',
   });
   const [saving, setSaving] = useState(false);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  // Un grupo no puede colgar de sí mismo ni de sus descendientes
+  const parentOptions = groupsFlat.filter(
+    (g) => !current || (g.id !== current.id && !g.ancestors.includes(current.id))
+  );
 
   const missingParent =
     (tab === 'species' && !form.genus_id) || (tab === 'morphs' && !form.species_id);
@@ -270,7 +314,8 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, onClose, onSa
     setSaving(true);
     try {
       const payload = {
-        genera: { name: form.name },
+        groups: { name: form.name, parent_id: form.parent_id ? Number(form.parent_id) : null },
+        genera: { name: form.name, group_id: form.group_id ? Number(form.group_id) : null },
         species: { genus_id: Number(form.genus_id), name: form.name, common_name: form.common_name || null },
         morphs: { species_id: Number(form.species_id), name: form.name, description: form.description || null },
       }[tab];
@@ -296,6 +341,17 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, onClose, onSa
       <DialogTitle>{`${isEdit ? 'Editar' : 'Nuevo'} ${singular}`}</DialogTitle>
 
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+        {tab === 'groups' && (
+          <TextField select label="Grupo padre" value={form.parent_id} onChange={set('parent_id')} sx={{ mt: 1 }}>
+            <MenuItem value="">— Raíz —</MenuItem>
+            {parentOptions.map((g) => (
+              <MenuItem key={g.id} value={g.id} sx={{ pl: 2 + g.depth * 2 }}>
+                {g.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
+
         {tab === 'species' && (
           <TextField select label="Género *" value={form.genus_id} onChange={set('genus_id')} sx={{ mt: 1 }}>
             {genera.map((g) => (
@@ -322,6 +378,17 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, onClose, onSa
           onChange={set('name')}
           sx={{ mt: tab === 'genera' ? 1 : 0 }}
         />
+
+        {tab === 'genera' && (
+          <TextField select label="Grupo" value={form.group_id} onChange={set('group_id')}>
+            <MenuItem value="">Sin grupo</MenuItem>
+            {groupsFlat.map((g) => (
+              <MenuItem key={g.id} value={g.id} sx={{ pl: 2 + g.depth * 2 }}>
+                {g.name}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
 
         {tab === 'species' && (
           <TextField label="Nombre común" value={form.common_name} onChange={set('common_name')} />

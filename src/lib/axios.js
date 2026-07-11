@@ -193,6 +193,14 @@ export const endpoints = {
     update: (id) => `/api/v1/ingredients/${id}`,
     delete: (id) => `/api/v1/ingredients/${id}`,
   },
+  animalGroup: {
+    list: '/api/v1/animal-groups',
+    tree: '/api/v1/animal-groups/tree',
+    details: (id) => `/api/v1/animal-groups/${id}`,
+    create: '/api/v1/animal-groups',
+    update: (id) => `/api/v1/animal-groups/${id}`,
+    delete: (id) => `/api/v1/animal-groups/${id}`,
+  },
   genus: {
     list: '/api/v1/genera',
     details: (id) => `/api/v1/genera/${id}`,
