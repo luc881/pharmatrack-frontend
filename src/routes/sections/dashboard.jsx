@@ -71,6 +71,11 @@ const RefundProductCreatePage = lazy(() => import('src/pages/dashboard/refund-pr
 const BranchListPage   = lazy(() => import('src/pages/dashboard/branch/list'));
 const BranchCreatePage = lazy(() => import('src/pages/dashboard/branch/new'));
 const BranchEditPage   = lazy(() => import('src/pages/dashboard/branch/edit'));
+// Animal
+const AnimalListPage     = lazy(() => import('src/pages/dashboard/animal/list'));
+const AnimalCreatePage   = lazy(() => import('src/pages/dashboard/animal/new'));
+const AnimalEditPage     = lazy(() => import('src/pages/dashboard/animal/edit'));
+const AnimalTaxonomyPage = lazy(() => import('src/pages/dashboard/animal/taxonomy'));
 // Calendar
 const CalendarPage = lazy(() => import('src/pages/dashboard/calendar'));
 // Sensor
@@ -117,6 +122,9 @@ const P = {
   // Refund products
   refundProductsCreate: ['refundproducts.create'],
   refundProductsDelete: ['refundproducts.delete'],
+  // Animals
+  animalsCreate: ['animals.create'],
+  animalsUpdate: ['animals.update'],
 };
 
 function guard(allowedPermissions, element) {
@@ -294,6 +302,18 @@ export const dashboardRoutes = [
           { path: 'list',     element: guard(P.branchesRead,   <BranchListPage />) },
           { path: 'new',      element: guard(P.branchesCreate, <BranchCreatePage />) },
           { path: ':id/edit', element: guard(P.branchesUpdate, <BranchEditPage />) },
+        ],
+      },
+
+      // ── Animals ─────────────────────────────────────────────────────
+      {
+        path: 'animal',
+        children: [
+          { index: true,        element: <AnimalListPage /> },
+          { path: 'list',       element: <AnimalListPage /> },
+          { path: 'taxonomy',   element: <AnimalTaxonomyPage /> },
+          { path: 'new',        element: guard(P.animalsCreate, <AnimalCreatePage />) },
+          { path: ':id/edit',   element: guard(P.animalsUpdate, <AnimalEditPage />) },
         ],
       },
 

@@ -89,6 +89,12 @@ export const paths = {
       details: (id) => `${ROOTS.DASHBOARD}/purchase/${id}`,
       edit: (id) => `${ROOTS.DASHBOARD}/purchase/${id}/edit`,
     },
+    animal: {
+      root: `${ROOTS.DASHBOARD}/animal`,
+      new: `${ROOTS.DASHBOARD}/animal/new`,
+      taxonomy: `${ROOTS.DASHBOARD}/animal/taxonomy`,
+      edit: (id) => `${ROOTS.DASHBOARD}/animal/${id}/edit`,
+    },
     product: {
       root: `${ROOTS.DASHBOARD}/product`,
       new: `${ROOTS.DASHBOARD}/product/new`,

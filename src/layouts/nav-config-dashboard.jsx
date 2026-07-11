@@ -130,6 +130,16 @@ export const navData = [
         ],
       },
       {
+        title: 'Animales',
+        path: paths.dashboard.animal.root,
+        icon: ICONS.tour,
+        children: [
+          { title: 'Lista',     path: paths.dashboard.animal.root },
+          { title: 'Nuevo',     path: paths.dashboard.animal.new, allowedRoles: ['animals.create'] },
+          { title: 'Taxonomía', path: paths.dashboard.animal.taxonomy },
+        ],
+      },
+      {
         title: 'Ventas',
         path: paths.dashboard.sale.root,
         icon: ICONS.ecommerce,
