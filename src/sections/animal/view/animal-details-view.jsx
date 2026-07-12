@@ -175,12 +175,15 @@ export function AnimalDetailsView({ animal }) {
                 </Label>
               ) : (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  {/* Label es nowrap/altura fija; el folio largo debe poder saltar de línea en móvil */}
+                  {/* Label es nowrap, altura fija y flexShrink:0; sin estos overrides
+                      un folio largo desborda la tarjeta en móvil en vez de saltar de línea */}
                   <Label
                     variant="soft"
                     color="success"
                     sx={{
                       py: 0.5,
+                      maxWidth: 1,
+                      flexShrink: 1,
                       height: 'auto',
                       minHeight: 24,
                       lineHeight: 1.4,
