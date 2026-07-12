@@ -175,7 +175,20 @@ export function AnimalDetailsView({ animal }) {
                 </Label>
               ) : (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <Label variant="soft" color="success">
+                  {/* Label es nowrap/altura fija; el folio largo debe poder saltar de línea en móvil */}
+                  <Label
+                    variant="soft"
+                    color="success"
+                    sx={{
+                      py: 0.5,
+                      height: 'auto',
+                      minHeight: 24,
+                      lineHeight: 1.4,
+                      textAlign: 'left',
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                    }}
+                  >
                     {animal.legal_doc}
                   </Label>
                   {animal.legal_doc_url && (
