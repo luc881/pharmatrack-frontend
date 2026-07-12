@@ -1,7 +1,7 @@
 import { mutate } from 'swr';
 import { z as zod } from 'zod';
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
 
@@ -9,15 +9,19 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
 import { endpoints } from 'src/lib/axios';
+import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { useAllMorphs, createAnimal, updateAnimal, useAllSpecies } from 'src/actions/animal';
 
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Field } from 'src/components/hook-form';
 
 import { SEX_OPTIONS, speciesLabel } from './utils';
@@ -37,6 +41,10 @@ const schema = zod.object({
   description: zod.string().optional(),
   image: zod.string().optional(),
   status: zod.enum(['available', 'reserved']).optional(),
+  photos: zod.array(zod.string()),
+  requires_legal_doc: zod.boolean(),
+  legal_doc: zod.string().optional(),
+  legal_doc_url: zod.string().optional(),
 });
 
 // ----------------------------------------------------------------------
@@ -60,6 +68,10 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       description: '',
       image: '',
       status: 'available',
+      photos: [],
+      requires_legal_doc: false,
+      legal_doc: '',
+      legal_doc_url: '',
     },
     values: currentAnimal
       ? {
@@ -73,6 +85,10 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           description: currentAnimal.description ?? '',
           image: currentAnimal.image ?? '',
           status: currentAnimal.status === 'reserved' ? 'reserved' : 'available',
+          photos: currentAnimal.photos ?? [],
+          requires_legal_doc: !!currentAnimal.requires_legal_doc,
+          legal_doc: currentAnimal.legal_doc ?? '',
+          legal_doc_url: currentAnimal.legal_doc_url ?? '',
         }
       : undefined,
   });
@@ -99,6 +115,26 @@ export function AnimalCreateEditForm({ currentAnimal }) {
 
   const isSold = currentAnimal?.status === 'sold';
 
+  const photos = watch('photos');
+  const requiresLegalDoc = watch('requires_legal_doc');
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [photoUrlInput, setPhotoUrlInput] = useState('');
+
+  const addPhotoFiles = async (files) => {
+    setPhotosLoading(true);
+    try {
+      const urls = await Promise.all([...files].map((f) => uploadToCloudinary(f)));
+      setValue('photos', [...getValues('photos'), ...urls], { shouldDirty: true });
+    } catch {
+      toast.error('Error al subir las fotos');
+    } finally {
+      setPhotosLoading(false);
+    }
+  };
+
+  const removePhoto = (index) =>
+    setValue('photos', getValues('photos').filter((_, i) => i !== index), { shouldDirty: true });
+
   const onSubmit = handleSubmit(async (data) => {
     try {
       const payload = {
@@ -110,6 +146,11 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         morph_ids: data.morphs.map((m) => m.id),
         description: data.description || null,
         image: data.image || null,
+        // replace-all: siempre se manda la lista completa resultante
+        photos: data.photos,
+        requires_legal_doc: data.requires_legal_doc,
+        legal_doc: data.requires_legal_doc ? data.legal_doc || null : null,
+        legal_doc_url: data.requires_legal_doc ? data.legal_doc_url || null : null,
         // si se omite el código, el backend genera uno "AN-XXXXXXXX"
         ...(data.code ? { code: data.code } : {}),
         // "sold" solo lo asigna el flujo de venta — nunca se manda desde aquí
@@ -237,6 +278,107 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               sx={{ gridColumn: { sm: 'span 2' } }}
               slotProps={{ inputLabel: { shrink: true } }}
             />
+
+            {/* Documentación legal (SEMARNAT) — opcional por animal */}
+            <Field.Switch
+              name="requires_legal_doc"
+              label="Requiere documentación legal (SEMARNAT)"
+              sx={{ gridColumn: { sm: 'span 2' } }}
+            />
+
+            {requiresLegalDoc && (
+              <>
+                <Field.Text
+                  name="legal_doc"
+                  label="Folio del documento"
+                  helperText="Folio/referencia de procedencia legal"
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <Field.Text
+                  name="legal_doc_url"
+                  label="URL del documento"
+                  helperText="Enlace al documento escaneado"
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+              </>
+            )}
+
+            {/* Fotos — replace-all: la lista que se ve es la que se guarda */}
+            <Box sx={{ gridColumn: { sm: 'span 2' } }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Fotos
+              </Typography>
+
+              {photos.length > 0 && (
+                <Box sx={{ mb: 2, gap: 1, display: 'flex', flexWrap: 'wrap' }}>
+                  {photos.map((url, index) => (
+                    <Box key={`${url}-${index}`} sx={{ position: 'relative' }}>
+                      <Box
+                        component="img"
+                        src={url}
+                        alt={`Foto ${index + 1}`}
+                        sx={{ width: 96, height: 96, borderRadius: 1, objectFit: 'cover' }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={() => removePhoto(index)}
+                        sx={{
+                          top: 2,
+                          right: 2,
+                          position: 'absolute',
+                          bgcolor: 'background.paper',
+                          '&:hover': { bgcolor: 'background.paper' },
+                        }}
+                      >
+                        <Iconify icon="mingcute:close-line" width={14} />
+                      </IconButton>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+
+              <Box sx={{ gap: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+                <Button
+                  component="label"
+                  variant="outlined"
+                  loading={photosLoading}
+                  startIcon={<Iconify icon="solar:camera-add-bold" />}
+                >
+                  Subir fotos
+                  <input
+                    hidden
+                    multiple
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files?.length) addPhotoFiles(e.target.files);
+                      e.target.value = '';
+                    }}
+                  />
+                </Button>
+
+                <TextField
+                  size="small"
+                  label="o pega una URL"
+                  value={photoUrlInput}
+                  onChange={(e) => setPhotoUrlInput(e.target.value)}
+                  sx={{ minWidth: 240 }}
+                />
+                <Button
+                  disabled={!photoUrlInput.trim()}
+                  onClick={() => {
+                    setValue('photos', [...getValues('photos'), photoUrlInput.trim()], { shouldDirty: true });
+                    setPhotoUrlInput('');
+                  }}
+                >
+                  Agregar
+                </Button>
+              </Box>
+
+              <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
+                Si no se indica una imagen principal, la primera foto se usa como principal (también en el POS).
+              </Typography>
+            </Box>
           </Box>
 
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>

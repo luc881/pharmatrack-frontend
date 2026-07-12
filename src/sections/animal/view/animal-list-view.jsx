@@ -143,6 +143,24 @@ export function AnimalListView() {
       ),
     },
     {
+      field: 'legal_doc',
+      headerName: 'Doc. legal',
+      width: 130,
+      sortable: false,
+      renderCell: (params) => {
+        if (!params.row.requires_legal_doc) return '—';
+        return params.row.legal_doc ? (
+          <Label variant="soft" color="success">
+            {params.row.legal_doc}
+          </Label>
+        ) : (
+          <Label variant="soft" color="warning">
+            Pendiente
+          </Label>
+        );
+      },
+    },
+    {
       type: 'actions',
       field: 'actions',
       headerName: ' ',
