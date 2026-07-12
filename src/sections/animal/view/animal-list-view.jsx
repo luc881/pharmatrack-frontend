@@ -60,7 +60,7 @@ export function AnimalListView() {
   const { groupTree } = useAnimalGroupTree();
   const groupsFlat = flattenGroupTree(groupTree);
 
-  const { animals, animalsTotal, animalsLoading, animalsMutate } = useGetAnimals({
+  const { animals, animalsTotal, animalsLoading, animalsError, animalsMutate } = useGetAnimals({
     page: paginationModel.page + 1,
     pageSize: paginationModel.pageSize,
     groupId: groupFilter || undefined,
@@ -257,7 +257,16 @@ export function AnimalListView() {
             onPaginationModelChange={setPaginationModel}
             pageSizeOptions={[25, 50, 100]}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              // un 403 (rol sin animals.read) se veía como lista vacía — mostrar el error
+              noRowsOverlay: () =>
+                animalsError ? (
+                  <EmptyContent
+                    title="No se pudieron cargar los animales"
+                    description={animalsError.message}
+                  />
+                ) : (
+                  <EmptyContent />
+                ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               toolbar: () => (
                 <Toolbar>
