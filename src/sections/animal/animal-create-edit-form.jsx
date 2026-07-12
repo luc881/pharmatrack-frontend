@@ -16,6 +16,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
+import { handleApiError } from 'src/utils/handle-api-error';
+
 import { endpoints } from 'src/lib/axios';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { useAllMorphs, createAnimal, updateAnimal, useAllSpecies } from 'src/actions/animal';
@@ -95,6 +97,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
 
   const {
     watch,
+    setError,
     setValue,
     getValues,
     handleSubmit,
@@ -167,7 +170,9 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       mutate((key) => Array.isArray(key) && key[0] === endpoints.animal.list);
       navigate(paths.dashboard.animal.root);
     } catch (error) {
-      toast.error(error.message || 'Error al guardar el animal');
+      if (!handleApiError(error, setError)) {
+        toast.error(error.message || 'Error al guardar el animal');
+      }
     }
   });
 

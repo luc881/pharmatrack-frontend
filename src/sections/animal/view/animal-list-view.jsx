@@ -2,6 +2,8 @@ import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useState, useCallback } from 'react';
 
 import Card from '@mui/material/Card';
+import Link from '@mui/material/Link';
+import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -97,7 +99,31 @@ export function AnimalListView() {
   }, [rowToDelete, animalsMutate, confirmDialog]);
 
   const columns = [
-    { field: 'code', headerName: 'Código', width: 140, hideable: false },
+    {
+      field: 'code',
+      headerName: 'Código',
+      width: 200,
+      hideable: false,
+      renderCell: (params) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Avatar
+            src={params.row.image || params.row.photos?.[0] || ''}
+            variant="rounded"
+            sx={{ width: 36, height: 36, bgcolor: 'background.neutral' }}
+          >
+            <Iconify icon="solar:camera-bold" width={18} />
+          </Avatar>
+          <Link
+            component={RouterLink}
+            href={paths.dashboard.animal.details(params.row.id)}
+            color="inherit"
+            underline="hover"
+          >
+            {params.row.code}
+          </Link>
+        </div>
+      ),
+    },
     {
       field: 'species',
       headerName: 'Especie',
@@ -149,14 +175,24 @@ export function AnimalListView() {
       sortable: false,
       renderCell: (params) => {
         if (!params.row.requires_legal_doc) return '—';
-        return params.row.legal_doc ? (
-          <Label variant="soft" color="success">
+        if (!params.row.legal_doc) {
+          return (
+            <Label variant="soft" color="warning">
+              Pendiente
+            </Label>
+          );
+        }
+        const folio = (
+          <Label variant="soft" color="success" sx={{ cursor: params.row.legal_doc_url ? 'pointer' : 'default' }}>
             {params.row.legal_doc}
           </Label>
+        );
+        return params.row.legal_doc_url ? (
+          <Link href={params.row.legal_doc_url} target="_blank" rel="noopener" underline="none">
+            {folio}
+          </Link>
         ) : (
-          <Label variant="soft" color="warning">
-            Pendiente
-          </Label>
+          folio
         );
       },
     },
@@ -171,6 +207,7 @@ export function AnimalListView() {
       filterable: false,
       disableColumnMenu: true,
       getActions: (params) => [
+        <CustomGridActionsCellItem showInMenu label="Ver detalle" icon={<Iconify icon="solar:eye-bold" />} href={paths.dashboard.animal.details(params.row.id)} />,
         ...(canUpdate ? [<CustomGridActionsCellItem showInMenu label="Editar" icon={<Iconify icon="solar:pen-bold" />} href={paths.dashboard.animal.edit(params.row.id)} />] : []),
         ...(canDelete && params.row.status !== 'sold' ? [<CustomGridActionsCellItem showInMenu label="Eliminar" icon={<Iconify icon="solar:trash-bin-trash-bold" />} onClick={() => handleDeleteRow(params.row.id)} style={{ color: theme.vars.palette.error.main }} />] : []),
       ],

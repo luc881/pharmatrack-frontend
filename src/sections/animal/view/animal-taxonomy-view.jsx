@@ -16,6 +16,8 @@ import { DataGrid, gridClasses } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
 
+import { handleApiError } from 'src/utils/handle-api-error';
+
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   createGenus,
@@ -299,6 +301,7 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
     group_id: current?.group_id ?? current?.group?.id ?? '',
   });
   const [saving, setSaving] = useState(false);
+  const [nameError, setNameError] = useState('');
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -330,7 +333,10 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
       await onSaved();
       onClose();
     } catch (error) {
-      toast.error(error.message || 'Error al guardar');
+      // los duplicados van como error inline en el campo Nombre
+      if (!handleApiError(error, (_field, { message }) => setNameError(message))) {
+        toast.error(error.message || 'Error al guardar');
+      }
     } finally {
       setSaving(false);
     }
@@ -375,7 +381,12 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
         <TextField
           label={tab === 'species' ? 'Nombre científico *' : 'Nombre *'}
           value={form.name}
-          onChange={set('name')}
+          onChange={(e) => {
+            setNameError('');
+            set('name')(e);
+          }}
+          error={!!nameError}
+          helperText={nameError}
           sx={{ mt: tab === 'genera' ? 1 : 0 }}
         />
 

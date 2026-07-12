@@ -125,6 +125,19 @@ function useProductIdsWithStock() {
   return productIds; // null while loading, Set<number> when ready
 }
 
+// Product IDs de animales reservados — se marcan como no vendibles en el selector.
+// Sin cache: las reservas cambian seguido; si la carga falla, el 400 del complete protege igual.
+function useReservedAnimalProductIds() {
+  const [ids, setIds] = useState(() => new Set());
+  useEffect(() => {
+    axiosInstance
+      .get(endpoints.animal.list, { params: { page: 1, page_size: 100, status: 'reserved' } })
+      .then((r) => setIds(new Set((r.data?.data ?? []).map((a) => Number(a.product_id)))))
+      .catch(() => {});
+  }, []);
+  return ids;
+}
+
 // ----------------------------------------------------------------------
 
 const PAYMENT_METHODS = [
@@ -190,6 +203,7 @@ export function SaleCreateEditForm({
   const { branches } = useGetBranches();
   const { products, productsLoading } = useAllProducts();
   const productIdsWithStock = useProductIdsWithStock();
+  const reservedProductIds = useReservedAnimalProductIds();
 
   const defaultValues = {
     branch_id: currentSale?.branch_id ?? (branches[0]?.id ?? ''),
@@ -342,6 +356,7 @@ export function SaleCreateEditForm({
               products={products}
               productsLoading={productsLoading}
               productIdsWithStock={productIdsWithStock}
+              reservedProductIds={reservedProductIds}
               estimatedTotal={estimatedTotal}
             />
           </Card>
@@ -373,7 +388,7 @@ export function SaleCreateEditForm({
 
 // ----------------------------------------------------------------------
 
-function SaleItems({ products, productsLoading, productIdsWithStock, estimatedTotal }) {
+function SaleItems({ products, productsLoading, productIdsWithStock, reservedProductIds, estimatedTotal }) {
   const { control, setValue, getValues } = useFormContext();
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -638,7 +653,7 @@ function SaleItems({ products, productsLoading, productIdsWithStock, estimatedTo
 
       <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
         {fields.map((field, index) => (
-          <SaleItem key={field.id} index={index} products={products} productIdsWithStock={productIdsWithStock} onRemove={() => remove(index)} />
+          <SaleItem key={field.id} index={index} products={products} productIdsWithStock={productIdsWithStock} reservedProductIds={reservedProductIds} onRemove={() => remove(index)} />
         ))}
       </Stack>
 
@@ -666,7 +681,7 @@ function SaleItems({ products, productsLoading, productIdsWithStock, estimatedTo
 
 // ----------------------------------------------------------------------
 
-function SaleItem({ index, products, productIdsWithStock, onRemove }) {
+function SaleItem({ index, products, productIdsWithStock, reservedProductIds, onRemove }) {
   const { watch, setValue, control, getValues } = useFormContext();
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
@@ -760,6 +775,7 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
                   }
                 }}
                 noOptionsText={productIdsWithStock ? 'Sin productos con stock' : 'Sin resultados'}
+                getOptionDisabled={(opt) => reservedProductIds.has(opt.id)}
                 renderOption={(props, option) => {
                   // key por id: MUI mete el título como key dentro de props y hay títulos duplicados
                   // en el catálogo, lo que rompe la reconciliación y deja opciones viejas en el listbox
@@ -767,6 +783,9 @@ function SaleItem({ index, products, productIdsWithStock, onRemove }) {
                   return (
                     <li key={option.id} {...optionProps}>
                       {option.title}
+                      {reservedProductIds.has(option.id) && (
+                        <Chip size="small" variant="soft" color="warning" label="Reservado" sx={{ ml: 1 }} />
+                      )}
                     </li>
                   );
                 }}

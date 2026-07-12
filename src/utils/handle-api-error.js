@@ -67,6 +67,33 @@ const FIELD_ERROR_RULES = [
     message: 'Este RFC ya está en uso',
   },
 
+  // ── Animals ──────────────────────────────────────────────────────────────
+  {
+    match: 'An animal with this code already exists',
+    field: 'code',
+    message: 'Este código ya está en uso',
+  },
+  {
+    match: 'An animal group with this name already exists at this level',
+    field: 'name',
+    message: 'Ya existe un grupo con este nombre en este nivel',
+  },
+  {
+    match: 'A genus with this name already exists',
+    field: 'name',
+    message: 'Ya existe un género con este nombre',
+  },
+  {
+    match: 'A species with this name already exists in this genus',
+    field: 'name',
+    message: 'Ya existe una especie con este nombre en este género',
+  },
+  {
+    match: 'A morph with this name already exists for this species',
+    field: 'name',
+    message: 'Ya existe un morph con este nombre para esta especie',
+  },
+
   // ── Generic catch-all for product_brand / product_master ─────────────────
   // Messages like "The brand 'X' already exists." / "Product master with name 'X' already exists."
   {
