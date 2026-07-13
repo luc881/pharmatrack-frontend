@@ -59,6 +59,19 @@ export function AnimalDetailsView({ animal }) {
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Animales', href: paths.dashboard.animal.root },
+          // género y especie enlazan al listado ya filtrado
+          ...(animal.species?.genus
+            ? [{
+                name: animal.species.genus.name,
+                href: `${paths.dashboard.animal.root}?genus_id=${animal.species.genus.id}`,
+              }]
+            : []),
+          ...(animal.species
+            ? [{
+                name: animal.species.common_name || animal.species.name,
+                href: `${paths.dashboard.animal.root}?species_id=${animal.species.id}`,
+              }]
+            : []),
           { name: animal.code },
         ]}
         action={canUpdate && (

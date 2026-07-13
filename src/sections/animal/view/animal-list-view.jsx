@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useState, useCallback } from 'react';
 
@@ -16,7 +17,7 @@ import { RouterLink } from 'src/routes/components';
 import { fCurrency } from 'src/utils/format-number';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { deleteAnimal, useGetAnimals, useAllSpecies, useAnimalGroupTree } from 'src/actions/animal';
+import { deleteAnimal, useAllGenera, useGetAnimals, useAllSpecies, useAnimalGroupTree } from 'src/actions/animal';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -50,20 +51,30 @@ export function AnimalListView() {
   const canUpdate = user?.permissions?.includes('animals.update');
   const canDelete = user?.permissions?.includes('animals.delete');
 
+  // El breadcrumb del detalle enlaza aquí con ?genus_id= / ?species_id=
+  const [searchParams] = useSearchParams();
+
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 });
   const [groupFilter, setGroupFilter] = useState('');
-  const [speciesFilter, setSpeciesFilter] = useState('');
+  const [genusFilter, setGenusFilter] = useState(() => Number(searchParams.get('genus_id')) || '');
+  const [speciesFilter, setSpeciesFilter] = useState(() => Number(searchParams.get('species_id')) || '');
   const [statusFilter, setStatusFilter] = useState('');
   const [rowToDelete, setRowToDelete] = useState(null);
 
+  const { genera: allGenera } = useAllGenera();
   const { species: allSpecies } = useAllSpecies();
   const { groupTree } = useAnimalGroupTree();
   const groupsFlat = flattenGroupTree(groupTree);
+
+  const speciesOptions = genusFilter
+    ? allSpecies.filter((s) => s.genus?.id === Number(genusFilter))
+    : allSpecies;
 
   const { animals, animalsTotal, animalsLoading, animalsError, animalsMutate } = useGetAnimals({
     page: paginationModel.page + 1,
     pageSize: paginationModel.pageSize,
     groupId: groupFilter || undefined,
+    genusId: genusFilter || undefined,
     speciesId: speciesFilter || undefined,
     status: statusFilter || undefined,
   });
@@ -304,13 +315,32 @@ export function AnimalListView() {
                       <TextField
                         select
                         size="small"
+                        label="Género"
+                        value={genusFilter}
+                        onChange={(e) => {
+                          setGenusFilter(e.target.value);
+                          setSpeciesFilter('');
+                          setPaginationModel((prev) => ({ ...prev, page: 0 }));
+                        }}
+                        sx={{ minWidth: 150 }}
+                      >
+                        <MenuItem value="">Todos</MenuItem>
+                        {allGenera.map((g) => (
+                          <MenuItem key={g.id} value={g.id}>
+                            {g.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                      <TextField
+                        select
+                        size="small"
                         label="Especie"
                         value={speciesFilter}
                         onChange={handleFilter(setSpeciesFilter)}
                         sx={{ minWidth: 220 }}
                       >
                         <MenuItem value="">Todas</MenuItem>
-                        {allSpecies.map((s) => (
+                        {speciesOptions.map((s) => (
                           <MenuItem key={s.id} value={s.id}>
                             {speciesLabel(s)}
                           </MenuItem>

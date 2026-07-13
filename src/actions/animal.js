@@ -55,11 +55,12 @@ export function useAllMorphs(speciesId) {
 
 // ----------------------------------------------------------------------
 
-export function useGetAnimals({ page = 1, pageSize = 10, speciesId, status, groupId } = {}) {
+export function useGetAnimals({ page = 1, pageSize = 10, speciesId, genusId, status, groupId } = {}) {
   const params = {
     page,
     page_size: pageSize,
     ...(speciesId ? { species_id: speciesId } : {}),
+    ...(genusId ? { genus_id: genusId } : {}),
     ...(status ? { status } : {}),
     // group_id incluye todo el subárbol del grupo
     ...(groupId ? { group_id: groupId } : {}),
