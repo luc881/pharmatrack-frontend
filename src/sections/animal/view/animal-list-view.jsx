@@ -126,11 +126,25 @@ export function AnimalListView() {
     },
     {
       field: 'species',
-      headerName: 'Especie',
+      headerName: 'Nombre común',
       flex: 1,
-      minWidth: 200,
+      minWidth: 150,
       sortable: false,
-      valueGetter: (v) => speciesLabel(v) || '—',
+      valueGetter: (v) => v?.common_name ?? '—',
+    },
+    {
+      field: 'genus',
+      headerName: 'Género',
+      width: 130,
+      sortable: false,
+      valueGetter: (_, row) => row.species?.genus?.name ?? '—',
+    },
+    {
+      field: 'species_name',
+      headerName: 'Especie',
+      width: 130,
+      sortable: false,
+      valueGetter: (_, row) => row.species?.name ?? '—',
     },
     {
       field: 'morphs',

@@ -22,7 +22,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { SEX_LABELS, speciesLabel, STATUS_COLORS, STATUS_LABELS } from '../utils';
+import { SEX_LABELS, STATUS_COLORS, STATUS_LABELS } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -147,7 +147,9 @@ export function AnimalDetailsView({ animal }) {
 
             <Divider sx={{ borderStyle: 'dashed' }} />
 
-            <InfoRow label="Especie">{speciesLabel(animal.species) || '—'}</InfoRow>
+            <InfoRow label="Nombre común">{animal.species?.common_name ?? '—'}</InfoRow>
+            <InfoRow label="Género">{animal.species?.genus?.name ?? '—'}</InfoRow>
+            <InfoRow label="Especie">{animal.species?.name ?? '—'}</InfoRow>
             {group && <InfoRow label="Grupo">{group.name}</InfoRow>}
             <InfoRow label="Morphs">
               {animal.morphs?.length ? (

@@ -20,13 +20,13 @@ import { handleApiError } from 'src/utils/handle-api-error';
 
 import { endpoints } from 'src/lib/axios';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
-import { useAllMorphs, createAnimal, updateAnimal, useAllSpecies } from 'src/actions/animal';
+import { useAllGenera, useAllMorphs, createAnimal, updateAnimal, useAllSpecies } from 'src/actions/animal';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Field } from 'src/components/hook-form';
 
-import { SEX_OPTIONS, speciesLabel } from './utils';
+import { SEX_OPTIONS } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -55,7 +55,15 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const navigate = useNavigate();
   const isEdit = !!currentAnimal;
 
+  const { genera } = useAllGenera();
   const { species: allSpecies } = useAllSpecies();
+
+  // El género no viaja en el payload (solo species_id); es un filtro en cascada
+  const [genusId, setGenusId] = useState('');
+
+  useEffect(() => {
+    if (currentAnimal?.species?.genus?.id) setGenusId(currentAnimal.species.genus.id);
+  }, [currentAnimal]);
 
   const methods = useForm({
     resolver: zodResolver(schema),
@@ -185,12 +193,36 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           </Typography>
 
           <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
-            <Field.Select name="species_id" label="Especie *">
-              {allSpecies.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {speciesLabel(s)}
+            <TextField
+              select
+              label="Género *"
+              value={genusId}
+              onChange={(e) => {
+                setGenusId(e.target.value);
+                setValue('species_id', '');
+              }}
+            >
+              {genera.map((g) => (
+                <MenuItem key={g.id} value={g.id}>
+                  {g.name}
                 </MenuItem>
               ))}
+            </TextField>
+
+            <Field.Select
+              name="species_id"
+              label="Especie *"
+              disabled={!genusId}
+              helperText={genusId ? '' : 'Selecciona primero un género'}
+            >
+              {allSpecies
+                .filter((s) => s.genus?.id === Number(genusId))
+                .map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                    {s.common_name ? ` — ${s.common_name}` : ''}
+                  </MenuItem>
+                ))}
             </Field.Select>
 
             <Field.Autocomplete
