@@ -66,9 +66,10 @@ export function AnimalDetailsView({ animal }) {
                 href: `${paths.dashboard.animal.root}?genus_id=${animal.species.genus.id}`,
               }]
             : []),
+          // nombre científico; el común se muestra en el cuerpo del detalle
           ...(animal.species
             ? [{
-                name: animal.species.common_name || animal.species.name,
+                name: animal.species.name,
                 href: `${paths.dashboard.animal.root}?species_id=${animal.species.id}`,
               }]
             : []),
