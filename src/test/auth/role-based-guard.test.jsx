@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { it, vi, expect, describe } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';

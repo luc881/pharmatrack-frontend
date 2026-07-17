@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { describe, it, expect } from 'vitest';
+import { it, expect, describe } from 'vitest';
 
 import { signInWithPassword } from 'src/auth/context/jwt/action';
 

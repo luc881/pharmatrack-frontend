@@ -6,9 +6,11 @@ import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -302,6 +304,12 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
     group_id: current?.group_id ?? current?.group?.id ?? '',
     sale_format: current?.sale_format ?? 'individual',
     package_size: current?.package_size ?? '',
+    origin: current?.origin ?? '',
+    temperature: current?.temperature ?? '',
+    humidity: current?.humidity ?? '',
+    adult_size: current?.adult_size ?? '',
+    difficulty: current?.difficulty ?? '',
+    rarity: current?.rarity ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState('');
@@ -330,6 +338,14 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
           common_name: form.common_name || null,
           sale_format: form.sale_format,
           package_size: form.sale_format === 'package' ? Number(form.package_size) : null,
+          // ficha de cuidados que muestra el sitio público
+          description: form.description || null,
+          origin: form.origin || null,
+          temperature: form.temperature || null,
+          humidity: form.humidity || null,
+          adult_size: form.adult_size || null,
+          difficulty: form.difficulty || null,
+          rarity: form.rarity || null,
         },
         morphs: { species_id: Number(form.species_id), name: form.name, description: form.description || null },
       }[tab];
@@ -354,7 +370,7 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
   };
 
   return (
-    <Dialog open fullWidth maxWidth="xs" onClose={onClose}>
+    <Dialog open fullWidth maxWidth={tab === 'species' ? 'sm' : 'xs'} onClose={onClose}>
       <DialogTitle>{`${isEdit ? 'Editar' : 'Nuevo'} ${singular}`}</DialogTitle>
 
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
@@ -431,6 +447,30 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
                 slotProps={{ htmlInput: { min: 2 } }}
               />
             )}
+
+            <Divider sx={{ borderStyle: 'dashed' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Ficha para el sitio público
+              </Typography>
+            </Divider>
+
+            <TextField
+              label="Descripción"
+              multiline
+              rows={4}
+              value={form.description}
+              onChange={set('description')}
+              helperText="Una línea en blanco separa párrafos"
+            />
+
+            <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+              <TextField label="Origen" placeholder="México (cría en cautiverio)" value={form.origin} onChange={set('origin')} />
+              <TextField label="Temperatura" placeholder="24-28 °C" value={form.temperature} onChange={set('temperature')} />
+              <TextField label="Humedad" placeholder="60-70 %" value={form.humidity} onChange={set('humidity')} />
+              <TextField label="Tamaño adulto" placeholder="14 cm" value={form.adult_size} onChange={set('adult_size')} />
+              <TextField label="Dificultad" placeholder="Principiante" value={form.difficulty} onChange={set('difficulty')} />
+              <TextField label="Rareza" placeholder="Común" value={form.rarity} onChange={set('rarity')} />
+            </Box>
           </>
         )}
 

@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
-import { describe, it, expect } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { it, expect, describe } from 'vitest';
+import { waitFor, renderHook } from '@testing-library/react';
 
 import { useGetBatchCalendarEvents } from 'src/actions/calendar';
 
