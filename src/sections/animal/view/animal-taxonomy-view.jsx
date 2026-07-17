@@ -47,7 +47,7 @@ import { CustomGridActionsCellItem } from 'src/components/custom-data-grid';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { speciesLabel, flattenGroupTree } from '../utils';
+import { speciesLabel, saleFormatLabel, flattenGroupTree, SALE_FORMAT_OPTIONS } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -162,6 +162,7 @@ export function AnimalTaxonomyView() {
         { field: 'genus', headerName: 'Género', width: 180, valueGetter: (v) => v?.name ?? '—' },
         { field: 'name', headerName: 'Nombre científico', flex: 1, minWidth: 180 },
         { field: 'common_name', headerName: 'Nombre común', flex: 1, minWidth: 180, valueGetter: (v) => v ?? '—' },
+        { field: 'sale_format', headerName: 'Formato', width: 140, valueGetter: (_, row) => saleFormatLabel(row) ?? 'Individual' },
         actionsColumn,
       ],
     },
@@ -299,6 +300,8 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
     species_id: current?.species_id ?? '',
     parent_id: current?.parent_id ?? '',
     group_id: current?.group_id ?? current?.group?.id ?? '',
+    sale_format: current?.sale_format ?? 'individual',
+    package_size: current?.package_size ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState('');
@@ -311,7 +314,9 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
   );
 
   const missingParent =
-    (tab === 'species' && !form.genus_id) || (tab === 'morphs' && !form.species_id);
+    (tab === 'species' && !form.genus_id) ||
+    (tab === 'morphs' && !form.species_id) ||
+    (tab === 'species' && form.sale_format === 'package' && !(Number(form.package_size) >= 2));
 
   const handleSave = async () => {
     setSaving(true);
@@ -319,7 +324,13 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
       const payload = {
         groups: { name: form.name, parent_id: form.parent_id ? Number(form.parent_id) : null },
         genera: { name: form.name, group_id: form.group_id ? Number(form.group_id) : null },
-        species: { genus_id: Number(form.genus_id), name: form.name, common_name: form.common_name || null },
+        species: {
+          genus_id: Number(form.genus_id),
+          name: form.name,
+          common_name: form.common_name || null,
+          sale_format: form.sale_format,
+          package_size: form.sale_format === 'package' ? Number(form.package_size) : null,
+        },
         morphs: { species_id: Number(form.species_id), name: form.name, description: form.description || null },
       }[tab];
 
@@ -402,7 +413,25 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
         )}
 
         {tab === 'species' && (
-          <TextField label="Nombre común" value={form.common_name} onChange={set('common_name')} />
+          <>
+            <TextField label="Nombre común" value={form.common_name} onChange={set('common_name')} />
+            <TextField select label="Formato de venta" value={form.sale_format} onChange={set('sale_format')}>
+              {SALE_FORMAT_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            {form.sale_format === 'package' && (
+              <TextField
+                type="number"
+                label="Ejemplares por paquete *"
+                value={form.package_size}
+                onChange={set('package_size')}
+                slotProps={{ htmlInput: { min: 2 } }}
+              />
+            )}
+          </>
         )}
 
         {tab === 'morphs' && (

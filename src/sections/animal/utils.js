@@ -10,6 +10,19 @@ export const STATUS_LABELS = { available: 'Disponible', reserved: 'Reservado', s
 
 export const STATUS_COLORS = { available: 'success', reserved: 'warning', sold: 'default' };
 
+export const SALE_FORMAT_OPTIONS = [
+  { value: 'individual', label: 'Individual' },
+  { value: 'package', label: 'Paquete de N' },
+  { value: 'colony', label: 'Cepa / colonia' },
+];
+
+// "Paquete de 6" / "Cepa" / null para individual
+export function saleFormatLabel(species) {
+  if (species?.sale_format === 'package') return `Paquete de ${species.package_size}`;
+  if (species?.sale_format === 'colony') return 'Cepa';
+  return null;
+}
+
 // Aplana el árbol de grupos en orden jerárquico, con depth (para sangría)
 // y ancestors (para excluir descendientes al elegir padre)
 export function flattenGroupTree(nodes = [], depth = 0, ancestors = []) {
