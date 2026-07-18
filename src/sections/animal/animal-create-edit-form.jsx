@@ -58,6 +58,8 @@ const schema = zod.object({
   requires_legal_doc: zod.boolean(),
   legal_doc: zod.string().optional(),
   legal_doc_url: zod.string().optional(),
+  // Unidades idénticas (solo especies en cepa/paquete)
+  stock: zod.number({ coerce: true }).min(1, 'Mínimo 1').optional(),
 });
 
 // ----------------------------------------------------------------------
@@ -101,6 +103,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       requires_legal_doc: false,
       legal_doc: '',
       legal_doc_url: '',
+      stock: 1,
     },
     values: currentAnimal
       ? {
@@ -118,6 +121,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           requires_legal_doc: !!currentAnimal.requires_legal_doc,
           legal_doc: currentAnimal.legal_doc ?? '',
           legal_doc_url: currentAnimal.legal_doc_url ?? '',
+          stock: currentAnimal.stock ?? 1,
         }
       : undefined,
   });
@@ -133,6 +137,10 @@ export function AnimalCreateEditForm({ currentAnimal }) {
 
   const speciesId = watch('species_id');
   const { morphs: speciesMorphs, morphsMutate } = useAllMorphs(speciesId ? Number(speciesId) : undefined);
+
+  // Cepas/paquetes: un registro con N unidades idénticas (stock del lote gemelo)
+  const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));
+  const isBulk = !!selectedSpecies && selectedSpecies.sale_format !== 'individual';
 
   // Al cambiar de especie, quitar los morphs que no le pertenecen
   // (el backend rechaza con 400 morphs de otra especie)
@@ -183,6 +191,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         legal_doc_url: data.requires_legal_doc ? data.legal_doc_url || null : null,
         // si se omite el código, el backend genera uno "AN-XXXXXXXX"
         ...(data.code ? { code: data.code } : {}),
+        // solo las cepas/paquetes manejan stock; individuales quedan en 1
+        ...(isBulk ? { stock: Number(data.stock) || 1 } : {}),
         // "sold" solo lo asigna el flujo de venta — nunca se manda desde aquí
         ...(isEdit && !isSold ? { status: data.status } : {}),
       };
@@ -296,6 +306,16 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 </MenuItem>
               ))}
             </Field.Select>
+
+            {isBulk && (
+              <Field.Text
+                name="stock"
+                label="Cantidad disponible"
+                type="number"
+                helperText="Unidades idénticas de esta cepa/paquete; se descuentan al vender"
+                slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: 1 } }}
+              />
+            )}
 
             <Field.Text
               name="birth_date"

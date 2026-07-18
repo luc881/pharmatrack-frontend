@@ -39,6 +39,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { QrLabelsDialog } from '../qr-labels-dialog';
 import {
   SEX_LABELS,
   speciesLabel,
@@ -69,6 +70,7 @@ export function AnimalListView() {
   const [statusFilter, setStatusFilter] = useState('');
   const [rowToDelete, setRowToDelete] = useState(null);
   const [expanded, setExpanded] = useState(() => new Set());
+  const [labelsFor, setLabelsFor] = useState(null); // entry {species, animals} → diálogo de etiquetas QR
 
   const { genera: allGenera } = useAllGenera();
   const { species: allSpecies } = useAllSpecies();
@@ -234,6 +236,7 @@ export function AnimalListView() {
                       <TableCell>Cantidad</TableCell>
                       <TableCell>Precio</TableCell>
                       <TableCell>Formato</TableCell>
+                      <TableCell align="right"> </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -246,6 +249,7 @@ export function AnimalListView() {
                         canUpdate={canUpdate}
                         canDelete={canDelete}
                         onDelete={handleDeleteRow}
+                        onPrintLabels={() => setLabelsFor(entry)}
                       />
                     ))}
                   </TableBody>
@@ -255,6 +259,14 @@ export function AnimalListView() {
           )}
         </Card>
       </DashboardContent>
+
+      {labelsFor && (
+        <QrLabelsDialog
+          species={labelsFor.species}
+          animals={labelsFor.animals}
+          onClose={() => setLabelsFor(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDialog.value}
@@ -273,7 +285,7 @@ export function AnimalListView() {
 
 // ----------------------------------------------------------------------
 
-function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete }) {
+function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete, onPrintLabels }) {
   const { species, animals } = entry;
 
   const photo = animals.find((a) => a.image || a.photos?.[0]);
@@ -282,6 +294,10 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete }) 
   const maxPrice = Math.max(...prices);
   const scientific = [species.genus?.name, species.name].filter(Boolean).join(' ');
   const format = saleFormatLabel(species);
+
+  // Cepas/paquetes: un registro puede valer N unidades — la cantidad real es el stock
+  const isBulk = species.sale_format && species.sale_format !== 'individual';
+  const totalUnits = animals.reduce((sum, a) => sum + (a.stock ?? 1), 0);
 
   const statusCounts = animals.reduce((acc, a) => {
     acc[a.status] = (acc[a.status] ?? 0) + 1;
@@ -319,6 +335,11 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete }) 
 
         <TableCell>
           <Stack direction="row" spacing={0.5}>
+            {isBulk && (
+              <Label variant="soft" color="info">
+                {totalUnits} unidad{totalUnits === 1 ? '' : 'es'}
+              </Label>
+            )}
             {Object.entries(STATUS_LABELS).map(([status, label]) =>
               statusCounts[status] ? (
                 <Label key={status} variant="soft" color={STATUS_COLORS[status]}>
@@ -337,10 +358,24 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete }) 
         </TableCell>
 
         <TableCell>{format ?? '—'}</TableCell>
+
+        <TableCell align="right">
+          <Tooltip title="Etiquetas QR">
+            <IconButton
+              size="small"
+              onClick={(event) => {
+                event.stopPropagation();
+                onPrintLabels();
+              }}
+            >
+              <Iconify icon="solar:printer-minimalistic-bold" width={18} />
+            </IconButton>
+          </Tooltip>
+        </TableCell>
       </TableRow>
 
       <TableRow>
-        <TableCell colSpan={6} sx={{ py: 0 }}>
+        <TableCell colSpan={7} sx={{ py: 0 }}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ my: 1, borderRadius: 1.5, overflow: 'hidden', bgcolor: 'background.neutral' }}>
               <Table size="small">
@@ -352,6 +387,7 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete }) 
                     <TableCell>Nacimiento</TableCell>
                     <TableCell>Precio</TableCell>
                     <TableCell>Estado</TableCell>
+                    {isBulk && <TableCell>Stock</TableCell>}
                     <TableCell>Doc. legal</TableCell>
                     <TableCell align="right"> </TableCell>
                   </TableRow>
@@ -361,6 +397,7 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete }) 
                     <AnimalRow
                       key={animal.id}
                       animal={animal}
+                      showStock={isBulk}
                       canUpdate={canUpdate}
                       canDelete={canDelete}
                       onDelete={onDelete}
@@ -378,7 +415,7 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete }) 
 
 // ----------------------------------------------------------------------
 
-function AnimalRow({ animal, canUpdate, canDelete, onDelete }) {
+function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onDelete }) {
   const renderLegalDoc = () => {
     if (!animal.requires_legal_doc) return '—';
     if (!animal.legal_doc) {
@@ -432,6 +469,7 @@ function AnimalRow({ animal, canUpdate, canDelete, onDelete }) {
           {STATUS_LABELS[animal.status] ?? animal.status}
         </Label>
       </TableCell>
+      {showStock && <TableCell>{animal.stock ?? '—'}</TableCell>}
       <TableCell>{renderLegalDoc()}</TableCell>
       <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
         <Tooltip title="Ver detalle">

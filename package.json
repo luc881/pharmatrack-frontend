@@ -59,6 +59,7 @@
     "framer-motion": "^12.23.26",
     "minimal-shared": "^1.1.5",
     "nprogress": "^0.2.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.3",
     "react-apexcharts": "^1.9.0",
     "react-dom": "^19.2.3",
