@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Tabs from '@mui/material/Tabs';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -15,6 +16,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import { DataGrid, gridClasses } from '@mui/x-data-grid';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
@@ -75,17 +77,77 @@ export function AnimalTaxonomyView() {
   const { user } = useAuthContext();
 
   const [tabValue, setTabValue] = useState('groups');
-  const [morphSpeciesFilter, setMorphSpeciesFilter] = useState('');
+  const [query, setQuery] = useState('');
+  // Filtro encadenado al dar clic en una fila: {type: group|genus|species, id, label}.
+  // Persiste al cambiar de tab, así "todo lo relacionado" se ve en cada nivel.
+  const [filter, setFilter] = useState(null);
   const [dialog, setDialog] = useState(null); // { current } — abierto si no es null
   const [rowToDelete, setRowToDelete] = useState(null);
 
   const { groupTree, groupTreeLoading, groupTreeMutate } = useAnimalGroupTree();
   const { genera, generaLoading, generaMutate } = useAllGenera();
   const { species: allSpecies, speciesLoading, speciesMutate } = useAllSpecies();
-  const { morphs, morphsLoading, morphsMutate } = useAllMorphs(morphSpeciesFilter || undefined);
+  const { morphs, morphsLoading, morphsMutate } = useAllMorphs(
+    filter?.type === 'species' ? filter.id : undefined
+  );
 
   const groupsFlat = flattenGroupTree(groupTree);
   const speciesById = Object.fromEntries(allSpecies.map((s) => [s.id, s]));
+  const generaById = Object.fromEntries(genera.map((g) => [g.id, g]));
+
+  // Un grupo filtra también a sus descendientes (los géneros cuelgan de cualquier nivel)
+  const groupIdSet =
+    filter?.type === 'group'
+      ? new Set([filter.id, ...groupsFlat.filter((g) => g.ancestors.includes(filter.id)).map((g) => g.id)])
+      : null;
+
+  const norm = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const q = norm(query.trim());
+  const matches = (...values) => !q || values.some((v) => norm(v).includes(q));
+
+  const passesFilter = {
+    groups: (row) => !groupIdSet || groupIdSet.has(row.id),
+    genera: (row) => {
+      if (!filter) return true;
+      if (filter.type === 'group') return groupIdSet.has(row.group?.id);
+      if (filter.type === 'genus') return row.id === filter.id;
+      return true;
+    },
+    species: (row) => {
+      if (!filter) return true;
+      if (filter.type === 'group') return groupIdSet.has(generaById[row.genus_id]?.group?.id);
+      if (filter.type === 'genus') return row.genus_id === filter.id;
+      return row.id === filter.id;
+    },
+    morphs: (row) => {
+      if (!filter || filter.type === 'species') return true; // species ya filtró el server
+      const sp = speciesById[row.species_id];
+      if (filter.type === 'group') return groupIdSet.has(generaById[sp?.genus_id]?.group?.id);
+      return sp?.genus_id === filter.id;
+    },
+  };
+
+  const passesQuery = {
+    groups: (row) => matches(row.name),
+    genera: (row) => matches(row.name, row.group?.name),
+    species: (row) => matches(row.name, row.common_name, row.genus?.name),
+    morphs: (row) => matches(row.name, speciesLabel(speciesById[row.species_id])),
+  };
+
+  // Clic en una fila baja un nivel: grupo → géneros, género → especies, especie → morphs
+  const drillDown = {
+    groups: (row) => ({ next: 'genera', filter: { type: 'group', id: row.id, label: `Grupo: ${row.name}` } }),
+    genera: (row) => ({ next: 'species', filter: { type: 'genus', id: row.id, label: `Género: ${row.name}` } }),
+    species: (row) => ({ next: 'morphs', filter: { type: 'species', id: row.id, label: `Especie: ${speciesLabel(row)}` } }),
+  };
+
+  const handleCellClick = (params) => {
+    if (params.field === 'actions' || !drillDown[tabValue]) return;
+    const { next, filter: nextFilter } = drillDown[tabValue](params.row);
+    setFilter(nextFilter);
+    setTabValue(next);
+    setQuery('');
+  };
 
   const can = (action) =>
     user?.permissions?.includes(`${TABS.find((t) => t.value === tabValue).resource}.${action}`);
@@ -223,36 +285,52 @@ export function AnimalTaxonomyView() {
             ))}
           </Tabs>
 
-          {tabValue === 'morphs' && (
+          <Box sx={{ p: 2, gap: 1.5, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
             <TextField
-              select
               size="small"
-              label="Filtrar por especie"
-              value={morphSpeciesFilter}
-              onChange={(e) => setMorphSpeciesFilter(e.target.value)}
-              sx={{ m: 2, maxWidth: 320 }}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Buscar en ${tabConfig.label.toLowerCase()}…`}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+              sx={{ width: { xs: 1, sm: 280 } }}
+            />
+
+            {filter && (
+              <Chip color="primary" variant="soft" label={filter.label} onDelete={() => setFilter(null)} />
+            )}
+
+            <Typography
+              variant="caption"
+              sx={{ ml: 'auto', color: 'text.disabled', display: { xs: 'none', md: 'block' } }}
             >
-              <MenuItem value="">Todas</MenuItem>
-              {allSpecies.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {speciesLabel(s)}
-                </MenuItem>
-              ))}
-            </TextField>
-          )}
+              {tabValue !== 'morphs' && 'Da clic en una fila para ver lo que contiene'}
+            </Typography>
+          </Box>
 
           <DataGrid
             disableRowSelectionOnClick
-            rows={gridProps.rows}
+            rows={gridProps.rows.filter((row) => passesFilter[tabValue](row) && passesQuery[tabValue](row))}
             columns={gridProps.columns}
             loading={gridProps.loading}
+            onCellClick={handleCellClick}
             pageSizeOptions={[25, 50, 100]}
             initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
             slots={{
               noRowsOverlay: () => <EmptyContent />,
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
             }}
-            sx={{ [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' } }}
+            sx={{
+              [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' },
+              ...(tabValue !== 'morphs' && { [`& .${gridClasses.row}`]: { cursor: 'pointer' } }),
+            }}
           />
         </Card>
       </DashboardContent>
