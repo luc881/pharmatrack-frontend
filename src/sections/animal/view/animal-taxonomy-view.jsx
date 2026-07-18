@@ -310,6 +310,9 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
     adult_size: current?.adult_size ?? '',
     difficulty: current?.difficulty ?? '',
     rarity: current?.rarity ?? '',
+    habitat: current?.habitat ?? '',
+    diet: current?.diet ?? '',
+    notes: current?.notes ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState('');
@@ -346,6 +349,9 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
           adult_size: form.adult_size || null,
           difficulty: form.difficulty || null,
           rarity: form.rarity || null,
+          habitat: form.habitat || null,
+          diet: form.diet || null,
+          notes: form.notes || null,
         },
         morphs: { species_id: Number(form.species_id), name: form.name, description: form.description || null },
       }[tab];
@@ -471,6 +477,29 @@ function TaxonDialog({ tab, singular, current, genera, allSpecies, groupsFlat, o
               <TextField label="Dificultad" placeholder="Principiante" value={form.difficulty} onChange={set('difficulty')} />
               <TextField label="Rareza" placeholder="Común" value={form.rarity} onChange={set('rarity')} />
             </Box>
+
+            <TextField
+              label="Hábitat y comportamiento"
+              multiline
+              rows={3}
+              value={form.habitat}
+              onChange={set('habitat')}
+              helperText="Una línea en blanco separa párrafos"
+            />
+            <TextField
+              label="Alimentación"
+              multiline
+              rows={3}
+              value={form.diet}
+              onChange={set('diet')}
+            />
+            <TextField
+              label="Notas de esta especie"
+              multiline
+              rows={3}
+              value={form.notes}
+              onChange={set('notes')}
+            />
           </>
         )}
 
