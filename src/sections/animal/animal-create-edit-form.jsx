@@ -8,6 +8,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -20,13 +21,23 @@ import { handleApiError } from 'src/utils/handle-api-error';
 
 import { endpoints } from 'src/lib/axios';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
-import { useAllGenera, useAllMorphs, createAnimal, updateAnimal, useAllSpecies } from 'src/actions/animal';
+import {
+  createAnimal,
+  updateAnimal,
+  useAllGenera,
+  useAllMorphs,
+  useAllSpecies,
+  useAnimalGroupTree,
+} from 'src/actions/animal';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Field } from 'src/components/hook-form';
 
-import { SEX_OPTIONS } from './utils';
+import { useAuthContext } from 'src/auth/hooks';
+
+import { TaxonDialog } from './taxon-dialog';
+import { SEX_OPTIONS, flattenGroupTree } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -55,8 +66,16 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const navigate = useNavigate();
   const isEdit = !!currentAnimal;
 
-  const { genera } = useAllGenera();
-  const { species: allSpecies } = useAllSpecies();
+  const { user } = useAuthContext();
+
+  const { genera, generaMutate } = useAllGenera();
+  const { species: allSpecies, speciesMutate } = useAllSpecies();
+  const { groupTree } = useAnimalGroupTree();
+  const groupsFlat = flattenGroupTree(groupTree);
+
+  // Crear taxonomía sin salir del formulario: 'genera' | 'species' | 'morphs'
+  const [quickCreate, setQuickCreate] = useState(null);
+  const canCreate = (resource) => user?.permissions?.includes(`${resource}.create`);
 
   // El género no viaja en el payload (solo species_id); es un filtro en cascada
   const [genusId, setGenusId] = useState('');
@@ -113,7 +132,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   } = methods;
 
   const speciesId = watch('species_id');
-  const { morphs: speciesMorphs } = useAllMorphs(speciesId ? Number(speciesId) : undefined);
+  const { morphs: speciesMorphs, morphsMutate } = useAllMorphs(speciesId ? Number(speciesId) : undefined);
 
   // Al cambiar de especie, quitar los morphs que no le pertenecen
   // (el backend rechaza con 400 morphs de otra especie)
@@ -193,51 +212,82 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           </Typography>
 
           <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
-            <TextField
-              select
-              label="Género *"
-              value={genusId}
-              onChange={(e) => {
-                setGenusId(e.target.value);
-                setValue('species_id', '');
-              }}
-            >
-              {genera.map((g) => (
-                <MenuItem key={g.id} value={g.id}>
-                  {g.name}
-                </MenuItem>
-              ))}
-            </TextField>
-
-            <Field.Select
-              name="species_id"
-              label="Especie *"
-              disabled={!genusId}
-              helperText={genusId ? '' : 'Selecciona primero un género'}
-            >
-              {allSpecies
-                .filter((s) => s.genus?.id === Number(genusId))
-                .map((s) => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {s.name}
-                    {s.common_name ? ` — ${s.common_name}` : ''}
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
+              <TextField
+                select
+                fullWidth
+                label="Género *"
+                value={genusId}
+                onChange={(e) => {
+                  setGenusId(e.target.value);
+                  setValue('species_id', '');
+                }}
+              >
+                {genera.map((g) => (
+                  <MenuItem key={g.id} value={g.id}>
+                    {g.name}
                   </MenuItem>
                 ))}
-            </Field.Select>
+              </TextField>
+              {canCreate('genera') && (
+                <Tooltip title="Nuevo género">
+                  <IconButton onClick={() => setQuickCreate('genera')} sx={{ mt: 1 }}>
+                    <Iconify icon="mingcute:add-line" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
 
-            <Field.Autocomplete
-              name="morphs"
-              label="Morphs"
-              multiple
-              disableCloseOnSelect
-              disabled={!speciesId}
-              options={speciesMorphs}
-              getOptionLabel={(o) => o?.name ?? ''}
-              isOptionEqualToValue={(o, v) => o?.id === v?.id}
-              slotProps={{
-                textField: { helperText: speciesId ? '' : 'Selecciona primero una especie' },
-              }}
-            />
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
+              <Field.Select
+                name="species_id"
+                label="Especie *"
+                disabled={!genusId}
+                helperText={genusId ? '' : 'Selecciona primero un género'}
+              >
+                {allSpecies
+                  .filter((s) => s.genus?.id === Number(genusId))
+                  .map((s) => (
+                    <MenuItem key={s.id} value={s.id}>
+                      {s.name}
+                      {s.common_name ? ` — ${s.common_name}` : ''}
+                    </MenuItem>
+                  ))}
+              </Field.Select>
+              {canCreate('species') && (
+                <Tooltip title="Nueva especie">
+                  <IconButton onClick={() => setQuickCreate('species')} sx={{ mt: 1 }}>
+                    <Iconify icon="mingcute:add-line" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
+              <Field.Autocomplete
+                name="morphs"
+                label="Morphs"
+                multiple
+                disableCloseOnSelect
+                disabled={!speciesId}
+                options={speciesMorphs}
+                getOptionLabel={(o) => o?.name ?? ''}
+                isOptionEqualToValue={(o, v) => o?.id === v?.id}
+                sx={{ flexGrow: 1 }}
+                slotProps={{
+                  textField: { helperText: speciesId ? '' : 'Selecciona primero una especie' },
+                }}
+              />
+              {canCreate('morphs') && (
+                <Tooltip title="Nuevo morph">
+                  <span>
+                    <IconButton disabled={!speciesId} onClick={() => setQuickCreate('morphs')} sx={{ mt: 1 }}>
+                      <Iconify icon="mingcute:add-line" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              )}
+            </Box>
 
             <Field.Select name="sex" label="Sexo">
               {SEX_OPTIONS.map((o) => (
@@ -425,6 +475,34 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           </Box>
         </Card>
       </form>
+
+      {/* Crear género/especie/morph al vuelo; lo creado queda seleccionado */}
+      {quickCreate && (
+        <TaxonDialog
+          tab={quickCreate}
+          singular={{ genera: 'género', species: 'especie', morphs: 'morph' }[quickCreate]}
+          current={null}
+          initial={{ genus_id: genusId || '', species_id: speciesId || '' }}
+          genera={genera}
+          allSpecies={allSpecies}
+          groupsFlat={groupsFlat}
+          onClose={() => setQuickCreate(null)}
+          onSaved={async (saved) => {
+            if (quickCreate === 'genera') {
+              await generaMutate();
+              setGenusId(saved.id);
+              setValue('species_id', '');
+            } else if (quickCreate === 'species') {
+              await speciesMutate();
+              setGenusId(saved.genus_id);
+              setValue('species_id', saved.id, { shouldValidate: true });
+            } else {
+              await morphsMutate();
+              setValue('morphs', [...getValues('morphs'), saved], { shouldDirty: true });
+            }
+          }}
+        />
+      )}
     </FormProvider>
   );
 }
