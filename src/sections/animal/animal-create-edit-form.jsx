@@ -7,7 +7,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Link from '@mui/material/Link';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
@@ -186,10 +186,12 @@ export function AnimalCreateEditForm({ currentAnimal }) {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
+      // Especies de stock (cepa/paquete): sin sexo, fecha ni papeles por ejemplar
+      const legalDoc = !isBulk && data.requires_legal_doc;
       const payload = {
         species_id: Number(data.species_id),
-        sex: data.sex,
-        birth_date: data.birth_date || null,
+        sex: isBulk ? 'unknown' : data.sex,
+        birth_date: !isBulk && data.birth_date ? data.birth_date : null,
         price: Number(data.price),
         price_cost: data.price_cost !== '' && data.price_cost != null ? Number(data.price_cost) : 0,
         morph_ids: data.morphs,
@@ -197,9 +199,9 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         image: data.image || null,
         // replace-all: siempre se manda la lista completa resultante
         photos: data.photos,
-        requires_legal_doc: data.requires_legal_doc,
-        legal_doc: data.requires_legal_doc ? data.legal_doc || null : null,
-        legal_doc_url: data.requires_legal_doc ? data.legal_doc_url || null : null,
+        requires_legal_doc: legalDoc,
+        legal_doc: legalDoc ? data.legal_doc || null : null,
+        legal_doc_url: legalDoc ? data.legal_doc_url || null : null,
         // si se omite el código, el backend genera uno "AN-XXXXXXXX"
         ...(data.code ? { code: data.code } : {}),
         // solo las cepas/paquetes manejan stock; individuales quedan en 1
@@ -264,31 +266,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 name="species_id"
                 label="Especie *"
                 disabled={!genusId}
-                // El formato de la especie manda (individual vs cepa/paquete):
-                // mostrarlo aquí evita el "¿por qué no sale el campo de cantidad?"
-                helperText={
-                  !genusId ? (
-                    'Selecciona primero un género'
-                  ) : selectedSpecies ? (
-                    <>
-                      Formato de venta: {saleFormatLabel(selectedSpecies) ?? 'Individual (folio único)'}
-                      {canUpdateSpecies && (
-                        <>
-                          {' · '}
-                          <Link
-                            component="button"
-                            type="button"
-                            onClick={() => setQuickCreate({ tab: 'species', current: selectedSpecies })}
-                          >
-                            cambiar
-                          </Link>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    ''
-                  )
-                }
+                helperText={genusId ? '' : 'Selecciona primero un género'}
               >
                 {allSpecies
                   .filter((s) => s.genus?.id === Number(genusId))
@@ -307,6 +285,32 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 </Tooltip>
               )}
             </Box>
+
+            {/* El formato de la especie decide el modo del formulario:
+                individual = folio único con sexo/nacimiento/papeles;
+                cepa/paquete = solo cantidad de stock */}
+            {selectedSpecies && (
+              <Alert
+                severity="info"
+                variant="outlined"
+                sx={{ gridColumn: { sm: 'span 2' } }}
+                action={
+                  canUpdateSpecies && (
+                    <Button
+                      size="small"
+                      color="inherit"
+                      onClick={() => setQuickCreate({ tab: 'species', current: selectedSpecies })}
+                    >
+                      Cambiar formato
+                    </Button>
+                  )
+                }
+              >
+                {isBulk
+                  ? `Esta especie se vende por ${saleFormatLabel(selectedSpecies)?.toLowerCase()} — se maneja solo por cantidad de stock, sin sexo, fecha ni papeles por ejemplar.`
+                  : 'Esta especie se vende por ejemplar individual — cada animal lleva su folio con sexo, nacimiento y documentación.'}
+              </Alert>
+            )}
 
             <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
               {/* Select con checkboxes (no tags): los elegidos se listan separados por coma */}
@@ -334,13 +338,15 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               )}
             </Box>
 
-            <Field.Select name="sex" label="Sexo">
-              {SEX_OPTIONS.map((o) => (
-                <MenuItem key={o.value} value={o.value}>
-                  {o.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            {!isBulk && (
+              <Field.Select name="sex" label="Sexo">
+                {SEX_OPTIONS.map((o) => (
+                  <MenuItem key={o.value} value={o.value}>
+                    {o.label}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            )}
 
             {isBulk && (
               <Field.Text
@@ -352,12 +358,14 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               />
             )}
 
-            <Field.Text
-              name="birth_date"
-              label="Fecha de nacimiento"
-              type="date"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
+            {!isBulk && (
+              <Field.Text
+                name="birth_date"
+                label="Fecha de nacimiento"
+                type="date"
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            )}
 
             <Field.Text
               name="price"
@@ -427,13 +435,15 @@ export function AnimalCreateEditForm({ currentAnimal }) {
             />
 
             {/* Documentación legal (SEMARNAT) — opcional por animal */}
-            <Field.Switch
-              name="requires_legal_doc"
-              label="Requiere documentación legal (SEMARNAT)"
-              sx={{ gridColumn: { sm: 'span 2' } }}
-            />
+            {!isBulk && (
+              <Field.Switch
+                name="requires_legal_doc"
+                label="Requiere documentación legal (SEMARNAT)"
+                sx={{ gridColumn: { sm: 'span 2' } }}
+              />
+            )}
 
-            {requiresLegalDoc && (
+            {!isBulk && requiresLegalDoc && (
               <>
                 <Field.Text
                   name="legal_doc"
