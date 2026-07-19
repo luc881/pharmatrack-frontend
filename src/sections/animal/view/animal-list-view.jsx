@@ -19,6 +19,7 @@ import TableHead from '@mui/material/TableHead';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Autocomplete from '@mui/material/Autocomplete';
 import TableContainer from '@mui/material/TableContainer';
 
 import { paths } from 'src/routes/paths';
@@ -140,42 +141,45 @@ export function AnimalListView() {
     }
   }, [rowToDelete, animalsMutate, confirmDialog]);
 
+  // Grupo/Género/Especie con búsqueda al teclear (ignora acentos); Estado como select
   const renderFilters = () => (
     <Stack direction="row" spacing={2} sx={{ p: 2.5, flexWrap: 'wrap', gap: 2 }}>
-      <TextField select size="small" label="Grupo" value={groupFilter} onChange={handleFilter(setGroupFilter)} sx={{ minWidth: 180 }}>
-        <MenuItem value="">Todos</MenuItem>
-        {groupsFlat.map((g) => (
-          <MenuItem key={g.id} value={g.id} sx={{ pl: 2 + g.depth * 2 }}>
-            {g.name}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField
-        select
+      <Autocomplete
         size="small"
-        label="Género"
-        value={genusFilter}
-        onChange={(e) => {
-          setGenusFilter(e.target.value);
+        options={groupsFlat}
+        value={groupsFlat.find((g) => g.id === Number(groupFilter)) ?? null}
+        onChange={(_, option) => setGroupFilter(option?.id ?? '')}
+        getOptionLabel={(option) => option?.name ?? ''}
+        renderOption={(props, option) => (
+          <li {...props} key={option.id} style={{ ...props.style, paddingLeft: 16 + option.depth * 16 }}>
+            {option.depth > 0 && '└ '}
+            {option.name}
+          </li>
+        )}
+        renderInput={(params) => <TextField {...params} label="Grupo" />}
+        sx={{ minWidth: 200 }}
+      />
+      <Autocomplete
+        size="small"
+        options={allGenera}
+        value={allGenera.find((g) => g.id === Number(genusFilter)) ?? null}
+        onChange={(_, option) => {
+          setGenusFilter(option?.id ?? '');
           setSpeciesFilter('');
         }}
-        sx={{ minWidth: 150 }}
-      >
-        <MenuItem value="">Todos</MenuItem>
-        {allGenera.map((g) => (
-          <MenuItem key={g.id} value={g.id}>
-            {g.name}
-          </MenuItem>
-        ))}
-      </TextField>
-      <TextField select size="small" label="Especie" value={speciesFilter} onChange={handleFilter(setSpeciesFilter)} sx={{ minWidth: 220 }}>
-        <MenuItem value="">Todas</MenuItem>
-        {speciesOptions.map((s) => (
-          <MenuItem key={s.id} value={s.id}>
-            {speciesLabel(s)}
-          </MenuItem>
-        ))}
-      </TextField>
+        getOptionLabel={(option) => option?.name ?? ''}
+        renderInput={(params) => <TextField {...params} label="Género" />}
+        sx={{ minWidth: 180 }}
+      />
+      <Autocomplete
+        size="small"
+        options={speciesOptions}
+        value={speciesOptions.find((s) => s.id === Number(speciesFilter)) ?? null}
+        onChange={(_, option) => setSpeciesFilter(option?.id ?? '')}
+        getOptionLabel={(option) => speciesLabel(option)}
+        renderInput={(params) => <TextField {...params} label="Especie" />}
+        sx={{ minWidth: 240 }}
+      />
       <TextField select size="small" label="Estado" value={statusFilter} onChange={handleFilter(setStatusFilter)} sx={{ minWidth: 160 }}>
         <MenuItem value="">Todos</MenuItem>
         {Object.entries(STATUS_LABELS).map(([value, label]) => (
