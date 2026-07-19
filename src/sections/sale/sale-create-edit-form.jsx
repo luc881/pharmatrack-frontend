@@ -797,7 +797,17 @@ function SaleItem({ index, products, productIdsWithStock, reservedProductIds, on
           />
 
           {/* Stock availability feedback */}
-          {productId && (
+          {productId && !tracksBatches ? (
+            // Venta libre (granel por peso): se cobra sin validar ni descontar stock
+            <Chip
+              size="small"
+              color="info"
+              variant="soft"
+              icon={<Iconify icon="solar:box-bold" width={14} />}
+              label={`Venta libre — se cobra por ${product?.unit_name ?? 'unidad'}`}
+              sx={{ mt: 0.5 }}
+            />
+          ) : productId && (
             batchesLoading ? (
               <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
                 Cargando stock…

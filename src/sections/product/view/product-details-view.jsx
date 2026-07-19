@@ -195,6 +195,19 @@ export function ProductDetailsView({ product, error, loading }) {
 
         {/* Fila completa — Lotes y Stock */}
         <Grid size={{ xs: 12 }}>
+          {!tracksBatches ? (
+            // Venta libre: sin inventario que mostrar — se pesa y se cobra
+            <Card sx={{ p: 3, gap: 1.5, display: 'flex', alignItems: 'center' }}>
+              <Iconify icon="solar:box-bold" width={24} sx={{ color: 'info.main' }} />
+              <Box>
+                <Typography variant="subtitle1">Venta libre</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Este producto se cobra por {product.unit_name ?? 'unidad'} sin controlar
+                  inventario — la venta no valida ni descuenta existencias.
+                </Typography>
+              </Box>
+            </Card>
+          ) : (
           <Card sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
               <Box>
@@ -326,6 +339,7 @@ export function ProductDetailsView({ product, error, loading }) {
               </Box>
             )}
           </Card>
+          )}
         </Grid>
       </Grid>
     </DashboardContent>

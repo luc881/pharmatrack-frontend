@@ -521,11 +521,11 @@ export function ProductCreateEditForm({ currentProduct }) {
             name="tracks_batches"
             label={
               <Box>
-                <Typography variant="subtitle2">Maneja lotes y fechas de vencimiento</Typography>
+                <Typography variant="subtitle2">Controla el stock (lotes)</Typography>
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  Actívalo para medicamentos con número de lote. Desactívalo para productos
-                  generales (pilas, artículos de limpieza, etc.) — el sistema solo controlará
-                  la cantidad disponible.
+                  Encendido: la venta valida y descuenta existencias (con o sin caducidad).
+                  Apagado: venta libre — se cobra sin controlar inventario, ideal para granel
+                  por peso (corteza, piedras: pesas la pieza y tecleas los gramos en el POS).
                 </Typography>
               </Box>
             }
