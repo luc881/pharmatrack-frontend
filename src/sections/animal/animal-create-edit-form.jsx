@@ -1,12 +1,13 @@
 import { mutate } from 'swr';
 import { z as zod } from 'zod';
 import { useNavigate } from 'react-router';
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Link from '@mui/material/Link';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
@@ -37,7 +38,7 @@ import { Field } from 'src/components/hook-form';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { TaxonDialog } from './taxon-dialog';
-import { SEX_OPTIONS, flattenGroupTree } from './utils';
+import { SEX_OPTIONS, saleFormatLabel, flattenGroupTree } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -50,7 +51,7 @@ const schema = zod.object({
   price: zod.number({ coerce: true }).nonnegative('El precio no puede ser negativo'),
   price_cost: zod.union([zod.string(), zod.number()]).optional(),
   code: zod.string().optional(),
-  morphs: zod.array(zod.any()),
+  morphs: zod.array(zod.number()),
   description: zod.string().optional(),
   image: zod.string().optional(),
   status: zod.enum(['available', 'reserved']).optional(),
@@ -75,9 +76,10 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const { groupTree } = useAnimalGroupTree();
   const groupsFlat = flattenGroupTree(groupTree);
 
-  // Crear taxonomía sin salir del formulario: 'genera' | 'species' | 'morphs'
+  // Crear/editar taxonomía sin salir del formulario: {tab, current?}
   const [quickCreate, setQuickCreate] = useState(null);
   const canCreate = (resource) => user?.permissions?.includes(`${resource}.create`);
+  const canUpdateSpecies = user?.permissions?.includes('species.update');
 
   // El género no viaja en el payload (solo species_id); es un filtro en cascada
   const [genusId, setGenusId] = useState('');
@@ -113,7 +115,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           price: currentAnimal.price ?? '',
           price_cost: currentAnimal.price_cost ?? '',
           code: currentAnimal.code ?? '',
-          morphs: currentAnimal.morphs ?? [],
+          morphs: (currentAnimal.morphs ?? []).map((m) => m.id),
           description: currentAnimal.description ?? '',
           image: currentAnimal.image ?? '',
           status: currentAnimal.status === 'reserved' ? 'reserved' : 'available',
@@ -142,12 +144,21 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));
   const isBulk = !!selectedSpecies && selectedSpecies.sale_format !== 'individual';
 
-  // Al cambiar de especie, quitar los morphs que no le pertenecen
-  // (el backend rechaza con 400 morphs de otra especie)
+  // Al CAMBIAR de especie se limpian los morphs (pertenecen a la anterior;
+  // el backend rechaza con 400 morphs de otra especie). El ref distingue la
+  // primera carga (editar: los values llegan después del primer render y
+  // antes borraban los morphs guardados) de un cambio real del usuario.
+  const prevSpeciesRef = useRef(null);
   useEffect(() => {
-    const current = getValues('morphs');
-    const kept = current.filter((m) => m.species_id === Number(speciesId));
-    if (kept.length !== current.length) setValue('morphs', kept);
+    if (!speciesId) return;
+    if (prevSpeciesRef.current === null) {
+      prevSpeciesRef.current = speciesId;
+      return;
+    }
+    if (prevSpeciesRef.current !== speciesId) {
+      prevSpeciesRef.current = speciesId;
+      if (getValues('morphs').length) setValue('morphs', []);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [speciesId]);
 
@@ -181,7 +192,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         birth_date: data.birth_date || null,
         price: Number(data.price),
         price_cost: data.price_cost !== '' && data.price_cost != null ? Number(data.price_cost) : 0,
-        morph_ids: data.morphs.map((m) => m.id),
+        morph_ids: data.morphs,
         description: data.description || null,
         image: data.image || null,
         // replace-all: siempre se manda la lista completa resultante
@@ -241,7 +252,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               </TextField>
               {canCreate('genera') && (
                 <Tooltip title="Nuevo género">
-                  <IconButton onClick={() => setQuickCreate('genera')} sx={{ mt: 1 }}>
+                  <IconButton onClick={() => setQuickCreate({ tab: 'genera' })} sx={{ mt: 1 }}>
                     <Iconify icon="mingcute:add-line" />
                   </IconButton>
                 </Tooltip>
@@ -253,7 +264,31 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 name="species_id"
                 label="Especie *"
                 disabled={!genusId}
-                helperText={genusId ? '' : 'Selecciona primero un género'}
+                // El formato de la especie manda (individual vs cepa/paquete):
+                // mostrarlo aquí evita el "¿por qué no sale el campo de cantidad?"
+                helperText={
+                  !genusId ? (
+                    'Selecciona primero un género'
+                  ) : selectedSpecies ? (
+                    <>
+                      Formato de venta: {saleFormatLabel(selectedSpecies) ?? 'Individual (folio único)'}
+                      {canUpdateSpecies && (
+                        <>
+                          {' · '}
+                          <Link
+                            component="button"
+                            type="button"
+                            onClick={() => setQuickCreate({ tab: 'species', current: selectedSpecies })}
+                          >
+                            cambiar
+                          </Link>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    ''
+                  )
+                }
               >
                 {allSpecies
                   .filter((s) => s.genus?.id === Number(genusId))
@@ -266,7 +301,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               </Field.Select>
               {canCreate('species') && (
                 <Tooltip title="Nueva especie">
-                  <IconButton onClick={() => setQuickCreate('species')} sx={{ mt: 1 }}>
+                  <IconButton onClick={() => setQuickCreate({ tab: 'species' })} sx={{ mt: 1 }}>
                     <Iconify icon="mingcute:add-line" />
                   </IconButton>
                 </Tooltip>
@@ -274,24 +309,24 @@ export function AnimalCreateEditForm({ currentAnimal }) {
             </Box>
 
             <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
-              <Field.Autocomplete
+              {/* Select con checkboxes (no tags): los elegidos se listan separados por coma */}
+              <Field.MultiSelect
+                checkbox
                 name="morphs"
                 label="Morphs"
-                multiple
-                disableCloseOnSelect
                 disabled={!speciesId}
-                options={speciesMorphs}
-                getOptionLabel={(o) => o?.name ?? ''}
-                isOptionEqualToValue={(o, v) => o?.id === v?.id}
+                options={speciesMorphs.map((m) => ({ value: m.id, label: m.name }))}
+                helperText={speciesId ? '' : 'Selecciona primero una especie'}
                 sx={{ flexGrow: 1 }}
-                slotProps={{
-                  textField: { helperText: speciesId ? '' : 'Selecciona primero una especie' },
-                }}
               />
               {canCreate('morphs') && (
                 <Tooltip title="Nuevo morph">
                   <span>
-                    <IconButton disabled={!speciesId} onClick={() => setQuickCreate('morphs')} sx={{ mt: 1 }}>
+                    <IconButton
+                      disabled={!speciesId}
+                      onClick={() => setQuickCreate({ tab: 'morphs' })}
+                      sx={{ mt: 1 }}
+                    >
                       <Iconify icon="mingcute:add-line" />
                     </IconButton>
                   </span>
@@ -328,6 +363,11 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               name="price"
               label="Precio de venta *"
               type="number"
+              helperText={
+                isBulk
+                  ? `Precio por ${selectedSpecies?.sale_format === 'package' ? `paquete de ${selectedSpecies.package_size}` : 'cepa'}`
+                  : ''
+              }
               slotProps={{
                 inputLabel: { shrink: true },
                 input: {
@@ -499,26 +539,29 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       {/* Crear género/especie/morph al vuelo; lo creado queda seleccionado */}
       {quickCreate && (
         <TaxonDialog
-          tab={quickCreate}
-          singular={{ genera: 'género', species: 'especie', morphs: 'morph' }[quickCreate]}
-          current={null}
+          tab={quickCreate.tab}
+          singular={{ genera: 'género', species: 'especie', morphs: 'morph' }[quickCreate.tab]}
+          current={quickCreate.current ?? null}
           initial={{ genus_id: genusId || '', species_id: speciesId || '' }}
           genera={genera}
           allSpecies={allSpecies}
           groupsFlat={groupsFlat}
           onClose={() => setQuickCreate(null)}
           onSaved={async (saved) => {
-            if (quickCreate === 'genera') {
+            if (quickCreate.tab === 'genera') {
               await generaMutate();
               setGenusId(saved.id);
               setValue('species_id', '');
-            } else if (quickCreate === 'species') {
+            } else if (quickCreate.tab === 'species') {
               await speciesMutate();
-              setGenusId(saved.genus_id);
-              setValue('species_id', saved.id, { shouldValidate: true });
+              // editar (p. ej. cambiar el formato de venta) conserva la selección
+              if (!quickCreate.current) {
+                setGenusId(saved.genus_id);
+                setValue('species_id', saved.id, { shouldValidate: true });
+              }
             } else {
               await morphsMutate();
-              setValue('morphs', [...getValues('morphs'), saved], { shouldDirty: true });
+              setValue('morphs', [...getValues('morphs'), saved.id], { shouldDirty: true });
             }
           }}
         />
