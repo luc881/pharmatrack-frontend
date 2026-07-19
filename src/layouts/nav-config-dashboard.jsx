@@ -140,6 +140,16 @@ export const navData = [
         ],
       },
       {
+        title: 'Artículos',
+        path: paths.dashboard.article.root,
+        icon: ICONS.blog,
+        allowedRoles: ['articles.read'],
+        children: [
+          { title: 'Lista', path: paths.dashboard.article.root },
+          { title: 'Nuevo', path: paths.dashboard.article.new, allowedRoles: ['articles.create'] },
+        ],
+      },
+      {
         title: 'Ventas',
         path: paths.dashboard.sale.root,
         icon: ICONS.ecommerce,

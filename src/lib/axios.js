@@ -229,6 +229,13 @@ export const endpoints = {
     update: (id) => `/api/v1/animals/${id}`,
     delete: (id) => `/api/v1/animals/${id}`,
   },
+  article: {
+    list: '/api/v1/articles',
+    details: (id) => `/api/v1/articles/${id}`,
+    create: '/api/v1/articles',
+    update: (id) => `/api/v1/articles/${id}`,
+    delete: (id) => `/api/v1/articles/${id}`,
+  },
   stats: {
     dashboard: '/api/v1/stats/dashboard',
   },

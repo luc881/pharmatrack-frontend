@@ -77,6 +77,10 @@ const AnimalDetailsPage  = lazy(() => import('src/pages/dashboard/animal/details
 const AnimalCreatePage   = lazy(() => import('src/pages/dashboard/animal/new'));
 const AnimalEditPage     = lazy(() => import('src/pages/dashboard/animal/edit'));
 const AnimalTaxonomyPage = lazy(() => import('src/pages/dashboard/animal/taxonomy'));
+
+const ArticleListPage   = lazy(() => import('src/pages/dashboard/article/list'));
+const ArticleCreatePage = lazy(() => import('src/pages/dashboard/article/new'));
+const ArticleEditPage   = lazy(() => import('src/pages/dashboard/article/edit'));
 // Calendar
 const CalendarPage = lazy(() => import('src/pages/dashboard/calendar'));
 // Sensor
@@ -126,6 +130,10 @@ const P = {
   // Animals
   animalsCreate: ['animals.create'],
   animalsUpdate: ['animals.update'],
+  // Articles
+  articlesRead:   ['articles.read'],
+  articlesCreate: ['articles.create'],
+  articlesUpdate: ['articles.update'],
 };
 
 function guard(allowedPermissions, element) {
@@ -316,6 +324,17 @@ export const dashboardRoutes = [
           { path: 'new',        element: guard(P.animalsCreate, <AnimalCreatePage />) },
           { path: ':id',        element: <AnimalDetailsPage /> },
           { path: ':id/edit',   element: guard(P.animalsUpdate, <AnimalEditPage />) },
+        ],
+      },
+
+      // ── Articles ────────────────────────────────────────────────────
+      {
+        path: 'article',
+        children: [
+          { index: true,      element: guard(P.articlesRead,   <ArticleListPage />) },
+          { path: 'list',     element: guard(P.articlesRead,   <ArticleListPage />) },
+          { path: 'new',      element: guard(P.articlesCreate, <ArticleCreatePage />) },
+          { path: ':id/edit', element: guard(P.articlesUpdate, <ArticleEditPage />) },
         ],
       },
 
