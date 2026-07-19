@@ -103,6 +103,7 @@ const ProductSchema = z.object({
   ),
   price_cost: z.coerce.number().nullable(),
   tracks_batches: z.boolean(),
+  show_online: z.boolean(),
   allow_warranty: z.boolean(),
   warranty_days: z.coerce.number().nullable(),
   is_active: z.boolean(),
@@ -172,6 +173,7 @@ export function ProductCreateEditForm({ currentProduct }) {
     price_retail: null,
     price_cost: null,
     tracks_batches: true,
+    show_online: false,
     allow_warranty: false,
     warranty_days: null,
     is_active: true,
@@ -526,6 +528,22 @@ export function ProductCreateEditForm({ currentProduct }) {
                   Encendido: la venta valida y descuenta existencias (con o sin caducidad).
                   Apagado: venta libre — se cobra sin controlar inventario, ideal para granel
                   por peso (corteza, piedras: pesas la pieza y tecleas los gramos en el POS).
+                </Typography>
+              </Box>
+            }
+            sx={{ alignItems: 'flex-start' }}
+          />
+
+          <Divider sx={{ borderStyle: 'dashed' }} />
+
+          <Field.Switch
+            name="show_online"
+            label={
+              <Box>
+                <Typography variant="subtitle2">Mostrar en el sitio público</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Aparece en el catálogo de la tienda en línea (sección Productos). Los
+                  medicamentos y artículos internos deben quedar apagados.
                 </Typography>
               </Box>
             }

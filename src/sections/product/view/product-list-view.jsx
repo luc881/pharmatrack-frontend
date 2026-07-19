@@ -99,6 +99,8 @@ export function ProductListView() {
     categoryId: appliedCatId,
     isActive,
     ordering: toOrdering(sortModel),
+    // los animales viven en su propia sección; sus gemelos POS no van aquí
+    excludeAnimalTwins: true,
   });
 
   const rowCountRef = useRef(productsTotal);

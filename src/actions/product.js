@@ -21,6 +21,7 @@ export function useGetProducts({
   categoryId = null,
   isActive = null,
   ordering = null,
+  excludeAnimalTwins = false,
 } = {}) {
   const params = { page, page_size: pageSize };
   if (search) params.search = search;
@@ -28,6 +29,7 @@ export function useGetProducts({
   if (categoryId) params.category_id = categoryId;
   if (isActive !== null) params.is_active = isActive;
   if (ordering) params.ordering = ordering;
+  if (excludeAnimalTwins) params.exclude_animal_twins = true;
   const url = [endpoints.product.list, { params }];
 
   const { data, isLoading, error, isValidating, mutate } = useSWR(url, fetcher, {
