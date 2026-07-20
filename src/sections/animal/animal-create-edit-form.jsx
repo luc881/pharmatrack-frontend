@@ -11,9 +11,11 @@ import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
+import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import Autocomplete from '@mui/material/Autocomplete';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
@@ -141,6 +143,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   } = methods;
 
   const speciesId = watch('species_id');
+  const morphIds = watch('morphs');
   const { morphs: speciesMorphs, morphsMutate } = useAllMorphs(speciesId ? Number(speciesId) : undefined);
 
   // Cepas/paquetes: un registro con N unidades idénticas (stock del lote gemelo)
@@ -243,22 +246,19 @@ export function AnimalCreateEditForm({ currentAnimal }) {
 
           <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
             <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
-              <TextField
-                select
+              {/* Con escritura: teclea para filtrar (ignora acentos) */}
+              <Autocomplete
                 fullWidth
-                label="Género *"
-                value={genusId}
-                onChange={(e) => {
-                  setGenusId(e.target.value);
+                options={genera}
+                value={genera.find((g) => g.id === Number(genusId)) ?? null}
+                onChange={(_, option) => {
+                  setGenusId(option?.id ?? '');
                   setValue('species_id', '');
                 }}
-              >
-                {genera.map((g) => (
-                  <MenuItem key={g.id} value={g.id}>
-                    {g.name}
-                  </MenuItem>
-                ))}
-              </TextField>
+                getOptionLabel={(option) => option?.name ?? ''}
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                renderInput={(params) => <TextField {...params} label="Género *" />}
+              />
               {canCreate('genera') && (
                 <Tooltip title="Nuevo género">
                   <IconButton onClick={() => setQuickCreate({ tab: 'genera' })} sx={{ mt: 1 }}>
@@ -269,21 +269,26 @@ export function AnimalCreateEditForm({ currentAnimal }) {
             </Box>
 
             <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
-              <Field.Select
-                name="species_id"
-                label="Especie *"
+              <Autocomplete
+                fullWidth
                 disabled={!genusId}
-                helperText={genusId ? '' : 'Selecciona primero un género'}
-              >
-                {allSpecies
-                  .filter((s) => s.genus?.id === Number(genusId))
-                  .map((s) => (
-                    <MenuItem key={s.id} value={s.id}>
-                      {s.name}
-                      {s.common_name ? ` — ${s.common_name}` : ''}
-                    </MenuItem>
-                  ))}
-              </Field.Select>
+                options={allSpecies.filter((s) => s.genus?.id === Number(genusId))}
+                value={allSpecies.find((s) => s.id === Number(speciesId)) ?? null}
+                onChange={(_, option) =>
+                  setValue('species_id', option?.id ?? '', { shouldValidate: true })
+                }
+                getOptionLabel={(option) =>
+                  option ? `${option.name}${option.common_name ? ` — ${option.common_name}` : ''}` : ''
+                }
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Especie *"
+                    helperText={genusId ? '' : 'Selecciona primero un género'}
+                  />
+                )}
+              />
               {canCreate('species') && (
                 <Tooltip title="Nueva especie">
                   <IconButton onClick={() => setQuickCreate({ tab: 'species' })} sx={{ mt: 1 }}>
@@ -320,15 +325,37 @@ export function AnimalCreateEditForm({ currentAnimal }) {
             )}
 
             <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
-              {/* Select con checkboxes (no tags): los elegidos se listan separados por coma */}
-              <Field.MultiSelect
-                checkbox
-                name="morphs"
-                label="Morphs"
+              {/* Con escritura y checkboxes; los elegidos se listan como texto (no tags) */}
+              <Autocomplete
+                multiple
+                fullWidth
+                disableCloseOnSelect
                 disabled={!speciesId}
-                options={speciesMorphs.map((m) => ({ value: m.id, label: m.name }))}
-                helperText={speciesId ? '' : 'Selecciona primero una especie'}
-                sx={{ flexGrow: 1 }}
+                options={speciesMorphs}
+                value={speciesMorphs.filter((m) => morphIds.includes(m.id))}
+                onChange={(_, options) =>
+                  setValue('morphs', options.map((m) => m.id), { shouldDirty: true })
+                }
+                getOptionLabel={(option) => option?.name ?? ''}
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                renderOption={({ key, ...props }, option, { selected }) => (
+                  <li key={key} {...props}>
+                    <Checkbox size="small" disableRipple checked={selected} sx={{ mr: 1 }} />
+                    {option.name}
+                  </li>
+                )}
+                renderTags={(value) => (
+                  <Box component="span" sx={{ pl: 0.5, typography: 'body2' }}>
+                    {value.map((m) => m.name).join(', ')}
+                  </Box>
+                )}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Morphs"
+                    helperText={speciesId ? '' : 'Selecciona primero una especie'}
+                  />
+                )}
               />
               {canCreate('morphs') && (
                 <Tooltip title="Nuevo morph">

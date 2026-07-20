@@ -321,9 +321,12 @@ export function BundleCreateEditForm({ currentBundle }) {
                     onInputChange={(_, value, reason) => {
                       if (reason === 'input') setComponentSearch(value);
                     }}
-                    getOptionLabel={(option) =>
-                      option ? `${option.title}${option.sku ? ` (${option.sku})` : ''}` : ''
-                    }
+                    getOptionLabel={(option) => {
+                      if (!option) return '';
+                      // los gemelos de animales ya llevan el código en el título
+                      const showSku = option.sku && !option.title.includes(option.sku);
+                      return `${option.title}${showSku ? ` (${option.sku})` : ''}`;
+                    }}
                     isOptionEqualToValue={(option, value) => option?.id === value?.id}
                     filterOptions={(x) => x} // el filtrado es del servidor
                     groupBy={(option) => categoriesById[option.product_category_id] ?? 'Sin categoría'}

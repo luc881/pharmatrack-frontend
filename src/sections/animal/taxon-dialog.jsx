@@ -8,6 +8,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
@@ -135,34 +136,44 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
 
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
         {tab === 'groups' && (
-          <TextField select label="Grupo padre" value={form.parent_id} onChange={set('parent_id')} sx={{ mt: 1 }}>
-            <MenuItem value="">— Raíz —</MenuItem>
-            {parentOptions.map((g) => (
-              <MenuItem key={g.id} value={g.id} sx={{ pl: 2 + g.depth * 2 }}>
-                {g.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={parentOptions}
+            value={parentOptions.find((g) => g.id === Number(form.parent_id)) ?? null}
+            onChange={(_, option) => setForm((f) => ({ ...f, parent_id: option?.id ?? '' }))}
+            getOptionLabel={(option) => option?.name ?? ''}
+            isOptionEqualToValue={(option, value) => option?.id === value?.id}
+            renderOption={({ key, ...props }, option) => (
+              <li key={key} {...props} style={{ ...props.style, paddingLeft: 16 + option.depth * 16 }}>
+                {option.depth > 0 && '└ '}
+                {option.name}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} label="Grupo padre" placeholder="— Raíz —" sx={{ mt: 1 }} />
+            )}
+          />
         )}
 
         {tab === 'species' && (
-          <TextField select label="Género *" value={form.genus_id} onChange={set('genus_id')} sx={{ mt: 1 }}>
-            {genera.map((g) => (
-              <MenuItem key={g.id} value={g.id}>
-                {g.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={genera}
+            value={genera.find((g) => g.id === Number(form.genus_id)) ?? null}
+            onChange={(_, option) => setForm((f) => ({ ...f, genus_id: option?.id ?? '' }))}
+            getOptionLabel={(option) => option?.name ?? ''}
+            isOptionEqualToValue={(option, value) => option?.id === value?.id}
+            renderInput={(params) => <TextField {...params} label="Género *" sx={{ mt: 1 }} />}
+          />
         )}
 
         {tab === 'morphs' && (
-          <TextField select label="Especie *" value={form.species_id} onChange={set('species_id')} sx={{ mt: 1 }}>
-            {allSpecies.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {speciesLabel(s)}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={allSpecies}
+            value={allSpecies.find((sp) => sp.id === Number(form.species_id)) ?? null}
+            onChange={(_, option) => setForm((f) => ({ ...f, species_id: option?.id ?? '' }))}
+            getOptionLabel={(option) => (option ? speciesLabel(option) : '')}
+            isOptionEqualToValue={(option, value) => option?.id === value?.id}
+            renderInput={(params) => <TextField {...params} label="Especie *" sx={{ mt: 1 }} />}
+          />
         )}
 
         <TextField
@@ -178,14 +189,22 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
         />
 
         {tab === 'genera' && (
-          <TextField select label="Grupo" value={form.group_id} onChange={set('group_id')}>
-            <MenuItem value="">Sin grupo</MenuItem>
-            {groupsFlat.map((g) => (
-              <MenuItem key={g.id} value={g.id} sx={{ pl: 2 + g.depth * 2 }}>
-                {g.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={groupsFlat}
+            value={groupsFlat.find((g) => g.id === Number(form.group_id)) ?? null}
+            onChange={(_, option) => setForm((f) => ({ ...f, group_id: option?.id ?? '' }))}
+            getOptionLabel={(option) => option?.name ?? ''}
+            isOptionEqualToValue={(option, value) => option?.id === value?.id}
+            renderOption={({ key, ...props }, option) => (
+              <li key={key} {...props} style={{ ...props.style, paddingLeft: 16 + option.depth * 16 }}>
+                {option.depth > 0 && '└ '}
+                {option.name}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} label="Grupo" placeholder="Sin grupo" />
+            )}
+          />
         )}
 
         {tab === 'species' && (
