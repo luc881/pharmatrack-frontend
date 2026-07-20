@@ -7,6 +7,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Alert from '@mui/material/Alert';
+import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import TextField from '@mui/material/TextField';
@@ -312,6 +313,13 @@ export function BundleCreateEditForm({ currentBundle }) {
 
               {components.map((row, index) => (
                 <Box key={index} sx={{ mb: 1.5, gap: 1, display: 'flex', alignItems: 'center' }}>
+                  <Avatar
+                    src={row.product?.image ?? ''}
+                    variant="rounded"
+                    sx={{ width: 40, height: 40, flexShrink: 0, bgcolor: 'background.neutral' }}
+                  >
+                    <Iconify icon="solar:box-bold" width={18} />
+                  </Avatar>
                   <Autocomplete
                     size="small"
                     sx={{ flexGrow: 1 }}
@@ -331,6 +339,28 @@ export function BundleCreateEditForm({ currentBundle }) {
                     filterOptions={(x) => x} // el filtrado es del servidor
                     groupBy={(option) => categoriesById[option.product_category_id] ?? 'Sin categoría'}
                     noOptionsText="Sin resultados — escribe parte del nombre o SKU"
+                    renderOption={({ key, ...props }, option) => (
+                      <li key={key} {...props}>
+                        <Avatar
+                          src={option.image ?? ''}
+                          variant="rounded"
+                          sx={{ mr: 1.5, width: 32, height: 32, flexShrink: 0, bgcolor: 'background.neutral' }}
+                        >
+                          <Iconify icon="solar:box-bold" width={16} />
+                        </Avatar>
+                        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                          <Box sx={{ typography: 'body2', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                            {option.title}
+                          </Box>
+                          {option.sku && !option.title.includes(option.sku) && (
+                            <Box sx={{ typography: 'caption', color: 'text.disabled' }}>{option.sku}</Box>
+                          )}
+                        </Box>
+                        <Box sx={{ ml: 1, typography: 'caption', color: 'text.secondary', flexShrink: 0 }}>
+                          {fCurrency(option.price_retail)}
+                        </Box>
+                      </li>
+                    )}
                     renderInput={(params) => (
                       <TextField
                         {...params}
