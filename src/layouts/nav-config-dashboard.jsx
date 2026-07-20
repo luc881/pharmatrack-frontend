@@ -127,6 +127,7 @@ export const navData = [
           { title: 'Lotes y Stock',      path: paths.dashboard.productBatch.root },
           { title: 'Fórmulas genéricas',  path: paths.dashboard.productMaster.root },
           { title: 'Sustancias',         path: paths.dashboard.ingredient.root },
+          { title: 'Paquetes',           path: paths.dashboard.bundle.root },
         ],
       },
       {

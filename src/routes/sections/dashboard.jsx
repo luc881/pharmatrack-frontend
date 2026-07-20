@@ -81,6 +81,10 @@ const AnimalTaxonomyPage = lazy(() => import('src/pages/dashboard/animal/taxonom
 const ArticleListPage   = lazy(() => import('src/pages/dashboard/article/list'));
 const ArticleCreatePage = lazy(() => import('src/pages/dashboard/article/new'));
 const ArticleEditPage   = lazy(() => import('src/pages/dashboard/article/edit'));
+
+const BundleListPage   = lazy(() => import('src/pages/dashboard/bundle/list'));
+const BundleCreatePage = lazy(() => import('src/pages/dashboard/bundle/new'));
+const BundleEditPage   = lazy(() => import('src/pages/dashboard/bundle/edit'));
 // Calendar
 const CalendarPage = lazy(() => import('src/pages/dashboard/calendar'));
 // Sensor
@@ -335,6 +339,17 @@ export const dashboardRoutes = [
           { path: 'list',     element: guard(P.articlesRead,   <ArticleListPage />) },
           { path: 'new',      element: guard(P.articlesCreate, <ArticleCreatePage />) },
           { path: ':id/edit', element: guard(P.articlesUpdate, <ArticleEditPage />) },
+        ],
+      },
+
+      // ── Bundles (paquetes) ──────────────────────────────────────────
+      {
+        path: 'bundle',
+        children: [
+          { index: true,      element: <BundleListPage /> },
+          { path: 'list',     element: <BundleListPage /> },
+          { path: 'new',      element: guard(P.productsCreate, <BundleCreatePage />) },
+          { path: ':id/edit', element: guard(P.productsUpdate, <BundleEditPage />) },
         ],
       },
 

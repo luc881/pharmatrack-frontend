@@ -102,6 +102,8 @@ const ProductSchema = z.object({
     { error: 'El precio de venta es requerido' }
   ),
   price_cost: z.coerce.number().nullable(),
+  compare_at_price: z.coerce.number().nullable(),
+  max_discount: z.coerce.number().min(0).max(100).nullable(),
   tracks_batches: z.boolean(),
   show_online: z.boolean(),
   allow_warranty: z.boolean(),
@@ -172,6 +174,8 @@ export function ProductCreateEditForm({ currentProduct }) {
     is_unit_sale: false,
     price_retail: null,
     price_cost: null,
+    compare_at_price: null,
+    max_discount: null,
     tracks_batches: true,
     show_online: false,
     allow_warranty: false,
@@ -271,6 +275,8 @@ export function ProductCreateEditForm({ currentProduct }) {
       brand_id: data.brand_id || null,
       product_category_id: data.product_category_id || null,
       price_cost: data.price_cost || null,
+      compare_at_price: data.compare_at_price || null,
+      max_discount: data.max_discount ?? null,
       warranty_days: data.allow_warranty ? data.warranty_days : null,
       base_unit_name: isPack ? data.base_unit_name : null,
       units_per_base: isPack ? data.units_per_base : null,
@@ -618,11 +624,69 @@ export function ProductCreateEditForm({ currentProduct }) {
                     <InputAdornment position="start" sx={{ mr: 0.75 }}>
                       <Box component="span" sx={{ color: 'text.disabled' }}>
                         $
+            
+            <Field.Text
+              name="compare_at_price"
+              label="Precio anterior (oferta)"
+              placeholder="0.00"
+              type="number"
+              helperText="Se muestra tachado en la tienda; vacío = sin oferta"
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ mr: 0.75 }}>
+                      <Box component="span" sx={{ color: 'text.disabled' }}>
+                        $
                       </Box>
                     </InputAdornment>
                   ),
                 },
               }}
+            />
+
+            <Field.Text
+              name="max_discount"
+              label="Descuento máximo (%)"
+              placeholder="0"
+              type="number"
+              helperText="Tope de descuento por línea en el POS; vacío = sin tope"
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: 0, max: 100 } }}
+            />
+          </Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+
+            <Field.Text
+              name="compare_at_price"
+              label="Precio anterior (oferta)"
+              placeholder="0.00"
+              type="number"
+              helperText="Se muestra tachado en la tienda; vacío = sin oferta"
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ mr: 0.75 }}>
+                      <Box component="span" sx={{ color: 'text.disabled' }}>
+                        $
+                      </Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+
+            <Field.Text
+              name="max_discount"
+              label="Descuento máximo (%)"
+              placeholder="0"
+              type="number"
+              helperText="Tope de descuento por línea en el POS; vacío = sin tope"
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: 0, max: 100 } }}
             />
           </Box>
         </Stack>

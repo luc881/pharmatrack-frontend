@@ -22,6 +22,7 @@ export function useGetProducts({
   isActive = null,
   ordering = null,
   excludeAnimalTwins = false,
+  onlyBundles = false,
 } = {}) {
   const params = { page, page_size: pageSize };
   if (search) params.search = search;
@@ -30,6 +31,7 @@ export function useGetProducts({
   if (isActive !== null) params.is_active = isActive;
   if (ordering) params.ordering = ordering;
   if (excludeAnimalTwins) params.exclude_animal_twins = true;
+  if (onlyBundles) params.only_bundles = true;
   const url = [endpoints.product.list, { params }];
 
   const { data, isLoading, error, isValidating, mutate } = useSWR(url, fetcher, {
@@ -103,3 +105,12 @@ export const updateProduct = (id, data) =>
 
 export const deleteProduct = (id) =>
   axiosInstance.delete(endpoints.product.delete(id)).then((res) => res.data);
+
+// ----------------------------------------------------------------------
+// Paquetes (bundles)
+
+export const getBundleItems = (productId) =>
+  axiosInstance.get(endpoints.bundle.items(productId)).then((r) => r.data);
+
+export const setBundleItems = (productId, items) =>
+  axiosInstance.put(endpoints.bundle.items(productId), items).then((r) => r.data);

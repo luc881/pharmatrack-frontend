@@ -876,6 +876,12 @@ function SaleItem({ index, products, productIdsWithStock, reservedProductIds, on
           label="Descuento ($)"
           type="number"
           size="small"
+          // el backend rechaza descuentos arriba del tope del producto
+          helperText={
+            product?.max_discount != null
+              ? `Máx ${product.max_discount}% ($${(((Number(quantity) || 0) * priceRetail * product.max_discount) / 100).toFixed(2)})`
+              : ''
+          }
           slotProps={{
             inputLabel: { shrink: true },
             input: {

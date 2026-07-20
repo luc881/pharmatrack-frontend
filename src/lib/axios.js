@@ -229,6 +229,9 @@ export const endpoints = {
     update: (id) => `/api/v1/animals/${id}`,
     delete: (id) => `/api/v1/animals/${id}`,
   },
+  bundle: {
+    items: (id) => `/api/v1/products/${id}/bundle-items`,
+  },
   article: {
     list: '/api/v1/articles',
     details: (id) => `/api/v1/articles/${id}`,

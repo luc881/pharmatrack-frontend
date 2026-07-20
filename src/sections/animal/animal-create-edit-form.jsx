@@ -49,6 +49,7 @@ const schema = zod.object({
   sex: zod.enum(['male', 'female', 'unknown']),
   birth_date: zod.string().optional(),
   price: zod.number({ coerce: true }).nonnegative('El precio no puede ser negativo'),
+  compare_at_price: zod.union([zod.string(), zod.number()]).optional(),
   price_cost: zod.union([zod.string(), zod.number()]).optional(),
   code: zod.string().optional(),
   morphs: zod.array(zod.number()),
@@ -95,6 +96,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       sex: 'unknown',
       birth_date: '',
       price: '',
+      compare_at_price: '',
       price_cost: '',
       code: '',
       morphs: [],
@@ -113,6 +115,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           sex: currentAnimal.sex ?? 'unknown',
           birth_date: currentAnimal.birth_date ?? '',
           price: currentAnimal.price ?? '',
+          compare_at_price: currentAnimal.compare_at_price ?? '',
           price_cost: currentAnimal.price_cost ?? '',
           code: currentAnimal.code ?? '',
           morphs: (currentAnimal.morphs ?? []).map((m) => m.id),
@@ -193,6 +196,10 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         sex: isBulk ? 'unknown' : data.sex,
         birth_date: !isBulk && data.birth_date ? data.birth_date : null,
         price: Number(data.price),
+        compare_at_price:
+          data.compare_at_price !== '' && data.compare_at_price != null
+            ? Number(data.compare_at_price)
+            : null,
         price_cost: data.price_cost !== '' && data.price_cost != null ? Number(data.price_cost) : 0,
         morph_ids: data.morphs,
         description: data.description || null,
@@ -376,6 +383,23 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                   ? `Precio por ${selectedSpecies?.sale_format === 'package' ? `paquete de ${selectedSpecies.package_size}` : 'cepa'}`
                   : ''
               }
+              slotProps={{
+                inputLabel: { shrink: true },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+
+            <Field.Text
+              name="compare_at_price"
+              label="Precio anterior (oferta)"
+              type="number"
+              helperText="Se muestra tachado en la tienda; vacío = sin oferta"
               slotProps={{
                 inputLabel: { shrink: true },
                 input: {
