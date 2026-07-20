@@ -59,11 +59,20 @@ export function BundleCreateEditForm({ currentBundle }) {
 
   const { categories, categoriesMutate } = useGetProductCategories();
 
-  // Buscador de componentes (server-side por texto)
+  // Buscador de componentes (server-side por texto): CUALQUIER producto del
+  // catálogo puede ser componente — farmacia, insumos o animales
   const [componentSearch, setComponentSearch] = useState('');
   const { products: componentOptions } = useGetProducts({
     search: componentSearch || undefined,
-    pageSize: 30,
+    pageSize: 50,
+    ordering: 'title',
+  });
+  const categoriesById = Object.fromEntries(categories.map((c) => [c.id, c.name]));
+  // groupBy exige opciones agrupadas: ordenar por categoría y luego título
+  const sortedOptions = [...componentOptions].sort((a, b) => {
+    const catA = categoriesById[a.product_category_id] ?? '';
+    const catB = categoriesById[b.product_category_id] ?? '';
+    return catA.localeCompare(catB) || a.title.localeCompare(b.title);
   });
 
   // Componentes elegidos: [{ product, quantity }]
@@ -296,8 +305,9 @@ export function BundleCreateEditForm({ currentBundle }) {
                 Componentes
               </Typography>
               <Typography variant="caption" sx={{ mb: 2, display: 'block', color: 'text.secondary' }}>
-                Productos y animales incluidos: al vender el paquete se descuenta el stock de cada
-                uno (y los animales pasan a vendidos). Busca los animales por su código o nombre.
+                Puede ser cualquier producto del catálogo — insumos, artículos de farmacia o
+                animales (estos últimos por su código o nombre). Al vender el paquete se descuenta
+                el stock de cada componente y los animales incluidos pasan a vendidos.
               </Typography>
 
               {components.map((row, index) => (
@@ -305,7 +315,7 @@ export function BundleCreateEditForm({ currentBundle }) {
                   <Autocomplete
                     size="small"
                     sx={{ flexGrow: 1 }}
-                    options={componentOptions}
+                    options={sortedOptions}
                     value={row.product}
                     onChange={(_, product) => updateComponent(index, { product })}
                     onInputChange={(_, value, reason) => {
@@ -316,8 +326,14 @@ export function BundleCreateEditForm({ currentBundle }) {
                     }
                     isOptionEqualToValue={(option, value) => option?.id === value?.id}
                     filterOptions={(x) => x} // el filtrado es del servidor
+                    groupBy={(option) => categoriesById[option.product_category_id] ?? 'Sin categoría'}
+                    noOptionsText="Sin resultados — escribe parte del nombre o SKU"
                     renderInput={(params) => (
-                      <TextField {...params} label="Producto o animal" placeholder="Escribe para buscar…" />
+                      <TextField
+                        {...params}
+                        label="Cualquier producto del catálogo"
+                        placeholder="Escribe para buscar (nombre o SKU)…"
+                      />
                     )}
                   />
                   <TextField
