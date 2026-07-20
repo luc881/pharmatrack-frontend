@@ -18,13 +18,49 @@ const money = (n) => `$${Number(n ?? 0).toFixed(2)}`;
 const esc = (s) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-export function printTicket({ saleId, date, items, payments }) {
+const computeTotals = (items, payments) => {
   const total = items.reduce(
     (acc, it) => acc + it.quantity * it.unitPrice - Number(it.discount ?? 0),
     0
   );
   const paid = payments.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
-  const change = paid - total;
+  return { total, change: paid - total };
+};
+
+// Ticket en texto plano para compartir por WhatsApp o correo
+export function buildTicketText({ saleId, date, items, payments }) {
+  const { total, change } = computeTotals(items, payments);
+  const lines = [
+    `*${CONFIG.appName}*`,
+    `Ticket de venta #${saleId}`,
+    new Date(date ?? Date.now()).toLocaleString('es-MX'),
+    '--------------------',
+    ...items.map((it) => {
+      const sub = it.quantity * it.unitPrice - Number(it.discount ?? 0);
+      const desc = Number(it.discount) ? ` (desc ${money(it.discount)})` : '';
+      return `${it.quantity} x ${it.title}${desc} — ${money(sub)}`;
+    }),
+    '--------------------',
+    `*TOTAL: ${money(total)}*`,
+    ...payments.map(
+      (p) => `${PAYMENT_LABELS[p.method_payment] ?? p.method_payment}: ${money(p.amount)}`
+    ),
+    ...(change > 0.009 ? [`Cambio: ${money(change)}`] : []),
+    '',
+    '¡Gracias por su compra!',
+  ];
+  return lines.join('\n');
+}
+
+// wa.me sin número abre el selector de contactos del vendedor
+export const ticketWhatsAppUrl = (ticket) =>
+  `https://wa.me/?text=${encodeURIComponent(ticket.replace(/—/g, '-'))}`;
+
+export const ticketMailtoUrl = (ticket, saleId) =>
+  `mailto:?subject=${encodeURIComponent(`Ticket de venta #${saleId} - ${CONFIG.appName}`)}&body=${encodeURIComponent(ticket.replace(/\*/g, ''))}`;
+
+export function printTicket({ saleId, date, items, payments }) {
+  const { total, change } = computeTotals(items, payments);
 
   const itemRows = items
     .map((it) => {

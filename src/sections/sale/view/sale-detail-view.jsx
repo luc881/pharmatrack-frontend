@@ -23,8 +23,8 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { SalePDFDownload } from '../sale-pdf';
-import { printTicket } from '../print-ticket';
 import { useAllProducts } from '../../product-batch/use-all-products';
+import { printTicket, buildTicketText, ticketMailtoUrl, ticketWhatsAppUrl } from '../print-ticket';
 
 // ----------------------------------------------------------------------
 
@@ -58,6 +58,18 @@ export function SaleDetailView({ currentSale }) {
 
   const totalPayments = salePayments.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
 
+  const ticketData = {
+    saleId,
+    date: currentSale?.created_at,
+    items: saleDetails.map((d) => ({
+      title: productMap[d.product_id] ?? `Producto #${d.product_id}`,
+      quantity: Number(d.quantity) || 0,
+      unitPrice: Number(d.unit_price ?? productPriceMap[d.product_id] ?? 0),
+      discount: Number(d.discount ?? 0),
+    })),
+    payments: salePayments,
+  };
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -73,21 +85,27 @@ export function SaleDetailView({ currentSale }) {
               variant="outlined"
               startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
               disabled={saleDetailsLoading || saleDetails.length === 0}
-              onClick={() =>
-                printTicket({
-                  saleId,
-                  date: currentSale?.created_at,
-                  items: saleDetails.map((d) => ({
-                    title: productMap[d.product_id] ?? `Producto #${d.product_id}`,
-                    quantity: Number(d.quantity) || 0,
-                    unitPrice: Number(d.unit_price ?? productPriceMap[d.product_id] ?? 0),
-                    discount: Number(d.discount ?? 0),
-                  })),
-                  payments: salePayments,
-                })
-              }
+              onClick={() => printTicket(ticketData)}
             >
               Ticket
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="ic:baseline-whatsapp" />}
+              disabled={saleDetailsLoading || saleDetails.length === 0}
+              onClick={() => window.open(ticketWhatsAppUrl(buildTicketText(ticketData)), '_blank')}
+            >
+              WhatsApp
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="solar:letter-bold" />}
+              disabled={saleDetailsLoading || saleDetails.length === 0}
+              onClick={() => {
+                window.location.href = ticketMailtoUrl(buildTicketText(ticketData), saleId);
+              }}
+            >
+              Correo
             </Button>
             <SalePDFDownload
               sale={currentSale}
