@@ -52,6 +52,56 @@ import {
 
 // ----------------------------------------------------------------------
 
+// Lista de precios imprimible para la mesa de una convención
+function printPriceList(grouped) {
+  const rows = grouped
+    .map((entry) => {
+      const { species, animals } = entry;
+      const sci = [species.genus?.name, species.name].filter(Boolean).join(' ');
+      const available = animals.filter((a) => a.status === 'available');
+      if (!available.length) return null;
+      const units = available.reduce((sum, a) => sum + (a.stock ?? 1), 0);
+      const tiers = species.price_tiers ?? [];
+      const prices = available.map((a) => Number(a.price));
+      const price = tiers.length
+        ? tiers.map((t) => `${t.quantity} × $${Number(t.price).toLocaleString()}`).join('  ·  ')
+        : (() => {
+            const min = Math.min(...prices);
+            const max = Math.max(...prices);
+            return min === max
+              ? `$${min.toLocaleString()}`
+              : `$${min.toLocaleString()} – $${max.toLocaleString()}`;
+          })();
+      return `<tr>
+        <td><strong>${species.common_name ?? sci}</strong><br/><em>${sci}</em></td>
+        <td>${saleFormatLabel(species) ?? 'Individual'}</td>
+        <td>${units}</td>
+        <td>${price}</td>
+      </tr>`;
+    })
+    .filter(Boolean)
+    .join('');
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) return;
+  win.document.write(`<!doctype html><html><head><title>Lista de precios</title><style>
+    body { font-family: Arial, sans-serif; margin: 24px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    p { color: #666; font-size: 12px; margin: 0 0 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #ddd; text-align: left; }
+    th { background: #f4f6f8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; }
+    em { color: #666; font-size: 11px; }
+  </style></head><body>
+    <h1>Lista de precios</h1>
+    <p>${new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })} — solo disponibles</p>
+    <table><thead><tr><th>Especie</th><th>Formato</th><th>Disp.</th><th>Precio</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+  </body></html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 300);
+}
+
 // La lista agrupa por especie (como producto → lotes): la fila muestra la
 // cantidad por estado y al expandir salen los ejemplares con su folio.
 export function AnimalListView() {
@@ -202,16 +252,27 @@ export function AnimalListView() {
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Animales' },
           ]}
-          action={canCreate && (
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.animal.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Nuevo animal
-            </Button>
-          )}
+          action={
+            <Stack direction="row" spacing={1.5}>
+              <Button
+                variant="outlined"
+                startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
+                onClick={() => printPriceList(grouped)}
+              >
+                Lista de precios
+              </Button>
+              {canCreate && (
+                <Button
+                  component={RouterLink}
+                  href={paths.dashboard.animal.new}
+                  variant="contained"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                >
+                  Nuevo animal
+                </Button>
+              )}
+            </Stack>
+          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 

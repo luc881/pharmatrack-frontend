@@ -51,6 +51,11 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
   const isEdit = !!current;
   const base = current ?? initial;
 
+  // Escalas de precio por cantidad (isópodos: 6/12/18) — editables aquí
+  const [tiers, setTiers] = useState(() =>
+    (base?.price_tiers ?? []).map((t) => ({ quantity: t.quantity, price: t.price }))
+  );
+
   const [form, setForm] = useState({
     name: base?.name ?? '',
     common_name: base?.common_name ?? '',
@@ -98,6 +103,12 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           common_name: form.common_name || null,
           sale_format: form.sale_format,
           package_size: form.sale_format === 'package' ? Number(form.package_size) : null,
+          price_tiers:
+            form.sale_format === 'individual'
+              ? null
+              : tiers
+                  .filter((t) => Number(t.quantity) >= 1 && Number(t.price) > 0)
+                  .map((t) => ({ quantity: Number(t.quantity), price: Number(t.price) })) || null,
           // ficha de cuidados que muestra el sitio público
           description: form.description || null,
           origin: form.origin || null,
@@ -225,6 +236,58 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
                 onChange={set('package_size')}
                 slotProps={{ htmlInput: { min: 2 } }}
               />
+            )}
+
+            {form.sale_format !== 'individual' && (
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                  Escalas de precio por cantidad
+                </Typography>
+                <Typography variant="caption" sx={{ mb: 1.5, display: 'block', color: 'text.secondary' }}>
+                  Opcional: precios por volumen (p. ej. 6 → $150, 12 → $270). El sitio muestra el
+                  selector de cantidad con estos precios.
+                </Typography>
+                {tiers.map((tier, index) => (
+                  <Box key={index} sx={{ mb: 1, gap: 1, display: 'flex', alignItems: 'center' }}>
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="Cantidad"
+                      value={tier.quantity}
+                      onChange={(e) =>
+                        setTiers((prev) =>
+                          prev.map((t, i) => (i === index ? { ...t, quantity: e.target.value } : t))
+                        )
+                      }
+                      slotProps={{ htmlInput: { min: 1 } }}
+                      sx={{ width: 110 }}
+                    />
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="Precio ($)"
+                      value={tier.price}
+                      onChange={(e) =>
+                        setTiers((prev) =>
+                          prev.map((t, i) => (i === index ? { ...t, price: e.target.value } : t))
+                        )
+                      }
+                      slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                      sx={{ width: 130 }}
+                    />
+                    <Button
+                      size="small"
+                      color="error"
+                      onClick={() => setTiers((prev) => prev.filter((_, i) => i !== index))}
+                    >
+                      Quitar
+                    </Button>
+                  </Box>
+                ))}
+                <Button size="small" onClick={() => setTiers((prev) => [...prev, { quantity: '', price: '' }])}>
+                  + Agregar escala
+                </Button>
+              </Box>
             )}
 
             <Divider sx={{ borderStyle: 'dashed' }}>

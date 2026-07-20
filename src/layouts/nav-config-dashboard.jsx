@@ -157,6 +157,7 @@ export const navData = [
         children: [
           { title: 'Lista', path: paths.dashboard.sale.root },
           { title: 'Nueva', path: paths.dashboard.sale.new, allowedRoles: ['sales.create'] },
+          { title: 'Corte de caja', path: paths.dashboard.sale.summary },
         ],
       },
       { title: 'Calendario', path: paths.dashboard.calendar, icon: ICONS.calendar },

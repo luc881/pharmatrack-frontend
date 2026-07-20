@@ -63,6 +63,7 @@ const PurchaseDetailsPage = lazy(() => import('src/pages/dashboard/purchase/deta
 const SaleListPage    = lazy(() => import('src/pages/dashboard/sale/list'));
 const SaleCreatePage  = lazy(() => import('src/pages/dashboard/sale/new'));
 const SaleEditPage    = lazy(() => import('src/pages/dashboard/sale/edit'));
+const SaleSummaryPage  = lazy(() => import('src/pages/dashboard/sale/summary'));
 const SaleDetailsPage = lazy(() => import('src/pages/dashboard/sale/details'));
 // Refund
 const RefundProductListPage   = lazy(() => import('src/pages/dashboard/refund-product/list'));
@@ -291,6 +292,7 @@ export const dashboardRoutes = [
         children: [
           { index: true,      element: <SaleListPage /> },
           { path: 'list',     element: <SaleListPage /> },
+          { path: 'summary',  element: <SaleSummaryPage /> },
           { path: 'new',      element: <SaleCreatePage /> },
           { path: ':id',      element: <SaleDetailsPage /> },
           { path: ':id/edit', element: <SaleEditPage /> },
