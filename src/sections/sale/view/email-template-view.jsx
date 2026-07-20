@@ -54,11 +54,11 @@ export function EmailTemplateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Correo de ticket"
+        heading="Plantilla del ticket"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Ventas', href: paths.dashboard.sale.root },
-          { name: 'Correo de ticket' },
+          { name: 'Plantilla del ticket' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -74,7 +74,7 @@ export function EmailTemplateView() {
               label="Nombre del negocio"
               value={form.business_name}
               onChange={set('business_name')}
-              helperText="Aparece en el asunto y el encabezado del correo"
+              helperText="Encabezado del ticket impreso, WhatsApp y correo"
             />
             <TextField
               label="Mensaje inicial (opcional)"
@@ -82,7 +82,7 @@ export function EmailTemplateView() {
               onChange={set('intro_message')}
               multiline
               minRows={2}
-              helperText="Se muestra arriba de la lista de productos, p. ej. instrucciones de cuidado o garantía"
+              helperText="Solo en el correo, arriba de la lista de productos (cuidados, garantía…)"
             />
             <TextField
               label="Mensaje de despedida"

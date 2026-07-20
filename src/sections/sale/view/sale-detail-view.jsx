@@ -31,7 +31,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { SalePDFDownload } from '../sale-pdf';
 import { useAllProducts } from '../../product-batch/use-all-products';
-import { printTicket, buildTicketText, ticketWhatsAppUrl } from '../print-ticket';
+import { printTicket, buildTicketText, ticketWhatsAppUrl, useTicketTemplate } from '../print-ticket';
 
 // ----------------------------------------------------------------------
 
@@ -64,6 +64,7 @@ export function SaleDetailView({ currentSale }) {
   };
   const { saleDetails, saleDetailsLoading } = useGetSaleDetails(saleId);
   const { salePayments, salePaymentsLoading } = useGetSalePayments(saleId);
+  const ticketTemplate = useTicketTemplate();
 
   const products = useAllProducts();
   const productMap = useMemo(
@@ -92,6 +93,8 @@ export function SaleDetailView({ currentSale }) {
       discount: Number(d.discount ?? 0),
     })),
     payments: salePayments,
+    business: ticketTemplate?.business_name,
+    footer: ticketTemplate?.footer_message,
   };
 
   return (

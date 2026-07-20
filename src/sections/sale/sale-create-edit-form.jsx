@@ -45,7 +45,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { printTicket } from './print-ticket';
+import { printTicket, useTicketTemplate } from './print-ticket';
 
 // ----------------------------------------------------------------------
 
@@ -205,6 +205,7 @@ export function SaleCreateEditForm({
   const { branches } = useGetBranches();
   const { products, productsLoading } = useAllProducts();
   const productIdsWithStock = useProductIdsWithStock();
+  const ticketTemplate = useTicketTemplate();
   const reservedProductIds = useReservedAnimalProductIds();
 
   const defaultValues = {
@@ -329,6 +330,8 @@ export function SaleCreateEditForm({
           };
         }),
         payments: data.payments,
+        business: ticketTemplate?.business_name,
+        footer: ticketTemplate?.footer_message,
       });
 
       toast.success(currentSale ? 'Venta actualizada' : 'Venta registrada');

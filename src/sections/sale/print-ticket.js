@@ -1,3 +1,6 @@
+import useSWR from 'swr';
+
+import { fetcher } from 'src/lib/axios';
 import { CONFIG } from 'src/global-config';
 
 // ----------------------------------------------------------------------
@@ -15,6 +18,16 @@ const PAYMENT_LABELS = {
 
 const money = (n) => `$${Number(n ?? 0).toFixed(2)}`;
 
+// Plantilla compartida (Ventas > Plantilla del ticket): nombre y despedida
+export function useTicketTemplate() {
+  const { data } = useSWR('/api/v1/settings/email-ticket', fetcher, {
+    revalidateIfStale: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+  return data;
+}
+
 const esc = (s) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -28,10 +41,10 @@ const computeTotals = (items, payments) => {
 };
 
 // Ticket en texto plano para compartir por WhatsApp o correo
-export function buildTicketText({ saleId, date, items, payments }) {
+export function buildTicketText({ saleId, date, items, payments, business, footer }) {
   const { total, change } = computeTotals(items, payments);
   const lines = [
-    `*${CONFIG.appName}*`,
+    `*${business || CONFIG.appName}*`,
     `Ticket de venta #${saleId}`,
     new Date(date ?? Date.now()).toLocaleString('es-MX'),
     '--------------------',
@@ -47,7 +60,7 @@ export function buildTicketText({ saleId, date, items, payments }) {
     ),
     ...(change > 0.009 ? [`Cambio: ${money(change)}`] : []),
     '',
-    '¡Gracias por su compra!',
+    footer || '¡Gracias por su compra!',
   ];
   return lines.join('\n');
 }
@@ -59,7 +72,7 @@ export const ticketWhatsAppUrl = (ticket) =>
 export const ticketMailtoUrl = (ticket, saleId) =>
   `mailto:?subject=${encodeURIComponent(`Ticket de venta #${saleId} - ${CONFIG.appName}`)}&body=${encodeURIComponent(ticket.replace(/\*/g, ''))}`;
 
-export function printTicket({ saleId, date, items, payments }) {
+export function printTicket({ saleId, date, items, payments, business, footer }) {
   const { total, change } = computeTotals(items, payments);
 
   const itemRows = items
@@ -88,7 +101,7 @@ export function printTicket({ saleId, date, items, payments }) {
     .total { font-weight: bold; font-size: 14px; }
     hr { border: 0; border-top: 1px dashed #000; margin: 4px 0; }
   </style></head><body>
-    <div class="center" style="font-weight:bold">${esc(CONFIG.appName)}</div>
+    <div class="center" style="font-weight:bold">${esc(business || CONFIG.appName)}</div>
     <div class="center">Venta #${saleId}</div>
     <div class="center">${new Date(date ?? Date.now()).toLocaleString('es-MX')}</div>
     <hr/>
@@ -98,7 +111,7 @@ export function printTicket({ saleId, date, items, payments }) {
     ${paymentRows}
     ${change > 0.009 ? `<div class="row"><span>Cambio</span><span>${money(change)}</span></div>` : ''}
     <hr/>
-    <div class="center">¡Gracias por su compra!</div>
+    <div class="center">${esc(footer || '¡Gracias por su compra!')}</div>
   </body></html>`;
 
   const iframe = document.createElement('iframe');
