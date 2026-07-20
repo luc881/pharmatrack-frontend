@@ -80,6 +80,7 @@ export const paths = {
     sale: {
       root: `${ROOTS.DASHBOARD}/sale`,
       summary: `${ROOTS.DASHBOARD}/sale/summary`,
+      emailTemplate: `${ROOTS.DASHBOARD}/sale/email-template`,
       new: `${ROOTS.DASHBOARD}/sale/new`,
       details: (id) => `${ROOTS.DASHBOARD}/sale/${id}`,
       edit: (id) => `${ROOTS.DASHBOARD}/sale/${id}/edit`,

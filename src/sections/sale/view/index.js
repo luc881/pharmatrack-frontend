@@ -4,3 +4,4 @@ export * from './sale-create-view';
 export * from './sale-detail-view';
 
 export * from './sale-summary-view';
+export * from './email-template-view';
