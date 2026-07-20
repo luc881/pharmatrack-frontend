@@ -1,30 +1,37 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 import TableContainer from '@mui/material/TableContainer';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import axiosInstance from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useGetSaleDetails, useGetSalePayments } from 'src/actions/sale';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { SalePDFDownload } from '../sale-pdf';
 import { useAllProducts } from '../../product-batch/use-all-products';
-import { printTicket, buildTicketText, ticketMailtoUrl, ticketWhatsAppUrl } from '../print-ticket';
+import { printTicket, buildTicketText, ticketWhatsAppUrl } from '../print-ticket';
 
 // ----------------------------------------------------------------------
 
@@ -38,6 +45,23 @@ const PAYMENT_METHOD_LABELS = {
 
 export function SaleDetailView({ currentSale }) {
   const saleId = currentSale?.id;
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleSendEmail = async () => {
+    setSending(true);
+    try {
+      await axiosInstance.post(`/api/v1/sales/${saleId}/email-ticket`, { email });
+      toast.success(`Ticket enviado a ${email}`);
+      setEmailOpen(false);
+      setEmail('');
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo enviar el correo');
+    } finally {
+      setSending(false);
+    }
+  };
   const { saleDetails, saleDetailsLoading } = useGetSaleDetails(saleId);
   const { salePayments, salePaymentsLoading } = useGetSalePayments(saleId);
 
@@ -101,9 +125,7 @@ export function SaleDetailView({ currentSale }) {
               variant="outlined"
               startIcon={<Iconify icon="solar:letter-bold" />}
               disabled={saleDetailsLoading || saleDetails.length === 0}
-              onClick={() => {
-                window.location.href = ticketMailtoUrl(buildTicketText(ticketData), saleId);
-              }}
+              onClick={() => setEmailOpen(true)}
             >
               Correo
             </Button>
@@ -125,6 +147,32 @@ export function SaleDetailView({ currentSale }) {
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
+
+      <Dialog open={emailOpen} onClose={() => setEmailOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Enviar ticket por correo</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            type="email"
+            label="Correo del cliente"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && email.includes('@')) handleSendEmail();
+            }}
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button color="inherit" onClick={() => setEmailOpen(false)}>
+            Cancelar
+          </Button>
+          <Button variant="contained" disabled={!email.includes('@') || sending} onClick={handleSendEmail}>
+            {sending ? 'Enviando…' : 'Enviar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Stack spacing={3}>
         {/* Header info */}
