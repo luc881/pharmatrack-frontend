@@ -23,6 +23,7 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { SalePDFDownload } from '../sale-pdf';
+import { printTicket } from '../print-ticket';
 import { useAllProducts } from '../../product-batch/use-all-products';
 
 // ----------------------------------------------------------------------
@@ -68,6 +69,26 @@ export function SaleDetailView({ currentSale }) {
         ]}
         action={
           <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
+              disabled={saleDetailsLoading || saleDetails.length === 0}
+              onClick={() =>
+                printTicket({
+                  saleId,
+                  date: currentSale?.created_at,
+                  items: saleDetails.map((d) => ({
+                    title: productMap[d.product_id] ?? `Producto #${d.product_id}`,
+                    quantity: Number(d.quantity) || 0,
+                    unitPrice: Number(d.unit_price ?? productPriceMap[d.product_id] ?? 0),
+                    discount: Number(d.discount ?? 0),
+                  })),
+                  payments: salePayments,
+                })
+              }
+            >
+              Ticket
+            </Button>
             <SalePDFDownload
               sale={currentSale}
               saleDetails={saleDetails}

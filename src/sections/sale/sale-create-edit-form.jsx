@@ -45,6 +45,8 @@ import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { printTicket } from './print-ticket';
+
 // ----------------------------------------------------------------------
 
 const PAGE_SIZE = 100;
@@ -313,6 +315,21 @@ export function SaleCreateEditForm({
 
       // Completar la venta: DRAFT → COMPLETED (el backend recalcula totales y confirma lotes)
       await completeSale(saleId);
+
+      // Ticket térmico al momento (cancelable desde el diálogo de impresión)
+      printTicket({
+        saleId,
+        items: data.items.map((item) => {
+          const product = products.find((p) => p.id === Number(item.product_id));
+          return {
+            title: product?.title ?? `Producto #${item.product_id}`,
+            quantity: Number(item.quantity) || 0,
+            unitPrice: product?.price_retail ?? 0,
+            discount: Number(item.discount ?? 0),
+          };
+        }),
+        payments: data.payments,
+      });
 
       toast.success(currentSale ? 'Venta actualizada' : 'Venta registrada');
       navigate(paths.dashboard.sale.root);
