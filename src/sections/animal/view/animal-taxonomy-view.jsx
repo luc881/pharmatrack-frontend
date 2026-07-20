@@ -176,6 +176,16 @@ export function AnimalTaxonomyView() {
             </Box>
           ),
         },
+        {
+          field: 'show_public',
+          headerName: 'Sitio',
+          width: 120,
+          sortable: false,
+          renderCell: (params) =>
+            params.row.depth === 0 && params.row.show_public === false ? (
+              <Chip size="small" color="default" variant="soft" label="Oculto" />
+            ) : null,
+        },
         actionsColumn,
       ],
     },

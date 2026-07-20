@@ -206,7 +206,7 @@ export function ArticleCreateEditForm({ currentArticle }) {
               </Box>
             </Box>
 
-            <Field.Text name="author_name" label="Autor" placeholder="Selene" />
+            <Field.Text name="author_name" label="Autor" placeholder="Opuntia Den" />
             <Field.Text name="author_role" label="Rol del autor" placeholder="Criadora" />
 
             <Field.Text

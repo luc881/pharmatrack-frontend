@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 import Box from '@mui/material/Box';
+import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
@@ -11,6 +12,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { handleApiError } from 'src/utils/handle-api-error';
 
@@ -63,6 +65,7 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
     genus_id: base?.genus_id ?? base?.genus?.id ?? '',
     species_id: base?.species_id ?? '',
     parent_id: base?.parent_id ?? '',
+    show_public: base?.show_public ?? true,
     group_id: base?.group_id ?? base?.group?.id ?? '',
     sale_format: base?.sale_format ?? 'individual',
     package_size: base?.package_size ?? '',
@@ -95,7 +98,11 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
     setSaving(true);
     try {
       const payload = {
-        groups: { name: form.name, parent_id: form.parent_id ? Number(form.parent_id) : null },
+        groups: {
+          name: form.name,
+          parent_id: form.parent_id ? Number(form.parent_id) : null,
+          show_public: form.show_public,
+        },
         genera: { name: form.name, group_id: form.group_id ? Number(form.group_id) : null },
         species: {
           genus_id: Number(form.genus_id),
@@ -163,6 +170,24 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
               <TextField {...params} label="Grupo padre" placeholder="— Raíz —" sx={{ mt: 1 }} />
             )}
           />
+        )}
+
+        {tab === 'groups' && !form.parent_id && (
+          <Box>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.show_public}
+                  onChange={(e) => setForm((f) => ({ ...f, show_public: e.target.checked }))}
+                />
+              }
+              label="Visible en el sitio público"
+            />
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', ml: 1.5 }}>
+              Apagado: no aparece en el menú, en explorar por grupo ni en resultados del sitio
+              (incluye sus subgrupos).
+            </Typography>
+          </Box>
         )}
 
         {tab === 'species' && (

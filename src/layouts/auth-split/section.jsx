@@ -13,7 +13,7 @@ export function AuthSplitSection({
   methods,
   layoutQuery = 'md',
   title = 'Bienvenido',
-  subtitle = 'Sistema de gestión para Farmacia Selene.',
+  subtitle = 'Sistema de gestión para Opuntia Den.',
   ...other
 }) {
   return (

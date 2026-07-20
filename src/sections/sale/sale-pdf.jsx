@@ -220,7 +220,7 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
   const renderInfo = () => (
     <View style={[styles.spaceBetween, styles.mb40]}>
       <View style={{ width: '50%' }}>
-        <Text style={[styles.body1, styles.bold, styles.mb4]}>Farmacia Selene</Text>
+        <Text style={[styles.body1, styles.bold, styles.mb4]}>Opuntia Den</Text>
         <Text style={[styles.body2, styles.secondary]}>soporte@farmaciaselene.com</Text>
       </View>
       <View style={{ width: '50%', alignItems: 'flex-end' }}>
@@ -333,7 +333,7 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
   const renderFooter = () => (
     <View style={[styles.spaceBetween, styles.footer]} fixed>
       <Text style={[styles.body2, styles.secondary]}>
-        Generado el {fDate(new Date())} · Farmacia Selene
+        Generado el {fDate(new Date())} · Opuntia Den
       </Text>
       <Text style={[styles.body2, styles.secondary]}>
         soporte@farmaciaselene.com

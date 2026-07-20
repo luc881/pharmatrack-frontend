@@ -1,8 +1,8 @@
-# Farmacia Selene — Sistema de Gestión
+# Opuntia Den — Sistema de Gestión
 
 ![Tests](https://github.com/luc881/pharmatrack-frontend/actions/workflows/test.yml/badge.svg)
 
-Sistema de gestión de inventario, ventas y compras para Farmacia Selene. Desarrollado como proyecto de titulación.
+Sistema de gestión de inventario, ventas y compras para Opuntia Den. Desarrollado como proyecto de titulación.
 
 ## Tecnologías
 
@@ -34,7 +34,7 @@ Sistema de gestión de inventario, ventas y compras para Farmacia Selene. Desarr
 
 - Node.js 18 o superior
 - npm 9 o superior
-- Backend de Farmacia Selene corriendo (ver repositorio del backend)
+- Backend de Opuntia Den corriendo (ver repositorio del backend)
 
 ## Instalación local
 
