@@ -1,3 +1,4 @@
+import useSWR from 'swr';
 import { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
@@ -5,13 +6,17 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Tabs from '@mui/material/Tabs';
+import Stack from '@mui/material/Stack';
+import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import { Toolbar, DataGrid, gridClasses, useGridApiRef } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
 
+import axiosInstance, { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   useAllGenera,
@@ -39,6 +44,42 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { TaxonDialog, TAXON_ACTIONS } from '../taxon-dialog';
 import { speciesLabel, saleFormatLabel, flattenGroupTree } from '../utils';
+
+// ----------------------------------------------------------------------
+
+// Ajuste global del sitio: muestra u oculta la sección "Explora por grupo"
+// en la página principal. Útil cuando aún hay pocas categorías con animales.
+function CategoryBrowseToggle() {
+  const { data, mutate } = useSWR('/api/v1/settings/site', fetcher, {
+    revalidateOnFocus: false,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const onToggle = async (e) => {
+    const show_category_browse = e.target.checked;
+    setSaving(true);
+    try {
+      const res = await axiosInstance.put('/api/v1/settings/site', { show_category_browse });
+      await mutate(res.data, { revalidate: false });
+      toast.success('Ajuste guardado');
+    } catch (error) {
+      toast.error(error?.message || 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <FormControlLabel
+      sx={{ mr: 0 }}
+      disabled={!data || saving}
+      control={
+        <Switch checked={data?.show_category_browse ?? true} onChange={onToggle} />
+      }
+      label={<Typography variant="body2">Explorar por categorías</Typography>}
+    />
+  );
+}
 
 // ----------------------------------------------------------------------
 
@@ -179,12 +220,21 @@ export function AnimalTaxonomyView() {
         {
           field: 'show_public',
           headerName: 'Sitio',
-          width: 120,
+          width: 150,
           sortable: false,
-          renderCell: (params) =>
-            params.row.depth === 0 && params.row.show_public === false ? (
-              <Chip size="small" color="default" variant="soft" label="Oculto" />
-            ) : null,
+          renderCell: (params) => {
+            if (params.row.depth !== 0) return null;
+            return (
+              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', height: 1 }}>
+                {params.row.show_public === false && (
+                  <Chip size="small" color="default" variant="soft" label="Oculto" />
+                )}
+                {params.row.feature_home && params.row.show_public !== false && (
+                  <Chip size="small" color="info" variant="soft" label="Destacado" />
+                )}
+              </Box>
+            );
+          },
         },
         actionsColumn,
       ],
@@ -233,15 +283,20 @@ export function AnimalTaxonomyView() {
             { name: 'Animales', href: paths.dashboard.animal.root },
             { name: 'Taxonomía' },
           ]}
-          action={can('create') && (
-            <Button
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-              onClick={() => setDialog({ current: null })}
-            >
-              {`Nuevo ${tabConfig.singular}`}
-            </Button>
-          )}
+          action={
+            <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+              {tabValue === 'groups' && can('update') && <CategoryBrowseToggle />}
+              {can('create') && (
+                <Button
+                  variant="contained"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                  onClick={() => setDialog({ current: null })}
+                >
+                  {`Nuevo ${tabConfig.singular}`}
+                </Button>
+              )}
+            </Stack>
+          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 

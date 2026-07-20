@@ -66,6 +66,7 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
     species_id: base?.species_id ?? '',
     parent_id: base?.parent_id ?? '',
     show_public: base?.show_public ?? true,
+    feature_home: base?.feature_home ?? false,
     group_id: base?.group_id ?? base?.group?.id ?? '',
     sale_format: base?.sale_format ?? 'individual',
     package_size: base?.package_size ?? '',
@@ -102,6 +103,8 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           name: form.name,
           parent_id: form.parent_id ? Number(form.parent_id) : null,
           show_public: form.show_public,
+          // sólo un grupo visible puede destacarse en la home
+          feature_home: form.show_public && form.feature_home,
         },
         genera: { name: form.name, group_id: form.group_id ? Number(form.group_id) : null },
         species: {
@@ -186,6 +189,21 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
             <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', ml: 1.5 }}>
               Apagado: no aparece en el menú, en explorar por grupo ni en resultados del sitio
               (incluye sus subgrupos).
+            </Typography>
+
+            <FormControlLabel
+              sx={{ mt: 1 }}
+              disabled={!form.show_public}
+              control={
+                <Switch
+                  checked={form.show_public && form.feature_home}
+                  onChange={(e) => setForm((f) => ({ ...f, feature_home: e.target.checked }))}
+                />
+              }
+              label="Destacar en la página principal"
+            />
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', ml: 1.5 }}>
+              Muestra un mini-catálogo con las especies de esta categoría en el inicio del sitio.
             </Typography>
           </Box>
         )}
