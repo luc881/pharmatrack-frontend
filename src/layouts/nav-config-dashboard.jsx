@@ -138,6 +138,7 @@ export const navData = [
           { title: 'Lista',     path: paths.dashboard.animal.root },
           { title: 'Nuevo',     path: paths.dashboard.animal.new, allowedRoles: ['animals.create'] },
           { title: 'Taxonomía', path: paths.dashboard.animal.taxonomy },
+          { title: 'Cultivos',  path: paths.dashboard.animal.cultivos },
         ],
       },
       {
