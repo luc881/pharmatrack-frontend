@@ -221,7 +221,7 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
     <View style={[styles.spaceBetween, styles.mb40]}>
       <View style={{ width: '50%' }}>
         <Text style={[styles.body1, styles.bold, styles.mb4]}>Opuntia Den</Text>
-        <Text style={[styles.body2, styles.secondary]}>soporte@opuntiaden.com</Text>
+        <Text style={[styles.body2, styles.secondary]}>opuntiaden@gmail.com</Text>
       </View>
       <View style={{ width: '50%', alignItems: 'flex-end' }}>
         <Text style={[styles.body1, styles.bold, styles.mb4]}>Información de venta</Text>
@@ -336,7 +336,7 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
         Generado el {fDate(new Date())} · Opuntia Den
       </Text>
       <Text style={[styles.body2, styles.secondary]}>
-        soporte@opuntiaden.com
+        opuntiaden@gmail.com
       </Text>
     </View>
   );
