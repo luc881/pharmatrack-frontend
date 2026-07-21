@@ -152,6 +152,12 @@ export const navData = [
         ],
       },
       {
+        title: 'Pedidos',
+        path: paths.dashboard.order.root,
+        icon: ICONS.order,
+        allowedRoles: ['orders.read'],
+      },
+      {
         title: 'Ventas',
         path: paths.dashboard.sale.root,
         icon: ICONS.ecommerce,

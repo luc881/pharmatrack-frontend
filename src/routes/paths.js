@@ -100,6 +100,9 @@ export const paths = {
       details: (id) => `${ROOTS.DASHBOARD}/animal/${id}`,
       edit: (id) => `${ROOTS.DASHBOARD}/animal/${id}/edit`,
     },
+    order: {
+      root: `${ROOTS.DASHBOARD}/order`,
+    },
     article: {
       root: `${ROOTS.DASHBOARD}/article`,
       new: `${ROOTS.DASHBOARD}/article/new`,

@@ -83,6 +83,7 @@ const AnimalCultivosPage = lazy(() => import('src/pages/dashboard/animal/cultivo
 const AnimalSpeciesPage = lazy(() => import('src/pages/dashboard/animal/species'));
 
 const ArticleListPage   = lazy(() => import('src/pages/dashboard/article/list'));
+const OrderListPage     = lazy(() => import('src/pages/dashboard/order/list'));
 const ArticleCreatePage = lazy(() => import('src/pages/dashboard/article/new'));
 const ArticleEditPage   = lazy(() => import('src/pages/dashboard/article/edit'));
 
@@ -140,6 +141,7 @@ const P = {
   animalsUpdate: ['animals.update'],
   // Articles
   articlesRead:   ['articles.read'],
+  ordersRead:     ['orders.read'],
   articlesCreate: ['articles.create'],
   articlesUpdate: ['articles.update'],
 };
@@ -336,6 +338,15 @@ export const dashboardRoutes = [
           { path: 'new',        element: guard(P.animalsCreate, <AnimalCreatePage />) },
           { path: ':id',        element: <AnimalDetailsPage /> },
           { path: ':id/edit',   element: guard(P.animalsUpdate, <AnimalEditPage />) },
+        ],
+      },
+
+      // ── Pedidos del sitio publico ───────────────────────────────────
+      {
+        path: 'order',
+        children: [
+          { index: true,  element: guard(P.ordersRead, <OrderListPage />) },
+          { path: 'list', element: guard(P.ordersRead, <OrderListPage />) },
         ],
       },
 
