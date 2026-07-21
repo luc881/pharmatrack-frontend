@@ -56,7 +56,7 @@ cp .env.example .env.local
 Crear un archivo `.env.local` en la raíz del proyecto:
 
 ```env
-VITE_SERVER_URL=https://api.farmaciaselene.com
+VITE_SERVER_URL=https://api.opuntiaden.com
 ```
 
 Para desarrollo local contra un backend local:
@@ -112,5 +112,5 @@ src/
 
 El backend (FastAPI + PostgreSQL) está disponible en un repositorio separado.
 
-- API base: `https://api.farmaciaselene.com`
-- Documentación interactiva: `https://api.farmaciaselene.com/docs`
+- API base: `https://api.opuntiaden.com`
+- Documentación interactiva: `https://api.opuntiaden.com/docs`

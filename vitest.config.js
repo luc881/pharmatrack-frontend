@@ -14,7 +14,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
     env: {
-      VITE_SERVER_URL: 'https://api.farmaciaselene.com',
+      VITE_SERVER_URL: 'https://api.opuntiaden.com',
     },
     coverage: {
       provider: 'v8',

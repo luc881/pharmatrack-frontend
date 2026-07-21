@@ -5,14 +5,14 @@ import { http, HttpResponse } from 'msw';
 // La baseURL no importa en jsdom, MSW intercepta por el path completo.
 // ----------------------------------------------------------------------
 
-const BASE = 'https://api.farmaciaselene.com';
+const BASE = 'https://api.opuntiaden.com';
 
 export const handlers = [
   // Auth — login exitoso
   http.post(`${BASE}/api/v1/auth/token`, () =>
     HttpResponse.json({
       access_token:
-        // JWT con payload { sub: "admin@farmaciaselene.com", id: 1, role: "admin", exp: 9999999999 }
+        // JWT con payload { sub: "admin@opuntiaden.com", id: 1, role: "admin", exp: 9999999999 }
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
         'eyJzdWIiOiJhZG1pbkBmYXJtYWNpYXNlbGVuZS5jb20iLCJpZCI6MSwicm9sZSI6ImFkbWluIiwiZXhwIjo5OTk5OTk5OTk5fQ.' +
         'signature',

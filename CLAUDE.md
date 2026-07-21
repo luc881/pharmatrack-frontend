@@ -39,7 +39,7 @@ Node ≥ 22.12.0 required. Prefer `yarn` over `npm`.
 Create `.env.local` in the project root:
 
 ```env
-VITE_SERVER_URL=http://localhost:8000   # or https://api.farmaciaselene.com
+VITE_SERVER_URL=http://localhost:8000   # or https://api.opuntiaden.com
 ```
 
 `VITE_SERVER_URL` is the only env var required for JWT auth (the active auth method).

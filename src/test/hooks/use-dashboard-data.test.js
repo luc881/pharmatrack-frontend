@@ -30,7 +30,7 @@ describe('useDashboardData', () => {
 
   it('retorna valores por defecto cuando la API falla', async () => {
     server.use(
-      http.get('https://api.farmaciaselene.com/api/v1/dashboard/stats', () =>
+      http.get('https://api.opuntiaden.com/api/v1/dashboard/stats', () =>
         HttpResponse.json({ detail: 'Error interno' }, { status: 500 })
       )
     );

@@ -12,7 +12,7 @@ import { server } from '../mocks/server';
 describe('signInWithPassword', () => {
   it('guarda el access_token en sessionStorage cuando el login es exitoso', async () => {
     await signInWithPassword({
-      email: 'admin@farmaciaselene.com',
+      email: 'admin@opuntiaden.com',
       password: '123456',
     });
 
@@ -26,7 +26,7 @@ describe('signInWithPassword', () => {
   it('lanza un error cuando las credenciales son incorrectas', async () => {
     // Sobreescribimos el handler para simular credenciales inválidas
     server.use(
-      http.post('https://api.farmaciaselene.com/api/v1/auth/token', () =>
+      http.post('https://api.opuntiaden.com/api/v1/auth/token', () =>
         HttpResponse.json({ detail: 'Credenciales incorrectas' }, { status: 401 })
       )
     );
@@ -38,7 +38,7 @@ describe('signInWithPassword', () => {
 
   it('guarda el refresh_token en localStorage cuando rememberMe es true', async () => {
     await signInWithPassword({
-      email: 'admin@farmaciaselene.com',
+      email: 'admin@opuntiaden.com',
       password: '123456',
       rememberMe: true,
     });

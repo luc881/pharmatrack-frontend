@@ -24,7 +24,7 @@ describe('useGetBatchCalendarEvents', () => {
 
   it('retorna un array vacío si la API responde con datos inválidos', async () => {
     server.use(
-      http.get('https://api.farmaciaselene.com/api/v1/calendar/events', () =>
+      http.get('https://api.opuntiaden.com/api/v1/calendar/events', () =>
         HttpResponse.json(null)
       )
     );
