@@ -1,6 +1,6 @@
 import useSWR from 'swr';
-import { useSearchParams } from 'react-router';
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -95,6 +95,7 @@ const TABS = [
 
 export function AnimalTaxonomyView() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const apiRef = useGridApiRef();
 
   const { user } = useAuthContext();
@@ -212,6 +213,7 @@ export function AnimalTaxonomyView() {
     filterable: false,
     disableColumnMenu: true,
     getActions: (params) => [
+      ...(tabValue === 'species' ? [<CustomGridActionsCellItem label="Ver ficha" icon={<Iconify icon="solar:document-text-bold" />} onClick={() => navigate(paths.dashboard.animal.species(params.row.id))} />] : []),
       ...(can('update') ? [<CustomGridActionsCellItem label="Editar" icon={<Iconify icon="solar:pen-bold" />} onClick={() => setDialog({ current: params.row })} />] : []),
       ...(can('delete') ? [<CustomGridActionsCellItem label="Eliminar" icon={<Iconify icon="solar:trash-bin-trash-bold" sx={{ color: theme.vars.palette.error.main }} />} onClick={() => setRowToDelete(params.row)} />] : []),
     ],

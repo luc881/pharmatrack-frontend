@@ -390,8 +390,17 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpe
               <Iconify icon="solar:camera-bold" width={18} />
             </Avatar>
             <Box>
-              <Typography variant="subtitle2">{species.common_name ?? scientific}</Typography>
-              <Typography variant="caption" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+              <Link
+                component={RouterLink}
+                href={paths.dashboard.animal.species(species.id)}
+                onClick={(event) => event.stopPropagation()}
+                color="inherit"
+                underline="hover"
+                sx={{ typography: 'subtitle2' }}
+              >
+                {species.common_name ?? scientific}
+              </Link>
+              <Typography variant="caption" sx={{ display: 'block', fontStyle: 'italic', color: 'text.secondary' }}>
                 {scientific}
               </Typography>
             </Box>
@@ -496,7 +505,7 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpe
 
 // ----------------------------------------------------------------------
 
-function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onDelete }) {
+export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onDelete }) {
   const renderLegalDoc = () => {
     if (!animal.requires_legal_doc) return '—';
     if (!animal.legal_doc) {

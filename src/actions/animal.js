@@ -94,6 +94,17 @@ export function useGetAnimal(animalId) {
   );
 }
 
+// Especie por id (respuesta admin: incluye los campos privados de cultivo)
+export function useGetSpecies(speciesId) {
+  const url = speciesId ? endpoints.species.details(speciesId) : null;
+  const { data, isLoading, error, mutate } = useSWR(url, fetcher, swrOptions);
+
+  return useMemo(
+    () => ({ species: data ?? null, speciesLoading: isLoading, speciesError: error, speciesMutate: mutate }),
+    [data, error, isLoading, mutate]
+  );
+}
+
 // ----------------------------------------------------------------------
 
 export const createAnimalGroup = (data) => axiosInstance.post(endpoints.animalGroup.create, data).then((r) => r.data);

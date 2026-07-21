@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import Card from '@mui/material/Card';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
@@ -21,6 +22,7 @@ import DialogContent from '@mui/material/DialogContent';
 import TableContainer from '@mui/material/TableContainer';
 
 import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { updateSpecies, useGetAnimals, useAllSpecies } from 'src/actions/animal';
@@ -44,19 +46,26 @@ import { speciesLabel } from '../utils';
 
 // ponytail: umbral global de bajo stock; se puede sobreescribir por especie
 // (low_stock_threshold). Si un vivero necesita algo más fino, se hace por grupo.
-const DEFAULT_LOW_STOCK = 3;
+export const DEFAULT_LOW_STOCK = 3;
 
-const HUSBANDRY = {
+export const HUSBANDRY = {
   active: { label: 'En cultivo', color: 'success' },
   paused: { label: 'Pausado', color: 'warning' },
   retired: { label: 'Retirado', color: 'default' },
 };
 
-const STOCK = {
+export const STOCK = {
   ok: { label: 'OK', color: 'success' },
   low: { label: 'Bajo stock', color: 'warning' },
   out: { label: 'Agotado', color: 'error' },
 };
+
+// ponytail: unidades disponibles = suma de stock de ejemplares available
+export const availableUnits = (animals) =>
+  animals.reduce((sum, a) => (a.status === 'available' ? sum + (a.stock ?? 1) : sum), 0);
+
+export const stockStateOf = (units, threshold = DEFAULT_LOW_STOCK) =>
+  units === 0 ? 'out' : units <= threshold ? 'low' : 'ok';
 
 const HUSBANDRY_OPTIONS = Object.entries(HUSBANDRY).map(([value, { label }]) => ({ value, label }));
 
@@ -198,8 +207,16 @@ export function CultivosView() {
                     return (
                       <TableRow key={sp.id} hover>
                         <TableCell>
-                          <Typography variant="subtitle2">{sp.common_name ?? scientific}</Typography>
-                          <Typography variant="caption" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+                          <Link
+                            component={RouterLink}
+                            href={paths.dashboard.animal.species(sp.id)}
+                            color="inherit"
+                            underline="hover"
+                            sx={{ typography: 'subtitle2' }}
+                          >
+                            {sp.common_name ?? scientific}
+                          </Link>
+                          <Typography variant="caption" sx={{ display: 'block', fontStyle: 'italic', color: 'text.secondary' }}>
                             {scientific}
                           </Typography>
                         </TableCell>
@@ -265,7 +282,7 @@ function StatCard({ label, value, color = 'text.primary' }) {
   );
 }
 
-function ManageDialog({ species, onClose, onSaved }) {
+export function ManageDialog({ species, onClose, onSaved }) {
   const [status, setStatus] = useState(species.husbandry_status ?? 'active');
   const [threshold, setThreshold] = useState(species.low_stock_threshold ?? '');
   const [notes, setNotes] = useState(species.private_notes ?? '');

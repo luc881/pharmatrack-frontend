@@ -96,6 +96,7 @@ export const paths = {
       new: `${ROOTS.DASHBOARD}/animal/new`,
       taxonomy: `${ROOTS.DASHBOARD}/animal/taxonomy`,
       cultivos: `${ROOTS.DASHBOARD}/animal/cultivos`,
+      species: (id) => `${ROOTS.DASHBOARD}/animal/species/${id}`,
       details: (id) => `${ROOTS.DASHBOARD}/animal/${id}`,
       edit: (id) => `${ROOTS.DASHBOARD}/animal/${id}/edit`,
     },
