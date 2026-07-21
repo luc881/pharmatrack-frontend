@@ -29,6 +29,7 @@ import {
   updateAnimal,
   useAllGenera,
   useAllMorphs,
+  updateSpecies,
   useAllSpecies,
   useAnimalGroupTree,
 } from 'src/actions/animal';
@@ -40,7 +41,7 @@ import { Field } from 'src/components/hook-form';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { TaxonDialog } from './taxon-dialog';
-import { SEX_OPTIONS, saleFormatLabel, flattenGroupTree } from './utils';
+import { SEX_OPTIONS, saleFormatLabel, flattenGroupTree, SALE_FORMAT_OPTIONS } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -146,9 +147,31 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const morphIds = watch('morphs');
   const { morphs: speciesMorphs, morphsMutate } = useAllMorphs(speciesId ? Number(speciesId) : undefined);
 
-  // Cepas/paquetes: un registro con N unidades idénticas (stock del lote gemelo)
   const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));
-  const isBulk = !!selectedSpecies && selectedSpecies.sale_format !== 'individual';
+
+  // Atributos de venta de la especie (formato, tamaño de paquete y escalas de
+  // precio). Se editan aquí y al guardar se aplican a la especie (afectan a
+  // TODOS sus ejemplares). Estado local sincronizado al cambiar de especie.
+  const [saleFormat, setSaleFormat] = useState('individual');
+  const [packageSize, setPackageSize] = useState('');
+  const [tiers, setTiers] = useState([]);
+
+  useEffect(() => {
+    if (!selectedSpecies) {
+      setSaleFormat('individual');
+      setPackageSize('');
+      setTiers([]);
+      return;
+    }
+    setSaleFormat(selectedSpecies.sale_format ?? 'individual');
+    setPackageSize(selectedSpecies.package_size ?? '');
+    setTiers((selectedSpecies.price_tiers ?? []).map((t) => ({ quantity: t.quantity, price: t.price })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSpecies?.id]);
+
+  // Cepas/paquetes: un registro con N unidades idénticas (stock del lote gemelo).
+  // Se deriva del formato editable para que el formulario cambie de modo al vuelo.
+  const isBulk = !!selectedSpecies && saleFormat !== 'individual';
 
   // Al CAMBIAR de especie se limpian los morphs (pertenecen a la anterior;
   // el backend rechaza con 400 morphs de otra especie). El ref distingue la
@@ -191,7 +214,27 @@ export function AnimalCreateEditForm({ currentAnimal }) {
     setValue('photos', getValues('photos').filter((_, i) => i !== index), { shouldDirty: true });
 
   const onSubmit = handleSubmit(async (data) => {
+    if (saleFormat === 'package' && !(Number(packageSize) >= 2)) {
+      toast.error('Indica cuántos ejemplares trae el paquete (mínimo 2)');
+      return;
+    }
     try {
+      // El formato/escala son de la especie: se guardan aparte y afectan a todos
+      // sus ejemplares. Va primero para que el backend valide bien el stock.
+      if (canUpdateSpecies && data.species_id) {
+        await updateSpecies(Number(data.species_id), {
+          sale_format: saleFormat,
+          package_size: saleFormat === 'package' ? Number(packageSize) : null,
+          price_tiers:
+            saleFormat === 'individual'
+              ? null
+              : tiers
+                  .filter((t) => Number(t.quantity) >= 1 && Number(t.price) > 0)
+                  .map((t) => ({ quantity: Number(t.quantity), price: Number(t.price) })),
+        });
+        await speciesMutate();
+      }
+
       // Especies de stock (cepa/paquete): sin sexo, fecha ni papeles por ejemplar
       const legalDoc = !isBulk && data.requires_legal_doc;
       const payload = {
@@ -300,28 +343,115 @@ export function AnimalCreateEditForm({ currentAnimal }) {
 
             {/* El formato de la especie decide el modo del formulario:
                 individual = folio único con sexo/nacimiento/papeles;
-                cepa/paquete = solo cantidad de stock */}
+                cepa/paquete = solo cantidad de stock. Se edita aquí y aplica a
+                toda la especie. */}
             {selectedSpecies && (
-              <Alert
-                severity="info"
-                variant="outlined"
-                sx={{ gridColumn: { sm: 'span 2' } }}
-                action={
-                  canUpdateSpecies && (
-                    <Button
-                      size="small"
-                      color="inherit"
-                      onClick={() => setQuickCreate({ tab: 'species', current: selectedSpecies })}
-                    >
-                      Cambiar formato
-                    </Button>
-                  )
-                }
+              <Box
+                sx={{
+                  p: 2,
+                  gridColumn: { sm: 'span 2' },
+                  borderRadius: 1,
+                  border: (theme) => `dashed 1px ${theme.vars.palette.divider}`,
+                }}
               >
-                {isBulk
-                  ? `Esta especie se vende por ${saleFormatLabel(selectedSpecies)?.toLowerCase()} — se maneja solo por cantidad de stock, sin sexo, fecha ni papeles por ejemplar.`
-                  : 'Esta especie se vende por ejemplar individual — cada animal lleva su folio con sexo, nacimiento y documentación.'}
-              </Alert>
+                <Typography variant="subtitle2">Formato de venta de la especie</Typography>
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', mb: 2 }}>
+                  Aplica a todos los ejemplares de {selectedSpecies.name}
+                  {selectedSpecies.common_name ? ` (${selectedSpecies.common_name})` : ''}.
+                </Typography>
+
+                {canUpdateSpecies ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box
+                      sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}
+                    >
+                      <TextField
+                        select
+                        label="Formato de venta"
+                        value={saleFormat}
+                        onChange={(e) => setSaleFormat(e.target.value)}
+                      >
+                        {SALE_FORMAT_OPTIONS.map((o) => (
+                          <MenuItem key={o.value} value={o.value}>
+                            {o.label}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+
+                      {saleFormat === 'package' && (
+                        <TextField
+                          type="number"
+                          label="Ejemplares por paquete *"
+                          value={packageSize}
+                          onChange={(e) => setPackageSize(e.target.value)}
+                          slotProps={{ htmlInput: { min: 2 }, inputLabel: { shrink: true } }}
+                        />
+                      )}
+                    </Box>
+
+                    {saleFormat !== 'individual' && (
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                          Escalas de precio por cantidad
+                        </Typography>
+                        <Typography variant="caption" sx={{ mb: 1.5, display: 'block', color: 'text.secondary' }}>
+                          Opcional: precios por volumen (p. ej. 6 → $150, 12 → $270). El sitio muestra
+                          el selector de cantidad con estos precios.
+                        </Typography>
+                        {tiers.map((tier, index) => (
+                          <Box key={index} sx={{ mb: 1, gap: 1, display: 'flex', alignItems: 'center' }}>
+                            <TextField
+                              size="small"
+                              type="number"
+                              label="Cantidad"
+                              value={tier.quantity}
+                              onChange={(e) =>
+                                setTiers((prev) =>
+                                  prev.map((t, i) => (i === index ? { ...t, quantity: e.target.value } : t))
+                                )
+                              }
+                              slotProps={{ htmlInput: { min: 1 } }}
+                              sx={{ width: 110 }}
+                            />
+                            <TextField
+                              size="small"
+                              type="number"
+                              label="Precio ($)"
+                              value={tier.price}
+                              onChange={(e) =>
+                                setTiers((prev) =>
+                                  prev.map((t, i) => (i === index ? { ...t, price: e.target.value } : t))
+                                )
+                              }
+                              slotProps={{ htmlInput: { min: 0, step: '0.01' } }}
+                              sx={{ width: 130 }}
+                            />
+                            <Button
+                              size="small"
+                              color="error"
+                              onClick={() => setTiers((prev) => prev.filter((_, i) => i !== index))}
+                            >
+                              Quitar
+                            </Button>
+                          </Box>
+                        ))}
+                        <Button
+                          size="small"
+                          onClick={() => setTiers((prev) => [...prev, { quantity: '', price: '' }])}
+                        >
+                          + Agregar escala
+                        </Button>
+                      </Box>
+                    )}
+                  </Box>
+                ) : (
+                  <Alert severity="info" variant="outlined">
+                    {isBulk
+                      ? `Se vende por ${saleFormatLabel(selectedSpecies)?.toLowerCase()} — solo por cantidad de stock. No tienes permiso para cambiar el formato.`
+                      : 'Se vende por ejemplar individual. No tienes permiso para cambiar el formato.'}
+                  </Alert>
+                )}
+              </Box>
             )}
 
             <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
