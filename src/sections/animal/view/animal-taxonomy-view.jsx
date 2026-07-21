@@ -206,7 +206,8 @@ export function AnimalTaxonomyView() {
     type: 'actions',
     field: 'actions',
     headerName: ' ',
-    width: 96,
+    // Especies tiene 3 acciones (Ver ficha + Editar + Eliminar); el resto 2
+    width: tabValue === 'species' ? 140 : 96,
     align: 'right',
     headerAlign: 'right',
     sortable: false,
