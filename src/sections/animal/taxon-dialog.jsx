@@ -233,6 +233,17 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           sx={{ mt: tab === 'genera' ? 1 : 0 }}
         />
 
+        {tab === 'morphs' && (
+          <TextField
+            label="Descripción del morph"
+            multiline
+            rows={5}
+            value={form.description}
+            onChange={set('description')}
+            helperText="Texto propio de este morph para su página del catálogo (apariencia, marketing…). Los cuidados se heredan de la especie. Una línea en blanco separa párrafos."
+          />
+        )}
+
         {tab === 'genera' && (
           <Autocomplete
             options={groupsFlat}
