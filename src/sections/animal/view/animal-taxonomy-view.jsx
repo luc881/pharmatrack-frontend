@@ -1,5 +1,6 @@
 import useSWR from 'swr';
-import { useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -115,6 +116,23 @@ export function AnimalTaxonomyView() {
   const groupsFlat = flattenGroupTree(groupTree);
   const speciesById = Object.fromEntries(allSpecies.map((s) => [s.id, s]));
   const generaById = Object.fromEntries(genera.map((g) => [g.id, g]));
+
+  // Deep-link desde la lista de animales: ?edit_species=ID abre la ficha de esa
+  // especie (tab Especies, filtrada, con el diálogo de edición abierto).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const editSpeciesId = searchParams.get('edit_species');
+  useEffect(() => {
+    if (!editSpeciesId || speciesLoading) return;
+    const sp = allSpecies.find((s) => s.id === Number(editSpeciesId));
+    if (sp) {
+      setTabValue('species');
+      setFilter({ type: 'species', id: sp.id, label: `Especie: ${speciesLabel(sp)}` });
+      setDialog({ current: sp });
+    }
+    searchParams.delete('edit_species');
+    setSearchParams(searchParams, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editSpeciesId, speciesLoading]);
 
   // Un grupo filtra también a sus descendientes (los géneros cuelgan de cualquier nivel)
   const groupIdSet =

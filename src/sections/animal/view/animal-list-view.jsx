@@ -111,6 +111,7 @@ export function AnimalListView() {
   const canCreate = user?.permissions?.includes('animals.create');
   const canUpdate = user?.permissions?.includes('animals.update');
   const canDelete = user?.permissions?.includes('animals.delete');
+  const canUpdateSpecies = user?.permissions?.includes('species.update');
 
   // El breadcrumb del detalle enlaza aquí con ?genus_id= / ?species_id=
   const [searchParams] = useSearchParams();
@@ -313,6 +314,7 @@ export function AnimalListView() {
                         onToggle={() => toggleExpanded(entry.species.id)}
                         canUpdate={canUpdate}
                         canDelete={canDelete}
+                        canUpdateSpecies={canUpdateSpecies}
                         onDelete={handleDeleteRow}
                         onPrintLabels={() => setLabelsFor(entry)}
                       />
@@ -350,7 +352,7 @@ export function AnimalListView() {
 
 // ----------------------------------------------------------------------
 
-function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete, onPrintLabels }) {
+function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpecies, onDelete, onPrintLabels }) {
   const { species, animals } = entry;
 
   const photo = animals.find((a) => a.image || a.photos?.[0]);
@@ -425,17 +427,31 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, onDelete, on
         <TableCell>{format ?? '—'}</TableCell>
 
         <TableCell align="right">
-          <Tooltip title="Etiquetas QR">
-            <IconButton
-              size="small"
-              onClick={(event) => {
-                event.stopPropagation();
-                onPrintLabels();
-              }}
-            >
-              <Iconify icon="solar:printer-minimalistic-bold" width={18} />
-            </IconButton>
-          </Tooltip>
+          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+            {canUpdateSpecies && (
+              <Tooltip title="Editar ficha de cuidados">
+                <IconButton
+                  size="small"
+                  component={RouterLink}
+                  href={`${paths.dashboard.animal.taxonomy}?edit_species=${species.id}`}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <Iconify icon="solar:document-text-bold" width={18} />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title="Etiquetas QR">
+              <IconButton
+                size="small"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPrintLabels();
+                }}
+              >
+                <Iconify icon="solar:printer-minimalistic-bold" width={18} />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </TableCell>
       </TableRow>
 
