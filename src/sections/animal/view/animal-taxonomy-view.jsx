@@ -222,19 +222,16 @@ export function AnimalTaxonomyView() {
           headerName: 'Sitio',
           width: 150,
           sortable: false,
-          renderCell: (params) => {
-            if (params.row.depth !== 0) return null;
-            return (
-              <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', height: 1 }}>
-                {params.row.show_public === false && (
-                  <Chip size="small" color="default" variant="soft" label="Oculto" />
-                )}
-                {params.row.feature_home && params.row.show_public !== false && (
-                  <Chip size="small" color="info" variant="soft" label="Destacado" />
-                )}
-              </Box>
-            );
-          },
+          renderCell: (params) => (
+            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', height: 1 }}>
+              {params.row.depth === 0 && params.row.show_public === false && (
+                <Chip size="small" color="default" variant="soft" label="Oculto" />
+              )}
+              {params.row.feature_home && (
+                <Chip size="small" color="info" variant="soft" label="Destacado" />
+              )}
+            </Box>
+          ),
         },
         actionsColumn,
       ],

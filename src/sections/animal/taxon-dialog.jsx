@@ -85,6 +85,9 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
+  // Un subgrupo siempre puede destacarse; un raíz sólo si está visible
+  const canFeature = !!form.parent_id || form.show_public;
+
   // Un grupo no puede colgar de sí mismo ni de sus descendientes
   const parentOptions = groupsFlat.filter(
     (g) => !current || (g.id !== current.id && !g.ancestors.includes(current.id))
@@ -103,8 +106,8 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           name: form.name,
           parent_id: form.parent_id ? Number(form.parent_id) : null,
           show_public: form.show_public,
-          // sólo un grupo visible puede destacarse en la home
-          feature_home: form.show_public && form.feature_home,
+          // un raíz oculto no puede destacarse; un subgrupo sí
+          feature_home: canFeature && form.feature_home,
         },
         genera: { name: form.name, group_id: form.group_id ? Number(form.group_id) : null },
         species: {
@@ -175,35 +178,41 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           />
         )}
 
-        {tab === 'groups' && !form.parent_id && (
+        {tab === 'groups' && (
           <Box>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.show_public}
-                  onChange={(e) => setForm((f) => ({ ...f, show_public: e.target.checked }))}
+            {/* Visibilidad: solo a nivel raíz (oculta todo el subárbol) */}
+            {!form.parent_id && (
+              <>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={form.show_public}
+                      onChange={(e) => setForm((f) => ({ ...f, show_public: e.target.checked }))}
+                    />
+                  }
+                  label="Visible en el sitio público"
                 />
-              }
-              label="Visible en el sitio público"
-            />
-            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', ml: 1.5 }}>
-              Apagado: no aparece en el menú, en explorar por grupo ni en resultados del sitio
-              (incluye sus subgrupos).
-            </Typography>
+                <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', ml: 1.5, mb: 1 }}>
+                  Apagado: no aparece en el menú, en explorar por grupo ni en resultados del sitio
+                  (incluye sus subgrupos).
+                </Typography>
+              </>
+            )}
 
+            {/* Destacar: cualquier grupo, raíz o subgrupo */}
             <FormControlLabel
-              sx={{ mt: 1 }}
-              disabled={!form.show_public}
+              disabled={!canFeature}
               control={
                 <Switch
-                  checked={form.show_public && form.feature_home}
+                  checked={canFeature && form.feature_home}
                   onChange={(e) => setForm((f) => ({ ...f, feature_home: e.target.checked }))}
                 />
               }
               label="Destacar en la página principal"
             />
             <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', ml: 1.5 }}>
-              Muestra un mini-catálogo con las especies de esta categoría en el inicio del sitio.
+              Muestra un mini-catálogo con las especies de este grupo (o sus subgrupos) en el
+              inicio del sitio.
             </Typography>
           </Box>
         )}
