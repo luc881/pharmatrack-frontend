@@ -25,7 +25,13 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { updateSpecies, useGetAnimals, useAllSpecies } from 'src/actions/animal';
+import {
+  useAllGenera,
+  updateSpecies,
+  useGetAnimals,
+  useAllSpecies,
+  useAnimalGroupTree,
+} from 'src/actions/animal';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -36,7 +42,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { speciesLabel } from '../utils';
+import { speciesLabel, flattenGroupTree } from '../utils';
 
 // ----------------------------------------------------------------------
 // "Cultivos": tablero privado de manejo/cría por especie. Muestra unidades
@@ -74,6 +80,9 @@ export function CultivosView() {
   const canUpdate = user?.permissions?.includes('species.update');
 
   const { species: allSpecies, speciesLoading, speciesMutate } = useAllSpecies();
+  const { genera: allGenera } = useAllGenera();
+  const { groupTree } = useAnimalGroupTree();
+  const groupsFlat = flattenGroupTree(groupTree);
   // Todo el inventario para derivar unidades disponibles por especie
   const { animals } = useGetAnimals({ page: 1, pageSize: 500 });
 
@@ -86,26 +95,39 @@ export function CultivosView() {
     return map;
   }, [animals]);
 
+  const [groupFilter, setGroupFilter] = useState('');
+  const [genusFilter, setGenusFilter] = useState('');
+  const [speciesFilter, setSpeciesFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [stockFilter, setStockFilter] = useState('');
-  const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null); // especie en edición o null
 
-  const rows = useMemo(() => {
-    const norm = (s) => (s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-    const q = norm(search.trim());
-    return allSpecies
-      .map((sp) => {
-        const units = availableBySpecies[sp.id] ?? 0;
-        const threshold = sp.low_stock_threshold ?? DEFAULT_LOW_STOCK;
-        const stockState = units === 0 ? 'out' : units <= threshold ? 'low' : 'ok';
-        return { sp, units, threshold, stockState, status: sp.husbandry_status ?? 'active' };
-      })
-      .filter((r) => (!statusFilter || r.status === statusFilter))
-      .filter((r) => (!stockFilter || r.stockState === stockFilter))
-      .filter((r) => !q || norm(speciesLabel(r.sp)).includes(q))
-      .sort((a, b) => speciesLabel(a.sp).localeCompare(speciesLabel(b.sp)));
-  }, [allSpecies, availableBySpecies, statusFilter, stockFilter, search]);
+  // Un grupo filtra también a sus descendientes (los géneros cuelgan de cualquier nivel)
+  const groupIdSet = groupFilter
+    ? new Set([
+        Number(groupFilter),
+        ...groupsFlat.filter((g) => g.ancestors.includes(Number(groupFilter))).map((g) => g.id),
+      ])
+    : null;
+
+  const speciesOptions = genusFilter
+    ? allSpecies.filter((s) => s.genus?.id === Number(genusFilter))
+    : allSpecies;
+
+  // dataset chico (una fila por especie): se filtra en cada render sin memo
+  const rows = allSpecies
+    .map((sp) => {
+      const units = availableBySpecies[sp.id] ?? 0;
+      const threshold = sp.low_stock_threshold ?? DEFAULT_LOW_STOCK;
+      const stockState = units === 0 ? 'out' : units <= threshold ? 'low' : 'ok';
+      return { sp, units, threshold, stockState, status: sp.husbandry_status ?? 'active' };
+    })
+    .filter((r) => !groupIdSet || groupIdSet.has(r.sp.genus?.group?.id))
+    .filter((r) => !genusFilter || r.sp.genus?.id === Number(genusFilter))
+    .filter((r) => !speciesFilter || r.sp.id === Number(speciesFilter))
+    .filter((r) => !statusFilter || r.status === statusFilter)
+    .filter((r) => !stockFilter || r.stockState === stockFilter)
+    .sort((a, b) => speciesLabel(a.sp).localeCompare(speciesLabel(b.sp)));
 
   const counts = useMemo(() => {
     const all = allSpecies.map((sp) => {
@@ -147,12 +169,41 @@ export function CultivosView() {
 
       <Card>
         <Stack direction="row" spacing={2} sx={{ p: 2.5, flexWrap: 'wrap', gap: 2 }}>
-          <TextField
+          <Autocomplete
             size="small"
-            label="Buscar especie"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ minWidth: 220 }}
+            options={groupsFlat}
+            value={groupsFlat.find((g) => g.id === Number(groupFilter)) ?? null}
+            onChange={(_, option) => setGroupFilter(option?.id ?? '')}
+            getOptionLabel={(option) => option?.name ?? ''}
+            renderOption={(props, option) => (
+              <li {...props} key={option.id} style={{ ...props.style, paddingLeft: 16 + option.depth * 16 }}>
+                {option.depth > 0 && '└ '}
+                {option.name}
+              </li>
+            )}
+            renderInput={(params) => <TextField {...params} label="Grupo" />}
+            sx={{ minWidth: 200 }}
+          />
+          <Autocomplete
+            size="small"
+            options={allGenera}
+            value={allGenera.find((g) => g.id === Number(genusFilter)) ?? null}
+            onChange={(_, option) => {
+              setGenusFilter(option?.id ?? '');
+              setSpeciesFilter('');
+            }}
+            getOptionLabel={(option) => option?.name ?? ''}
+            renderInput={(params) => <TextField {...params} label="Género" />}
+            sx={{ minWidth: 180 }}
+          />
+          <Autocomplete
+            size="small"
+            options={speciesOptions}
+            value={speciesOptions.find((s) => s.id === Number(speciesFilter)) ?? null}
+            onChange={(_, option) => setSpeciesFilter(option?.id ?? '')}
+            getOptionLabel={(option) => speciesLabel(option)}
+            renderInput={(params) => <TextField {...params} label="Especie" />}
+            sx={{ minWidth: 240 }}
           />
           <TextField
             select
