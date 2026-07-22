@@ -142,11 +142,14 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
           onChange={(e) => setStatus(e.target.value)}
           helperText="Confirmar un pedido no registra la venta: eso se hace en el POS como siempre."
         >
-          {Object.entries(ORDER_STATUS).map(([value, { label }]) => (
-            <MenuItem key={value} value={value}>
-              {label}
-            </MenuItem>
-          ))}
+          {Object.entries(ORDER_STATUS)
+            // "Pagado" lo pone el pago en línea; a mano no (la API igual lo rechaza)
+            .filter(([value]) => value !== 'paid' || order.payment_id || order.status === 'paid')
+            .map(([value, { label }]) => (
+              <MenuItem key={value} value={value}>
+                {label}
+              </MenuItem>
+            ))}
         </TextField>
       </DialogContent>
 
