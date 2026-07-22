@@ -111,23 +111,31 @@ export function AnimalTaxonomyView() {
   const [filter, setFilter] = useState(null);
   const [dialog, setDialog] = useState(null); // { current } — abierto si no es null
   const [rowToDelete, setRowToDelete] = useState(null);
-  const [saving, setSaving] = useState(null);
+
+  const { groupTree, groupTreeLoading, groupTreeMutate } = useAnimalGroupTree();
 
   // Alterna una bandera del grupo sin abrir el dialogo. El PUT es parcial,
   // asi que manda solo el campo tocado.
   const handleFlag = async (row, field, value) => {
-    setSaving(row.id);
+    // Optimista: la casilla se mueve al instante y el ida y vuelta al servidor
+    // ocurre detrás. Si falla, el revalidado la devuelve a su valor real.
+    const patch = (nodes) =>
+      nodes.map((node) => ({
+        ...node,
+        ...(node.id === row.id && { [field]: value }),
+        children: node.children ? patch(node.children) : node.children,
+      }));
+
+    groupTreeMutate((current) => patch(current ?? []), { revalidate: false });
     try {
       await updateAnimalGroup(row.id, { [field]: value });
-      await groupTreeMutate();
     } catch (error) {
       toast.error(error?.message || 'No se pudo guardar');
     } finally {
-      setSaving(null);
+      await groupTreeMutate();
     }
   };
 
-  const { groupTree, groupTreeLoading, groupTreeMutate } = useAnimalGroupTree();
   const { genera, generaLoading, generaMutate } = useAllGenera();
   const { species: allSpecies, speciesLoading, speciesMutate } = useAllSpecies();
   const { morphs, morphsLoading, morphsMutate } = useAllMorphs(
@@ -274,7 +282,7 @@ export function AnimalTaxonomyView() {
             params.row.depth === 0 ? (
               <Checkbox
                 checked={params.row.show_public !== false}
-                disabled={!can('update') || saving === params.row.id}
+                disabled={!can('update')}
                 onChange={(e) => handleFlag(params.row, 'show_public', e.target.checked)}
               />
             ) : (
@@ -293,9 +301,7 @@ export function AnimalTaxonomyView() {
             params.row.depth === 0 ? (
               <Checkbox
                 checked={params.row.show_in_nav !== false}
-                disabled={
-                  !can('update') || params.row.show_public === false || saving === params.row.id
-                }
+                disabled={!can('update') || params.row.show_public === false}
                 onChange={(e) => handleFlag(params.row, 'show_in_nav', e.target.checked)}
               />
             ) : (
@@ -315,7 +321,7 @@ export function AnimalTaxonomyView() {
             return (
               <Checkbox
                 checked={!!params.row.feature_home}
-                disabled={!can('update') || !canFeature || saving === params.row.id}
+                disabled={!can('update') || !canFeature}
                 onChange={(e) => handleFlag(params.row, 'feature_home', e.target.checked)}
               />
             );
