@@ -112,7 +112,15 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
     }
   };
 
+  // Mensaje ya escrito según el estado: WhatsApp no permite mandar mensajes
+  // automáticos sin su API de negocio (ver nota al usuario), pero sí se puede
+  // dejar todo listo para que sólo des Enviar.
   const whatsapp = order.contact_phone?.replace(/\D/g, '');
+  const waNumber = whatsapp?.length === 10 ? `52${whatsapp}` : whatsapp;
+  const waText =
+    order.status === 'paid'
+      ? `¡Hola! Recibimos tu pago del pedido ${order.code}. ¿En qué zona de CDMX y a qué hora te queda bien la entrega?`
+      : `¡Hola! Te escribimos de Opuntia Den por tu pedido ${order.code}.`;
   const isPickup = order.delivery_method === 'pickup';
   // Lo que se pega en la guía de la paquetería: destinatario, teléfono y domicilio
   const shippingLabel = [order.contact_name ?? order.customer_name, order.contact_phone, order.address]
@@ -247,7 +255,7 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
         {whatsapp && (
           <Button
             color="success"
-            href={`https://wa.me/${whatsapp}`}
+            href={`https://wa.me/${waNumber}?text=${encodeURIComponent(waText)}`}
             target="_blank"
             rel="noopener"
             startIcon={<Iconify icon="socials:whatsapp" width={18} />}

@@ -2,6 +2,7 @@ import useSWR from 'swr';
 import { useState, useEffect } from 'react';
 
 import Card from '@mui/material/Card';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
@@ -14,6 +15,8 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { toast } from 'src/components/snackbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 // Plantilla del correo de ticket: nombre del negocio, mensaje inicial y
@@ -31,6 +34,27 @@ export function EmailTemplateView() {
 
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const { user } = useAuthContext();
+
+  // Diagnóstico: los envíos de la operación nunca tumban un pedido, así que
+  // sus errores sólo quedan en el log. Este botón los saca a la luz.
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await axiosInstance.post('/api/v1/settings/test-email', {
+        to: user?.email,
+      });
+      setTestResult(res.data);
+    } catch (error) {
+      setTestResult({ ok: false, error: error?.message || 'Error al enviar' });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   useEffect(() => {
     if (data && !form) setForm(data);
@@ -91,7 +115,10 @@ export function EmailTemplateView() {
               multiline
               minRows={2}
             />
-            <Stack direction="row" justifyContent="flex-end">
+            <Stack direction="row" spacing={1.5} justifyContent="flex-end">
+              <Button color="inherit" disabled={testing} onClick={handleTest}>
+                {testing ? 'Enviando…' : 'Mandar correo de prueba'}
+              </Button>
               <Button
                 variant="contained"
                 disabled={saving || !form.business_name?.trim()}
@@ -100,6 +127,21 @@ export function EmailTemplateView() {
                 {saving ? 'Guardando…' : 'Guardar'}
               </Button>
             </Stack>
+
+            {testResult && (
+              <Alert severity={testResult.ok ? 'success' : 'error'}>
+                {testResult.ok ? (
+                  <>
+                    Enviado desde <strong>{testResult.from_address}</strong>. Si no llega,
+                    revisa spam y el panel de Resend.
+                  </>
+                ) : (
+                  <>
+                    <strong>Falló el envío.</strong> {testResult.error}
+                  </>
+                )}
+              </Alert>
+            )}
           </Stack>
         )}
       </Card>
