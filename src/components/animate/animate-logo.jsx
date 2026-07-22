@@ -53,8 +53,8 @@ function BrandMark({ style }) {
   return (
     <img
       alt=""
-      src={`${CONFIG.assetsDir}/logo/opuntia-badge.png`}
-      style={{ objectFit: 'contain', borderRadius: '50%', ...style }}
+      src={`${CONFIG.assetsDir}/logo/opuntia-favicon.png`}
+      style={{ objectFit: 'contain', ...style }}
     />
   );
 }

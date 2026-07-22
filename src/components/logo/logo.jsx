@@ -19,6 +19,7 @@ const SOURCES = {
   full: `${CONFIG.assetsDir}/logo/opuntia-logo.png`, // lockup con nombre
   mark: `${CONFIG.assetsDir}/logo/opuntia-mark.png`, // sólo el escudo
   badge: `${CONFIG.assetsDir}/logo/opuntia-badge.png`, // escudo cuadrado, para recortar en círculo
+  icon: `${CONFIG.assetsDir}/logo/opuntia-favicon.png`, // círculo con relleno blanco (favicon/loader)
 };
 
 export function Logo({
