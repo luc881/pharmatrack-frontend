@@ -98,8 +98,11 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           {/** @slot Logo */}
           {isNavHorizontal && (
             <Logo
+              isSingle={false}
               sx={{
                 display: 'none',
+                width: 150,
+                height: 56,
                 [theme.breakpoints.up(layoutQuery)]: { display: 'inline-flex' },
               }}
             />

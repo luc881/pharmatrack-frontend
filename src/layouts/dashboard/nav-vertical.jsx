@@ -2,6 +2,9 @@ import { varAlpha, mergeClasses } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
 import { styled } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
+
+import { CONFIG } from 'src/global-config';
 
 import { Logo } from 'src/components/logo';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -27,8 +30,14 @@ export function NavVertical({
   const renderNavVertical = () => (
     <>
       {slots?.topArea ?? (
-        <Box sx={{ pl: 3.5, pt: 2.5, pb: 1 }}>
-          <Logo isSingle={false} />
+        <Box sx={{ px: 2.5, pt: 2.5, pb: 1.5, textAlign: 'center' }}>
+          <Logo isSingle={false} sx={{ width: 1, maxWidth: 190, height: 88 }} />
+          <Typography
+            variant="subtitle2"
+            sx={{ mt: 0.5, letterSpacing: '0.14em', textTransform: 'uppercase' }}
+          >
+            {CONFIG.appName}
+          </Typography>
         </Box>
       )}
 
@@ -49,7 +58,7 @@ export function NavVertical({
     <>
       {slots?.topArea ?? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 2.5 }}>
-          <Logo />
+          <Logo sx={{ width: 48, height: 48 }} />
         </Box>
       )}
 
