@@ -276,6 +276,27 @@ export function AnimalTaxonomyView() {
             ),
         },
         {
+          field: 'show_in_nav',
+          headerName: 'En el menú',
+          width: 110,
+          sortable: false,
+          align: 'center',
+          headerAlign: 'center',
+          renderCell: (params) =>
+            // El menú del sitio lista grupos raíz; en subgrupos no aplica
+            params.row.depth === 0 ? (
+              <Checkbox
+                checked={params.row.show_in_nav !== false}
+                disabled={
+                  !can('update') || params.row.show_public === false || saving === params.row.id
+                }
+                onChange={(e) => handleFlag(params.row, 'show_in_nav', e.target.checked)}
+              />
+            ) : (
+              <Box sx={{ color: 'text.disabled' }}>—</Box>
+            ),
+        },
+        {
           field: 'feature_home',
           headerName: 'Destacado',
           width: 110,

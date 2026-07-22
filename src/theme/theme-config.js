@@ -26,12 +26,15 @@ export const themeConfig = {
    * Palette
    *************************************** */
   palette: {
+    // Verde del cactus del logo, igual que en el sitio público. `light` es el
+    // tono exacto (#919569); `main` va más oscuro para que el texto blanco de
+    // los botones alcance 4.8:1 de contraste.
     primary: {
-      lighter: '#C8FAD6',
-      light: '#5BE49B',
-      main: '#00A76F',
-      dark: '#007867',
-      darker: '#004B50',
+      lighter: '#EDEFE1',
+      light: '#919569',
+      main: '#6B7548',
+      dark: '#4C5432',
+      darker: '#2F3520',
       contrastText: '#FFFFFF',
     },
     secondary: {
