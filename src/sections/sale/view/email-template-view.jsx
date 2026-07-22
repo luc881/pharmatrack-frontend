@@ -16,7 +16,6 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { toast } from 'src/components/snackbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 // Plantilla del correo de ticket: nombre del negocio, mensaje inicial y
@@ -34,25 +33,22 @@ export function EmailTemplateView() {
 
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
+  const [testing, setTesting] = useState('');
   const [testResult, setTestResult] = useState(null);
 
-  const { user } = useAuthContext();
-
   // Diagnóstico: los envíos de la operación nunca tumban un pedido, así que
-  // sus errores sólo quedan en el log. Este botón los saca a la luz.
-  const handleTest = async () => {
-    setTesting(true);
+  // sus errores sólo quedan en el log. Estos botones los sacan a la luz.
+  // Sin `to`, el servidor manda a ORDER_NOTIFY_EMAIL — el buzón del negocio.
+  const handleTest = async (kind) => {
+    setTesting(kind);
     setTestResult(null);
     try {
-      const res = await axiosInstance.post('/api/v1/settings/test-email', {
-        to: user?.email,
-      });
+      const res = await axiosInstance.post('/api/v1/settings/test-email', { kind });
       setTestResult(res.data);
     } catch (error) {
       setTestResult({ ok: false, error: error?.message || 'Error al enviar' });
     } finally {
-      setTesting(false);
+      setTesting('');
     }
   };
 
@@ -115,9 +111,20 @@ export function EmailTemplateView() {
               multiline
               minRows={2}
             />
-            <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-              <Button color="inherit" disabled={testing} onClick={handleTest}>
-                {testing ? 'Enviando…' : 'Mandar correo de prueba'}
+            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              Pruebas: se mandan al correo del negocio (ORDER_NOTIFY_EMAIL) usando las
+              mismas plantillas que reciben los clientes, con datos de ejemplo.
+            </Typography>
+
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" justifyContent="flex-end">
+              <Button color="inherit" disabled={!!testing} onClick={() => handleTest('simple')}>
+                {testing === 'simple' ? 'Enviando…' : 'Prueba simple'}
+              </Button>
+              <Button color="inherit" disabled={!!testing} onClick={() => handleTest('order')}>
+                {testing === 'order' ? 'Enviando…' : 'Correo de pedido'}
+              </Button>
+              <Button color="inherit" disabled={!!testing} onClick={() => handleTest('paid')}>
+                {testing === 'paid' ? 'Enviando…' : 'Correo de pago'}
               </Button>
               <Button
                 variant="contained"
