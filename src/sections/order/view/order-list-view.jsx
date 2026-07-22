@@ -37,6 +37,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 export const ORDER_STATUS = {
   pending: { label: 'Pendiente', color: 'warning' },
+  paid: { label: 'Pagado', color: 'success' },
   confirmed: { label: 'Confirmado', color: 'info' },
   completed: { label: 'Entregado', color: 'success' },
   cancelled: { label: 'Cancelado', color: 'error' },
@@ -124,6 +125,12 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
           <Typography variant="subtitle2">Total</Typography>
           <Typography variant="subtitle1">{fCurrency(order.total)}</Typography>
         </Box>
+
+        {order.payment_id && (
+          <Typography variant="caption" sx={{ color: 'success.main' }}>
+            Pagado en línea · referencia {order.payment_id}
+          </Typography>
+        )}
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
@@ -225,6 +232,12 @@ export function OrderListView() {
       valueGetter: (v) => v?.length ?? 0,
     },
     { field: 'total', headerName: 'Total', width: 120, valueGetter: (v) => fCurrency(v) },
+    {
+      field: 'delivery_method',
+      headerName: 'Entrega',
+      width: 110,
+      valueGetter: (v) => (v === 'pickup' ? 'CDMX' : 'Envío'),
+    },
     {
       field: 'status',
       headerName: 'Estado',
