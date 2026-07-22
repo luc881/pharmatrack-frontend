@@ -86,6 +86,9 @@ function CategoryBrowseToggle() {
 
 // ----------------------------------------------------------------------
 
+// Campos cuyo clic no debe navegar al siguiente nivel de la taxonomía
+const CONTROL_FIELDS = new Set(['actions', 'show_public', 'show_in_nav', 'feature_home']);
+
 const TABS = [
   { value: 'groups', label: 'Grupos', singular: 'grupo', resource: 'animalgroups' },
   { value: 'genera', label: 'Géneros', singular: 'género', resource: 'genera' },
@@ -188,7 +191,10 @@ export function AnimalTaxonomyView() {
   };
 
   const handleCellClick = (params) => {
-    if (params.field === 'actions' || !drillDown[tabValue]) return;
+    // Columnas con controles propios: ahí el clic es para el control, no para
+    // bajar al siguiente nivel. Se listan juntas para que agregar otra columna
+    // de este tipo no vuelva a chocar con el drill-down.
+    if (CONTROL_FIELDS.has(params.field) || !drillDown[tabValue]) return;
     const { next, filter: nextFilter } = drillDown[tabValue](params.row);
     setFilter(nextFilter);
     setTabValue(next);
