@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -53,6 +54,7 @@ const TABS = [
 function OrderDialog({ order, onClose, onSaved, canUpdate }) {
   const [status, setStatus] = useState(order.status);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -69,6 +71,17 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
   };
 
   const whatsapp = order.contact_phone?.replace(/\D/g, '');
+  const isPickup = order.delivery_method === 'pickup';
+  // Lo que se pega en la guía de la paquetería: destinatario, teléfono y domicilio
+  const shippingLabel = [order.contact_name ?? order.customer_name, order.contact_phone, order.address]
+    .filter(Boolean)
+    .join('\n');
+
+  const handleCopyAddress = async () => {
+    await navigator.clipboard.writeText(shippingLabel);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <Dialog open fullWidth maxWidth="sm" onClose={onClose}>
@@ -76,7 +89,12 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
 
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
         <Box>
-          <Typography variant="subtitle2">{order.customer_name ?? '—'}</Typography>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography variant="subtitle2">{order.customer_name ?? '—'}</Typography>
+            <Label variant="soft" color={isPickup ? 'info' : 'default'}>
+              {isPickup ? 'Entrega en CDMX' : 'Envío a domicilio'}
+            </Label>
+          </Box>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {order.customer_email}
           </Typography>
@@ -85,17 +103,47 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
               {order.contact_phone}
             </Typography>
           )}
-          {order.address && (
-            <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary', whiteSpace: 'pre-line' }}>
-              {order.address}
-            </Typography>
-          )}
           {order.notes && (
             <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
               «{order.notes}»
             </Typography>
           )}
         </Box>
+
+        {/* La dirección sólo estorba en entregas en persona */}
+        {!isPickup &&
+          (order.address ? (
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 1,
+                bgcolor: 'background.neutral',
+                border: (theme) => `dashed 1px ${theme.vars.palette.divider}`,
+              }}
+            >
+              <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
+                <Typography variant="overline" sx={{ flexGrow: 1, color: 'text.secondary' }}>
+                  Enviar a
+                </Typography>
+                <Button
+                  size="small"
+                  color="inherit"
+                  startIcon={<Iconify icon="solar:copy-bold" width={16} />}
+                  onClick={handleCopyAddress}
+                >
+                  {copied ? '¡Copiado!' : 'Copiar para la guía'}
+                </Button>
+              </Box>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
+                {order.address}
+              </Typography>
+            </Box>
+          ) : (
+            <Alert severity="warning" sx={{ typography: 'caption' }}>
+              Este pedido es con envío pero el cliente no ha capturado su dirección.
+              Pídesela por WhatsApp antes de cotizar.
+            </Alert>
+          ))}
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
