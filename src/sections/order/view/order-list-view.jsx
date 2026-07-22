@@ -1,3 +1,4 @@
+import useSWR from 'swr';
 import { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
@@ -8,6 +9,7 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
@@ -16,12 +18,14 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import { DataGrid, gridClasses } from '@mui/x-data-grid';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 
 import { fDateTime } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
 
+import axiosInstance, { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { useGetOrders, updateOrderStatus } from 'src/actions/order';
 
@@ -48,6 +52,44 @@ const TABS = [
   { value: '', label: 'Todos' },
   ...Object.entries(ORDER_STATUS).map(([value, { label }]) => ({ value, label })),
 ];
+
+// ----------------------------------------------------------------------
+
+// Apagado: el sitio público solo ofrece entrega en CDMX y la API rechaza
+// pedidos con envío. Los pedidos con envío que ya existan no se tocan.
+function ShippingToggle() {
+  const { data, mutate } = useSWR('/api/v1/settings/site', fetcher, {
+    revalidateOnFocus: false,
+  });
+  const [saving, setSaving] = useState(false);
+
+  const onToggle = async (e) => {
+    const shipping_enabled = e.target.checked;
+    setSaving(true);
+    try {
+      // el PUT reemplaza el objeto completo: hay que mandar lo demás tal cual
+      const res = await axiosInstance.put('/api/v1/settings/site', {
+        ...data,
+        shipping_enabled,
+      });
+      await mutate(res.data, { revalidate: false });
+      toast.success(shipping_enabled ? 'Envíos activados' : 'Solo entrega en CDMX');
+    } catch (error) {
+      toast.error(error?.message || 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <FormControlLabel
+      sx={{ mr: 0 }}
+      disabled={!data || saving}
+      control={<Switch checked={data?.shipping_enabled ?? true} onChange={onToggle} />}
+      label={<Typography variant="body2">Aceptar envíos</Typography>}
+    />
+  );
+}
 
 // ----------------------------------------------------------------------
 
@@ -329,6 +371,7 @@ export function OrderListView() {
         <CustomBreadcrumbs
           heading="Pedidos"
           links={[{ name: 'Dashboard', href: paths.dashboard.root }, { name: 'Pedidos' }]}
+          action={canUpdate && <ShippingToggle />}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
