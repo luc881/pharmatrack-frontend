@@ -71,7 +71,7 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
 
   return (
     <Dialog open fullWidth maxWidth="sm" onClose={onClose}>
-      <DialogTitle>Pedido #{order.id}</DialogTitle>
+      <DialogTitle>Pedido {order.code ?? `#${order.id}`}</DialogTitle>
 
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
         <Box>
@@ -185,18 +185,34 @@ export function OrderListView() {
   }, [ordersMutate]);
 
   const columns = [
-    { field: 'id', headerName: 'Folio', width: 90, valueGetter: (v) => `#${v}` },
+    {
+      field: 'code',
+      headerName: 'Folio',
+      width: 130,
+      valueGetter: (v, row) => v ?? `#${row.id}`,
+    },
     {
       field: 'customer_name',
       headerName: 'Cliente',
       flex: 1,
-      minWidth: 200,
+      minWidth: 220,
+      // valueGetter combinado: la búsqueda y el filtro de la tabla
+      // encuentran por nombre O por correo
+      valueGetter: (v, row) => `${row.customer_name ?? ''} ${row.customer_email ?? ''}`.trim(),
       renderCell: (params) => (
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="body2" noWrap>
+        <Box
+          sx={{
+            height: 1,
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+          }}
+        >
+          <Typography variant="body2" noWrap sx={{ lineHeight: 1.4 }}>
             {params.row.customer_name ?? '—'}
           </Typography>
-          <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
+          <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.4 }} noWrap>
             {params.row.customer_email}
           </Typography>
         </Box>
