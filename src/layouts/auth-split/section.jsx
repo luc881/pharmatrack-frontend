@@ -20,7 +20,8 @@ export function AuthSplitSection({
     <Box
       sx={[
         (theme) => ({
-          background: 'linear-gradient(135deg, #B71C1C 0%, #D32F2F 50%, #C62828 100%)',
+          // Verdes de la marca; era el rojo de farmacia del proyecto original
+          background: 'linear-gradient(135deg, #2F3520 0%, #4C5432 50%, #6B7548 100%)',
           px: 3,
           pb: 3,
           width: 1,
