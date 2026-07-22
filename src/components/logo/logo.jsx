@@ -11,12 +11,12 @@ import { CONFIG } from 'src/global-config';
 import { logoClasses } from './classes';
 
 // ----------------------------------------------------------------------
-// Logo de Opuntia Den. El archivo es el lockup completo (escudo + nombre);
-// `isSingle` recorta el escudo por CSS con background-size/position, para no
-// mantener dos imágenes que se acaben desincronizando.
+// Logo de Opuntia Den. Dos recortes del mismo original, generados con sharp
+// desde el archivo de marca: el lockup completo y sólo el escudo.
 // ----------------------------------------------------------------------
 
-const LOGO_SRC = `${CONFIG.assetsDir}/logo/opuntia-logo.png`;
+const FULL_SRC = `${CONFIG.assetsDir}/logo/opuntia-logo.png`;
+const MARK_SRC = `${CONFIG.assetsDir}/logo/opuntia-mark.png`;
 
 export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...other }) {
   return (
@@ -37,15 +37,10 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
       {...other}
     >
       <Box
-        sx={{
-          width: 1,
-          height: 1,
-          backgroundImage: `url(${LOGO_SRC})`,
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: isSingle ? 'center 27%' : 'center',
-          // isSingle amplía para que sólo se vea el escudo de arriba
-          backgroundSize: isSingle ? '158%' : 'contain',
-        }}
+        component="img"
+        alt=""
+        src={isSingle ? MARK_SRC : FULL_SRC}
+        sx={{ width: 1, height: 1, objectFit: 'contain' }}
       />
     </LogoRoot>
   );
