@@ -10,6 +10,7 @@ import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -23,6 +24,7 @@ import {
   useAllGenera,
   useAllMorphs,
   useAllSpecies,
+  updateAnimalGroup,
   useAnimalGroupTree,
 } from 'src/actions/animal';
 
@@ -106,6 +108,21 @@ export function AnimalTaxonomyView() {
   const [filter, setFilter] = useState(null);
   const [dialog, setDialog] = useState(null); // { current } — abierto si no es null
   const [rowToDelete, setRowToDelete] = useState(null);
+  const [saving, setSaving] = useState(null);
+
+  // Alterna una bandera del grupo sin abrir el dialogo. El PUT es parcial,
+  // asi que manda solo el campo tocado.
+  const handleFlag = async (row, field, value) => {
+    setSaving(row.id);
+    try {
+      await updateAnimalGroup(row.id, { [field]: value });
+      await groupTreeMutate();
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo guardar');
+    } finally {
+      setSaving(null);
+    }
+  };
 
   const { groupTree, groupTreeLoading, groupTreeMutate } = useAnimalGroupTree();
   const { genera, generaLoading, generaMutate } = useAllGenera();
@@ -240,19 +257,42 @@ export function AnimalTaxonomyView() {
         },
         {
           field: 'show_public',
-          headerName: 'Sitio',
-          width: 150,
+          headerName: 'Visible',
+          width: 90,
           sortable: false,
-          renderCell: (params) => (
-            <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', height: 1 }}>
-              {params.row.depth === 0 && params.row.show_public === false && (
-                <Chip size="small" color="default" variant="soft" label="Oculto" />
-              )}
-              {params.row.feature_home && (
-                <Chip size="small" color="info" variant="soft" label="Destacado" />
-              )}
-            </Box>
-          ),
+          align: 'center',
+          headerAlign: 'center',
+          renderCell: (params) =>
+            // La visibilidad se controla por grupo raiz: ocultar uno esconde
+            // todo su subarbol, asi que en los hijos no hay nada que marcar.
+            params.row.depth === 0 ? (
+              <Checkbox
+                checked={params.row.show_public !== false}
+                disabled={!can('update') || saving === params.row.id}
+                onChange={(e) => handleFlag(params.row, 'show_public', e.target.checked)}
+              />
+            ) : (
+              <Box sx={{ color: 'text.disabled' }}>—</Box>
+            ),
+        },
+        {
+          field: 'feature_home',
+          headerName: 'Destacado',
+          width: 110,
+          sortable: false,
+          align: 'center',
+          headerAlign: 'center',
+          renderCell: (params) => {
+            // Un raiz oculto no puede destacarse; un subgrupo si
+            const canFeature = params.row.depth > 0 || params.row.show_public !== false;
+            return (
+              <Checkbox
+                checked={!!params.row.feature_home}
+                disabled={!can('update') || !canFeature || saving === params.row.id}
+                onChange={(e) => handleFlag(params.row, 'feature_home', e.target.checked)}
+              />
+            );
+          },
         },
         actionsColumn,
       ],
