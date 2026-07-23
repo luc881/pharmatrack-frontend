@@ -291,11 +291,11 @@ export function AnimalTaxonomyView() {
         ...(kind === 'species'
           ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
           : []),
-        ...(tabValue === 'species' && canSell
-          ? [<CustomGridActionsCellItem label="Poner a la venta" icon={ACTION_ICONS.sell} onClick={() => navigate(sellHref)} />]
-          : []),
         ...(kind === 'species' && canDo('morphs', 'create')
           ? [<CustomGridActionsCellItem label="Añadir morph" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
+          : []),
+        ...(tabValue === 'species' && canSell
+          ? [<CustomGridActionsCellItem label="Poner a la venta" icon={ACTION_ICONS.sell} onClick={() => navigate(sellHref)} />]
           : []),
         ...(canDo(kind, 'update')
           ? [<CustomGridActionsCellItem label="Editar" icon={ACTION_ICONS.edit} onClick={() => setDialog({ tab: kind, current: row })} />]
