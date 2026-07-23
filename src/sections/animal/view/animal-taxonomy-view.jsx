@@ -45,8 +45,8 @@ import {
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { speciesLabel, flattenGroupTree } from '../utils';
 import { TaxonDialog, TAXON_ACTIONS } from '../taxon-dialog';
-import { speciesLabel, saleFormatLabel, flattenGroupTree } from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -346,7 +346,6 @@ export function AnimalTaxonomyView() {
         { field: 'genus', headerName: 'Género', width: 180, valueGetter: (v) => v?.name ?? '—' },
         { field: 'name', headerName: 'Nombre científico', flex: 1, minWidth: 180 },
         { field: 'common_name', headerName: 'Nombre común', flex: 1, minWidth: 180, valueGetter: (v) => v ?? '—' },
-        { field: 'sale_format', headerName: 'Formato', width: 140, valueGetter: (_, row) => saleFormatLabel(row) ?? 'Individual' },
         actionsColumn,
       ],
     },
