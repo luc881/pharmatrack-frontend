@@ -333,7 +333,9 @@ export function StatCard({ label, value, color = 'text.primary' }) {
   );
 }
 
-export function ManageDialog({ species, onClose, onSaved }) {
+// `update`/`title` permiten reutilizar el diálogo para morphs (cría propia,
+// independiente del nominal). Por defecto gestiona una especie.
+export function ManageDialog({ species, onClose, onSaved, update = updateSpecies, title }) {
   const [status, setStatus] = useState(species.husbandry_status ?? 'active');
   const [threshold, setThreshold] = useState(species.low_stock_threshold ?? '');
   const [notes, setNotes] = useState(species.private_notes ?? '');
@@ -342,7 +344,7 @@ export function ManageDialog({ species, onClose, onSaved }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateSpecies(species.id, {
+      await update(species.id, {
         husbandry_status: status,
         low_stock_threshold: threshold === '' ? null : Number(threshold),
         private_notes: notes || null,
@@ -359,7 +361,7 @@ export function ManageDialog({ species, onClose, onSaved }) {
 
   return (
     <Dialog open fullWidth maxWidth="xs" onClose={onClose}>
-      <DialogTitle>{species.common_name ?? speciesLabel(species)}</DialogTitle>
+      <DialogTitle>{title ?? species.common_name ?? speciesLabel(species)}</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
         <Autocomplete
           disableClearable

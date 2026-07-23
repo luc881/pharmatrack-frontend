@@ -20,10 +20,12 @@ import { paths } from 'src/routes/paths';
 import axiosInstance, { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
+  updateMorph,
   useAllGenera,
   useAllMorphs,
   useGetAnimals,
   useAllSpecies,
+  updateSpecies,
   updateAnimalGroup,
   useAnimalGroupTree,
 } from 'src/actions/animal';
@@ -178,6 +180,20 @@ export function AnimalTaxonomyView() {
     });
     return map;
   }, [animals]);
+  // Unidades por morph: un animal puede tener varios morphs, suma su stock a cada uno
+  const availableByMorph = useMemo(() => {
+    const map = {};
+    animals.forEach((a) => {
+      if (a.status !== 'available') return;
+      (a.morphs ?? []).forEach((m) => {
+        map[m.id] = (map[m.id] ?? 0) + (a.stock ?? 1);
+      });
+    });
+    return map;
+  }, [animals]);
+  // Unidades disponibles de una fila de la pestaña Especies (especie o morph)
+  const rowUnits = (row) =>
+    (row.__kind === 'morph' ? availableByMorph[row.id] : availableBySpecies[row.id]) ?? 0;
   const cultivoCounts = useMemo(() => {
     const list = allSpecies.map((sp) => ({
       status: sp.husbandry_status ?? 'active',
@@ -328,8 +344,8 @@ export function AnimalTaxonomyView() {
         ...(kind === 'species'
           ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
           : []),
-        ...(kind === 'species' && canDo('species', 'update')
-          ? [<CustomGridActionsCellItem label="Gestionar cultivo" icon={ACTION_ICONS.cultivo} onClick={() => setManaging(row)} />]
+        ...(tabValue === 'species' && canDo(kind, 'update')
+          ? [<CustomGridActionsCellItem label="Gestionar cultivo" icon={ACTION_ICONS.cultivo} onClick={() => setManaging({ row, kind })} />]
           : []),
         ...(kind === 'species' && canDo('morphs', 'create')
           ? [<CustomGridActionsCellItem label="Añadir morph" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
@@ -455,7 +471,7 @@ export function AnimalTaxonomyView() {
           ),
         },
         { field: 'common_name', headerName: 'Nombre común / morph', flex: 1, minWidth: 180, sortable: false, valueGetter: (_, row) => (row.__kind === 'morph' ? row.description ?? '—' : row.common_name ?? '—') },
-        // Columnas de "Cultivos": solo aplican a la especie, no a sus morphs
+        // Columnas de "Cultivos": aplican a especies y morphs (cría independiente)
         {
           field: 'units',
           headerName: 'Disponibles',
@@ -463,7 +479,7 @@ export function AnimalTaxonomyView() {
           align: 'right',
           headerAlign: 'right',
           sortable: false,
-          renderCell: (params) => (params.row.__kind === 'morph' ? '' : availableBySpecies[params.row.id] ?? 0),
+          renderCell: (params) => rowUnits(params.row),
         },
         {
           field: 'stock',
@@ -471,8 +487,7 @@ export function AnimalTaxonomyView() {
           width: 120,
           sortable: false,
           renderCell: (params) => {
-            if (params.row.__kind === 'morph') return '';
-            const state = stockStateOf(availableBySpecies[params.row.id] ?? 0, params.row.low_stock_threshold ?? DEFAULT_LOW_STOCK);
+            const state = stockStateOf(rowUnits(params.row), params.row.low_stock_threshold ?? DEFAULT_LOW_STOCK);
             return <Label variant="soft" color={STOCK[state].color}>{STOCK[state].label}</Label>;
           },
         },
@@ -482,7 +497,6 @@ export function AnimalTaxonomyView() {
           width: 120,
           sortable: false,
           renderCell: (params) => {
-            if (params.row.__kind === 'morph') return '';
             const status = params.row.husbandry_status ?? 'active';
             return <Label variant="soft" color={HUSBANDRY[status]?.color ?? 'default'}>{HUSBANDRY[status]?.label ?? status}</Label>;
           },
@@ -614,9 +628,11 @@ export function AnimalTaxonomyView() {
 
       {managing && (
         <ManageDialog
-          species={managing}
+          species={managing.row}
+          title={managing.kind === 'morphs' ? managing.row.name : undefined}
+          update={managing.kind === 'morphs' ? updateMorph : updateSpecies}
           onClose={() => setManaging(null)}
-          onSaved={speciesMutate}
+          onSaved={managing.kind === 'morphs' ? morphsMutate : speciesMutate}
         />
       )}
 
