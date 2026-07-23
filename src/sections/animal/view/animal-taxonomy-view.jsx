@@ -1,5 +1,5 @@
 import useSWR from 'swr';
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
@@ -138,13 +138,29 @@ export function AnimalTaxonomyView() {
 
   const { genera, generaLoading, generaMutate } = useAllGenera();
   const { species: allSpecies, speciesLoading, speciesMutate } = useAllSpecies();
-  const { morphs, morphsLoading, morphsMutate } = useAllMorphs(
-    filter?.type === 'species' ? filter.id : undefined
-  );
+  // Todos los morphs: ahora cuelgan de su especie en la misma tabla.
+  const { morphs, morphsLoading, morphsMutate } = useAllMorphs();
 
   const groupsFlat = flattenGroupTree(groupTree);
   const speciesById = Object.fromEntries(allSpecies.map((s) => [s.id, s]));
   const generaById = Object.fromEntries(genera.map((g) => [g.id, g]));
+
+  // Especies con sus morphs anidados debajo (nivel 1), como el árbol de grupos.
+  // Así no hace falta una pestaña aparte para morphs.
+  const speciesTree = useMemo(() => {
+    const bySpecies = {};
+    morphs.forEach((m) => {
+      (bySpecies[m.species_id] ??= []).push(m);
+    });
+    const rows = [];
+    allSpecies.forEach((sp) => {
+      rows.push({ ...sp, _rowId: `s${sp.id}`, __kind: 'species', depth: 0 });
+      (bySpecies[sp.id] ?? []).forEach((m) =>
+        rows.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
+      );
+    });
+    return rows;
+  }, [allSpecies, morphs]);
 
   // Deep-link desde la lista de animales: ?edit_species=ID abre la ficha de esa
   // especie (tab Especies, filtrada, con el diálogo de edición abierto).
@@ -156,7 +172,7 @@ export function AnimalTaxonomyView() {
     if (sp) {
       setTabValue('species');
       setFilter({ type: 'species', id: sp.id, label: `Especie: ${speciesLabel(sp)}` });
-      setDialog({ current: sp });
+      setDialog({ tab: 'species', current: sp });
     }
     searchParams.delete('edit_species');
     setSearchParams(searchParams, { replace: true });
@@ -178,16 +194,13 @@ export function AnimalTaxonomyView() {
       return true;
     },
     species: (row) => {
+      // Los morphs siguen a su especie: se filtra por la especie en ambos casos.
+      const sp = row.__kind === 'morph' ? speciesById[row.__speciesId] : row;
+      if (!sp) return false;
       if (!filter) return true;
-      if (filter.type === 'group') return groupIdSet.has(generaById[row.genus_id]?.group?.id);
-      if (filter.type === 'genus') return row.genus_id === filter.id;
-      return row.id === filter.id;
-    },
-    morphs: (row) => {
-      if (!filter || filter.type === 'species') return true; // species ya filtró el server
-      const sp = speciesById[row.species_id];
-      if (filter.type === 'group') return groupIdSet.has(generaById[sp?.genus_id]?.group?.id);
-      return sp?.genus_id === filter.id;
+      if (filter.type === 'group') return groupIdSet.has(generaById[sp.genus_id]?.group?.id);
+      if (filter.type === 'genus') return sp.genus_id === filter.id;
+      return sp.id === filter.id;
     },
   };
 
@@ -195,7 +208,7 @@ export function AnimalTaxonomyView() {
   const drillDown = {
     groups: (row) => ({ next: 'genera', filter: { type: 'group', id: row.id, label: `Grupo: ${row.name}` } }),
     genera: (row) => ({ next: 'species', filter: { type: 'genus', id: row.id, label: `Género: ${row.name}` } }),
-    species: (row) => ({ next: 'morphs', filter: { type: 'species', id: row.id, label: `Especie: ${speciesLabel(row)}` } }),
+    // Especies ya no baja de nivel: sus morphs se ven anidados en la misma tabla.
   };
 
   const handleCellClick = (params) => {
@@ -209,21 +222,25 @@ export function AnimalTaxonomyView() {
     apiRef.current?.setQuickFilterValues([]);
   };
 
-  const can = (action) =>
-    user?.permissions?.includes(`${TABS.find((t) => t.value === tabValue).resource}.${action}`);
+  // Permisos por tipo de taxón (species y morphs conviven en la misma tabla).
+  const canDo = (kind, action) =>
+    user?.permissions?.includes(`${TABS.find((t) => t.value === kind).resource}.${action}`);
+  const can = (action) => canDo(tabValue, action);
 
-  const mutateCurrent = {
-    // renombrar/mover un grupo cambia lo que muestran los géneros
-    groups: () => Promise.all([groupTreeMutate(), generaMutate()]),
-    genera: generaMutate,
-    species: speciesMutate,
-    morphs: morphsMutate,
-  }[tabValue];
+  // Revalida el recurso correcto tras guardar/eliminar.
+  const mutateFor = (kind) =>
+    ({
+      // renombrar/mover un grupo cambia lo que muestran los géneros
+      groups: () => Promise.all([groupTreeMutate(), generaMutate()]),
+      genera: generaMutate,
+      species: speciesMutate,
+      morphs: morphsMutate,
+    })[kind];
 
-  const handleConfirmDelete = useCallback(async () => {
+  const handleConfirmDelete = async () => {
     try {
-      await TAXON_ACTIONS[tabValue].delete(rowToDelete.id);
-      await mutateCurrent();
+      await TAXON_ACTIONS[rowToDelete.kind].delete(rowToDelete.row.id);
+      await mutateFor(rowToDelete.kind)();
       toast.success('Eliminado correctamente');
     } catch (error) {
       // el backend rechaza con detalle descriptivo si tiene dependencias
@@ -231,24 +248,39 @@ export function AnimalTaxonomyView() {
     } finally {
       setRowToDelete(null);
     }
-  }, [tabValue, rowToDelete, mutateCurrent]);
+  };
 
   const actionsColumn = {
     type: 'actions',
     field: 'actions',
     headerName: ' ',
-    // Especies tiene 3 acciones (Ver ficha + Editar + Eliminar); el resto 2
-    width: tabValue === 'species' ? 140 : 96,
+    // La especie tiene hasta 4 acciones (Ver ficha + Añadir morph + Editar +
+    // Eliminar); el resto de niveles, 2
+    width: tabValue === 'species' ? 176 : 96,
     align: 'right',
     headerAlign: 'right',
     sortable: false,
     filterable: false,
     disableColumnMenu: true,
-    getActions: (params) => [
-      ...(tabValue === 'species' ? [<CustomGridActionsCellItem label="Ver ficha" icon={<Iconify icon="solar:document-text-bold" />} onClick={() => navigate(paths.dashboard.animal.species(params.row.id))} />] : []),
-      ...(can('update') ? [<CustomGridActionsCellItem label="Editar" icon={<Iconify icon="solar:pen-bold" />} onClick={() => setDialog({ current: params.row })} />] : []),
-      ...(can('delete') ? [<CustomGridActionsCellItem label="Eliminar" icon={<Iconify icon="solar:trash-bin-trash-bold" sx={{ color: theme.vars.palette.error.main }} />} onClick={() => setRowToDelete(params.row)} />] : []),
-    ],
+    getActions: (params) => {
+      const { row } = params;
+      // En la pestaña Especies conviven especies (nivel 0) y sus morphs (nivel 1)
+      const kind = tabValue === 'species' ? (row.__kind === 'morph' ? 'morphs' : 'species') : tabValue;
+      return [
+        ...(kind === 'species'
+          ? [<CustomGridActionsCellItem label="Ver ficha" icon={<Iconify icon="solar:document-text-bold" />} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
+          : []),
+        ...(kind === 'species' && canDo('morphs', 'create')
+          ? [<CustomGridActionsCellItem label="Añadir morph" icon={<Iconify icon="mingcute:add-line" />} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
+          : []),
+        ...(canDo(kind, 'update')
+          ? [<CustomGridActionsCellItem label="Editar" icon={<Iconify icon="solar:pen-bold" />} onClick={() => setDialog({ tab: kind, current: row })} />]
+          : []),
+        ...(canDo(kind, 'delete')
+          ? [<CustomGridActionsCellItem label="Eliminar" icon={<Iconify icon="solar:trash-bin-trash-bold" sx={{ color: theme.vars.palette.error.main }} />} onClick={() => setRowToDelete({ row, kind })} />]
+          : []),
+      ];
+    },
   };
 
   const gridProps = {
@@ -340,22 +372,25 @@ export function AnimalTaxonomyView() {
       ],
     },
     species: {
-      rows: allSpecies,
-      loading: speciesLoading,
+      rows: speciesTree,
+      loading: speciesLoading || morphsLoading,
       columns: [
-        { field: 'genus', headerName: 'Género', width: 180, valueGetter: (v) => v?.name ?? '—' },
-        { field: 'name', headerName: 'Nombre científico', flex: 1, minWidth: 180 },
-        { field: 'common_name', headerName: 'Nombre común', flex: 1, minWidth: 180, valueGetter: (v) => v ?? '—' },
-        actionsColumn,
-      ],
-    },
-    morphs: {
-      rows: morphs,
-      loading: morphsLoading,
-      columns: [
-        { field: 'species_id', headerName: 'Especie', width: 240, valueGetter: (v) => speciesLabel(speciesById[v]) || '—' },
-        { field: 'name', headerName: 'Nombre', flex: 1, minWidth: 160 },
-        { field: 'description', headerName: 'Descripción', flex: 1, minWidth: 200, valueGetter: (v) => v ?? '—' },
+        // sortable:false en todas: ordenar rompería el anidado especie → morphs
+        { field: 'genus', headerName: 'Género', width: 180, sortable: false, valueGetter: (_, row) => (row.__kind === 'morph' ? '' : row.genus?.name ?? '—') },
+        {
+          field: 'name',
+          headerName: 'Nombre científico',
+          flex: 1,
+          minWidth: 200,
+          sortable: false,
+          renderCell: (params) => (
+            <Box sx={{ pl: params.row.depth * 3 }}>
+              {params.row.depth > 0 && '└ '}
+              {params.row.name}
+            </Box>
+          ),
+        },
+        { field: 'common_name', headerName: 'Nombre común / morph', flex: 1, minWidth: 180, sortable: false, valueGetter: (_, row) => (row.__kind === 'morph' ? row.description ?? '—' : row.common_name ?? '—') },
         actionsColumn,
       ],
     },
@@ -380,7 +415,7 @@ export function AnimalTaxonomyView() {
                 <Button
                   variant="contained"
                   startIcon={<Iconify icon="mingcute:add-line" />}
-                  onClick={() => setDialog({ current: null })}
+                  onClick={() => setDialog({ tab: tabValue, current: null })}
                 >
                   {`Nuevo ${tabConfig.singular}`}
                 </Button>
@@ -404,7 +439,7 @@ export function AnimalTaxonomyView() {
             onChange={(_, v) => setTabValue(v)}
             sx={{ px: 2.5, boxShadow: (t) => `inset 0 -2px 0 0 ${t.vars.palette.divider}` }}
           >
-            {TABS.map((tab) => (
+            {TABS.filter((t) => t.value !== 'morphs').map((tab) => (
               <Tab key={tab.value} value={tab.value} label={tab.label} />
             ))}
           </Tabs>
@@ -415,6 +450,7 @@ export function AnimalTaxonomyView() {
             disableRowSelectionOnClick
             rows={gridProps.rows.filter(passesFilter[tabValue])}
             columns={gridProps.columns}
+            getRowId={(row) => row._rowId ?? row.id}
             loading={gridProps.loading}
             onCellClick={handleCellClick}
             pageSizeOptions={[25, 50, 100]}
@@ -433,7 +469,7 @@ export function AnimalTaxonomyView() {
                     )}
 
                     <ToolbarRightPanel>
-                      {tabValue !== 'morphs' && (
+                      {drillDown[tabValue] && (
                         <Typography
                           variant="caption"
                           sx={{ color: 'text.disabled', display: { xs: 'none', md: 'block' } }}
@@ -451,7 +487,7 @@ export function AnimalTaxonomyView() {
             }}
             sx={{
               [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' },
-              ...(tabValue !== 'morphs' && { [`& .${gridClasses.row}`]: { cursor: 'pointer' } }),
+              ...(drillDown[tabValue] && { [`& .${gridClasses.row}`]: { cursor: 'pointer' } }),
             }}
           />
         </Card>
@@ -459,14 +495,15 @@ export function AnimalTaxonomyView() {
 
       {dialog && (
         <TaxonDialog
-          tab={tabValue}
-          singular={tabConfig.singular}
+          tab={dialog.tab}
+          singular={TABS.find((t) => t.value === dialog.tab).singular}
           current={dialog.current}
+          initial={dialog.initial}
           genera={genera}
           allSpecies={allSpecies}
           groupsFlat={groupsFlat}
           onClose={() => setDialog(null)}
-          onSaved={mutateCurrent}
+          onSaved={mutateFor(dialog.tab)}
         />
       )}
 
@@ -476,7 +513,7 @@ export function AnimalTaxonomyView() {
         title="Eliminar"
         content={
           <>
-            ¿Estás seguro de eliminar <strong>{rowToDelete?.name}</strong>?
+            ¿Estás seguro de eliminar <strong>{rowToDelete?.row?.name}</strong>?
           </>
         }
         action={
