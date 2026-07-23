@@ -11,7 +11,6 @@ import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
-import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import { Toolbar, DataGrid, gridClasses, useGridApiRef } from '@mui/x-data-grid';
@@ -89,6 +88,20 @@ function CategoryBrowseToggle() {
 // Campos cuyo clic no debe navegar al siguiente nivel de la taxonomía
 const CONTROL_FIELDS = new Set(['actions', 'show_public', 'show_in_nav', 'feature_home']);
 
+// Iconos de las acciones, creados UNA sola vez a nivel de módulo.
+//
+// Al hacer clic, el DataGrid enfoca la celda y la vuelve a renderizar entre el
+// mousedown y el mouseup. Si el elemento <Iconify> se crea en cada render, el
+// <path> del svg se reemplaza en ese hueco y Chrome ya no dispara el click:
+// había que dar clic dos veces. Con la misma referencia React no toca ese
+// subárbol y el clic llega a la primera.
+const ACTION_ICONS = {
+  ficha: <Iconify icon="solar:document-text-bold" />,
+  add: <Iconify icon="mingcute:add-line" />,
+  edit: <Iconify icon="solar:pen-bold" />,
+  delete: <Iconify icon="solar:trash-bin-trash-bold" sx={{ color: 'error.main' }} />,
+};
+
 const TABS = [
   { value: 'groups', label: 'Grupos', singular: 'grupo', resource: 'animalgroups' },
   { value: 'genera', label: 'Géneros', singular: 'género', resource: 'genera' },
@@ -99,7 +112,6 @@ const TABS = [
 // ----------------------------------------------------------------------
 
 export function AnimalTaxonomyView() {
-  const theme = useTheme();
   const navigate = useNavigate();
   const apiRef = useGridApiRef();
 
@@ -268,16 +280,16 @@ export function AnimalTaxonomyView() {
       const kind = tabValue === 'species' ? (row.__kind === 'morph' ? 'morphs' : 'species') : tabValue;
       return [
         ...(kind === 'species'
-          ? [<CustomGridActionsCellItem label="Ver ficha" icon={<Iconify icon="solar:document-text-bold" />} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
+          ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
           : []),
         ...(kind === 'species' && canDo('morphs', 'create')
-          ? [<CustomGridActionsCellItem label="Añadir morph" icon={<Iconify icon="mingcute:add-line" />} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
+          ? [<CustomGridActionsCellItem label="Añadir morph" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
           : []),
         ...(canDo(kind, 'update')
-          ? [<CustomGridActionsCellItem label="Editar" icon={<Iconify icon="solar:pen-bold" />} onClick={() => setDialog({ tab: kind, current: row })} />]
+          ? [<CustomGridActionsCellItem label="Editar" icon={ACTION_ICONS.edit} onClick={() => setDialog({ tab: kind, current: row })} />]
           : []),
         ...(canDo(kind, 'delete')
-          ? [<CustomGridActionsCellItem label="Eliminar" icon={<Iconify icon="solar:trash-bin-trash-bold" sx={{ color: theme.vars.palette.error.main }} />} onClick={() => setRowToDelete({ row, kind })} />]
+          ? [<CustomGridActionsCellItem label="Eliminar" icon={ACTION_ICONS.delete} onClick={() => setRowToDelete({ row, kind })} />]
           : []),
       ];
     },

@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { memo, useId } from 'react';
 import { Icon } from '@iconify/react';
 import { mergeClasses } from 'minimal-shared/utils';
 
@@ -9,7 +9,13 @@ import { allIconNames, registerIcons } from './register-icons';
 
 // ----------------------------------------------------------------------
 
-export function Iconify({ className, icon, width = 20, height, sx, ...other }) {
+// Memoizado a propósito, no por rendimiento. Iconify vuelve a escribir el
+// contenido del <svg> en cada render, o sea que reemplaza el nodo <path>. Si
+// eso pasa entre el mousedown y el mouseup de un clic (por ejemplo cuando el
+// DataGrid enfoca la celda), Chrome ya no dispara el evento click y el botón
+// parece necesitar dos clics. Con memo, un icono de props estables no se
+// vuelve a renderizar y su DOM se queda quieto.
+export const Iconify = memo(function Iconify({ className, icon, width = 20, height, sx, ...other }) {
   const uniqueId = useId();
 
   if (!allIconNames.includes(icon)) {
@@ -42,7 +48,7 @@ export function Iconify({ className, icon, width = 20, height, sx, ...other }) {
       {...other}
     />
   );
-}
+});
 
 // ----------------------------------------------------------------------
 
