@@ -323,9 +323,6 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           </>
         )}
 
-        {tab === 'morphs' && (
-          <TextField label="Descripción" multiline rows={2} value={form.description} onChange={set('description')} />
-        )}
       </DialogContent>
 
       <DialogActions>
