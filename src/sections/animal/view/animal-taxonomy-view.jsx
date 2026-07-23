@@ -321,8 +321,9 @@ export function AnimalTaxonomyView() {
     type: 'actions',
     field: 'actions',
     headerName: ' ',
-    // La especie tiene hasta 6 acciones (Ver ficha + Gestionar cultivo + Añadir
-    // morph + Poner a la venta + Editar + Eliminar); el resto de niveles, 2
+    // Orden: primero las acciones solo-especie (Ver ficha, Añadir morph) y luego
+    // las que comparten especie y morph (Cultivo, Vender, Editar, Eliminar), para
+    // que estas últimas queden en la misma columna en ambos niveles. Hasta 6.
     width: tabValue === 'species' ? 260 : 96,
     align: 'right',
     headerAlign: 'right',
@@ -344,11 +345,11 @@ export function AnimalTaxonomyView() {
         ...(kind === 'species'
           ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
           : []),
-        ...(tabValue === 'species' && canDo(kind, 'update')
-          ? [<CustomGridActionsCellItem label="Gestionar cultivo" icon={ACTION_ICONS.cultivo} onClick={() => setManaging({ row, kind })} />]
-          : []),
         ...(kind === 'species' && canDo('morphs', 'create')
           ? [<CustomGridActionsCellItem label="Añadir morph" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
+          : []),
+        ...(tabValue === 'species' && canDo(kind, 'update')
+          ? [<CustomGridActionsCellItem label="Gestionar cultivo" icon={ACTION_ICONS.cultivo} onClick={() => setManaging({ row, kind })} />]
           : []),
         ...(tabValue === 'species' && canSell
           ? [<CustomGridActionsCellItem label="Poner a la venta" icon={ACTION_ICONS.sell} onClick={() => navigate(sellHref)} />]
