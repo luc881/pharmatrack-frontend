@@ -10,6 +10,7 @@ import Table from '@mui/material/Table';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
+import Checkbox from '@mui/material/Checkbox';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
@@ -121,6 +122,7 @@ export function AnimalListView() {
   const [speciesFilter, setSpeciesFilter] = useState(() => Number(searchParams.get('species_id')) || '');
   const [statusFilter, setStatusFilter] = useState('');
   const [rowToDelete, setRowToDelete] = useState(null);
+  const [selected, setSelected] = useState(() => new Set()); // ids de ejemplares
   const [expanded, setExpanded] = useState(() => new Set());
   const [labelsFor, setLabelsFor] = useState(null); // entry {species, animals} → diálogo de etiquetas QR
 
@@ -170,6 +172,15 @@ export function AnimalListView() {
 
   const handleFilter = useCallback((setter) => (event) => setter(event.target.value), []);
 
+  // Selección para borrado en lote: alterna un ejemplar o todos los de una especie
+  const toggleSelected = useCallback((ids, value) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (value ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  }, []);
+
   const handleDeleteRow = useCallback(
     (id) => {
       setRowToDelete(id);
@@ -178,19 +189,37 @@ export function AnimalListView() {
     [confirmDialog]
   );
 
+  // Solo cuenta lo seleccionado que sigue a la vista: al cambiar de filtro no
+  // se borran ejemplares que ya no aparecen en pantalla
+  const selectedVisible = useMemo(() => {
+    const ids = new Set(animals.map((a) => a.id));
+    return [...selected].filter((id) => ids.has(id));
+  }, [animals, selected]);
+
+  const deleteIds = rowToDelete ? [rowToDelete] : selectedVisible;
+
   const handleConfirmDelete = useCallback(async () => {
-    try {
-      await deleteAnimal(rowToDelete);
-      await animalsMutate();
-      toast.success('Animal eliminado');
-    } catch (error) {
-      // el backend rechaza con detalle descriptivo (vendido / en una venta)
-      toast.error(error.message || 'Error al eliminar');
-    } finally {
-      setRowToDelete(null);
-      confirmDialog.onFalse();
+    // allSettled y no all: el backend rechaza los vendidos o los que están en
+    // una venta, y con `all` un rechazo escondería los que sí se borraron
+    const results = await Promise.allSettled(deleteIds.map((id) => deleteAnimal(id)));
+    const failed = results.filter((r) => r.status === 'rejected');
+    const ok = results.length - failed.length;
+
+    await animalsMutate();
+    if (ok) toast.success(ok === 1 ? 'Animal eliminado' : `${ok} animales eliminados`);
+    if (failed.length) {
+      toast.error(
+        failed.length === 1
+          ? failed[0].reason?.message || 'Error al eliminar'
+          : `${failed.length} no se pudieron eliminar`
+      );
     }
-  }, [rowToDelete, animalsMutate, confirmDialog]);
+
+    setSelected(new Set());
+    setRowToDelete(null);
+    confirmDialog.onFalse();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowToDelete, selected, animalsMutate, confirmDialog]);
 
   // Grupo/Género/Especie con búsqueda al teclear (ignora acentos); Estado como select
   const renderFilters = () => (
@@ -255,6 +284,19 @@ export function AnimalListView() {
           ]}
           action={
             <Stack direction="row" spacing={1.5}>
+              {canDelete && selectedVisible.length > 0 && (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                  onClick={() => {
+                    setRowToDelete(null);
+                    confirmDialog.onTrue();
+                  }}
+                >
+                  Eliminar ({selectedVisible.length})
+                </Button>
+              )}
               <Button
                 variant="outlined"
                 startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
@@ -317,6 +359,8 @@ export function AnimalListView() {
                         canUpdateSpecies={canUpdateSpecies}
                         onDelete={handleDeleteRow}
                         onPrintLabels={() => setLabelsFor(entry)}
+                        selected={selected}
+                        onToggleSelected={toggleSelected}
                       />
                     ))}
                   </TableBody>
@@ -339,7 +383,12 @@ export function AnimalListView() {
         open={confirmDialog.value}
         onClose={confirmDialog.onFalse}
         title="Eliminar"
-        content="¿Estás seguro de eliminar este animal?"
+        content={
+          <>
+            ¿Estás seguro de eliminar <strong>{deleteIds.length}</strong>{' '}
+            {deleteIds.length === 1 ? 'animal' : 'animales'}?
+          </>
+        }
         action={
           <Button variant="contained" color="error" onClick={handleConfirmDelete}>
             Eliminar
@@ -352,8 +401,13 @@ export function AnimalListView() {
 
 // ----------------------------------------------------------------------
 
-function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpecies, onDelete, onPrintLabels }) {
+function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpecies, onDelete, onPrintLabels, selected, onToggleSelected }) {
   const { species, animals } = entry;
+
+  // Los vendidos no se pueden borrar: quedan fuera del "seleccionar todos"
+  const deletable = animals.filter((a) => a.status !== 'sold');
+  const selectedHere = deletable.filter((a) => selected.has(a.id)).length;
+  const allSelected = deletable.length > 0 && selectedHere === deletable.length;
 
   const photo = animals.find((a) => a.image || a.photos?.[0]);
   const prices = animals.map((a) => a.price);
@@ -471,6 +525,19 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpe
               <Table size="small">
                 <TableHead>
                   <TableRow>
+                    {canDelete && (
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          size="small"
+                          disabled={!deletable.length}
+                          checked={allSelected}
+                          indeterminate={selectedHere > 0 && !allSelected}
+                          onChange={() =>
+                            onToggleSelected(deletable.map((a) => a.id), !allSelected)
+                          }
+                        />
+                      </TableCell>
+                    )}
                     <TableCell>Código</TableCell>
                     <TableCell>Morphs</TableCell>
                     <TableCell>Sexo</TableCell>
@@ -491,6 +558,8 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpe
                       canUpdate={canUpdate}
                       canDelete={canDelete}
                       onDelete={onDelete}
+                      isSelected={selected.has(animal.id)}
+                      onToggleSelect={canDelete ? onToggleSelected : undefined}
                     />
                   ))}
                 </TableBody>
@@ -505,7 +574,9 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpe
 
 // ----------------------------------------------------------------------
 
-export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onDelete }) {
+// onToggleSelect es opcional: sin él no sale la casilla (la ficha de especie
+// reusa esta fila y ahí no hay borrado en lote)
+export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onDelete, isSelected = false, onToggleSelect }) {
   const renderLegalDoc = () => {
     if (!animal.requires_legal_doc) return '—';
     if (!animal.legal_doc) {
@@ -530,7 +601,17 @@ export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onD
   };
 
   return (
-    <TableRow hover>
+    <TableRow hover selected={isSelected}>
+      {onToggleSelect && (
+        <TableCell padding="checkbox">
+          <Checkbox
+            size="small"
+            checked={isSelected}
+            disabled={animal.status === 'sold'}
+            onChange={() => onToggleSelect([animal.id], !isSelected)}
+          />
+        </TableCell>
+      )}
       <TableCell>
         <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
           <Avatar
