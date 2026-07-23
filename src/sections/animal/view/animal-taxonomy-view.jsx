@@ -97,6 +97,7 @@ const CONTROL_FIELDS = new Set(['actions', 'show_public', 'show_in_nav', 'featur
 // subárbol y el clic llega a la primera.
 const ACTION_ICONS = {
   ficha: <Iconify icon="solar:document-text-bold" />,
+  sell: <Iconify icon="solar:cart-plus-bold" />,
   add: <Iconify icon="mingcute:add-line" />,
   edit: <Iconify icon="solar:pen-bold" />,
   delete: <Iconify icon="solar:trash-bin-trash-bold" sx={{ color: 'error.main' }} />,
@@ -238,6 +239,7 @@ export function AnimalTaxonomyView() {
   const canDo = (kind, action) =>
     user?.permissions?.includes(`${TABS.find((t) => t.value === kind).resource}.${action}`);
   const can = (action) => canDo(tabValue, action);
+  const canSell = user?.permissions?.includes('animals.create');
 
   // Revalida el recurso correcto tras guardar/eliminar.
   const mutateFor = (kind) =>
@@ -266,9 +268,9 @@ export function AnimalTaxonomyView() {
     type: 'actions',
     field: 'actions',
     headerName: ' ',
-    // La especie tiene hasta 4 acciones (Ver ficha + Añadir morph + Editar +
-    // Eliminar); el resto de niveles, 2
-    width: tabValue === 'species' ? 176 : 96,
+    // La especie tiene hasta 5 acciones (Ver ficha + Poner a la venta + Añadir
+    // morph + Editar + Eliminar); el resto de niveles, 2
+    width: tabValue === 'species' ? 216 : 96,
     align: 'right',
     headerAlign: 'right',
     sortable: false,
@@ -278,9 +280,19 @@ export function AnimalTaxonomyView() {
       const { row } = params;
       // En la pestaña Especies conviven especies (nivel 0) y sus morphs (nivel 1)
       const kind = tabValue === 'species' ? (row.__kind === 'morph' ? 'morphs' : 'species') : tabValue;
+      // Alta de ejemplar con la taxonomía ya elegida: el formulario lee estos
+      // parámetros y prellena género, especie y morph.
+      const sellHref =
+        kind === 'morphs'
+          ? `${paths.dashboard.animal.new}?species_id=${row.__speciesId}&morph_id=${row.id}`
+          : `${paths.dashboard.animal.new}?species_id=${row.id}`;
+
       return [
         ...(kind === 'species'
           ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
+          : []),
+        ...(tabValue === 'species' && canSell
+          ? [<CustomGridActionsCellItem label="Poner a la venta" icon={ACTION_ICONS.sell} onClick={() => navigate(sellHref)} />]
           : []),
         ...(kind === 'species' && canDo('morphs', 'create')
           ? [<CustomGridActionsCellItem label="Añadir morph" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]

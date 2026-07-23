@@ -1,9 +1,9 @@
 import { mutate } from 'swr';
 import { z as zod } from 'zod';
-import { useNavigate } from 'react-router';
 import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
+import { useNavigate, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -142,6 +142,23 @@ export function AnimalCreateEditForm({ currentAnimal }) {
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+
+  // Alta desde taxonomía: /animal/new?species_id=12&morph_id=44 llega con la
+  // taxonomía ya elegida. Espera a que carguen las especies y corre una sola
+  // vez (el ref), para no pisar lo que el usuario cambie después.
+  const [searchParams] = useSearchParams();
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (isEdit || prefilledRef.current) return;
+    const sp = allSpecies.find((s) => s.id === Number(searchParams.get('species_id')));
+    if (!sp) return;
+    prefilledRef.current = true;
+    setGenusId(sp.genus?.id ?? sp.genus_id ?? '');
+    setValue('species_id', sp.id, { shouldValidate: true });
+    const morphId = Number(searchParams.get('morph_id'));
+    if (morphId) setValue('morphs', [morphId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, allSpecies, searchParams]);
 
   const speciesId = watch('species_id');
   const morphIds = watch('morphs');
