@@ -36,6 +36,13 @@ import { speciesLabel } from './utils';
 
 // ----------------------------------------------------------------------
 
+// El nombre del morph se guarda entre comillas simples ('Red'). Se limpian
+// las comillas que ya trae (al re-editar) para no acumularlas: ''Red''.
+function quoteMorph(name) {
+  const bare = name.trim().replace(/^'+|'+$/g, '');
+  return `'${bare}'`;
+}
+
 export const TAXON_ACTIONS = {
   groups: { create: createAnimalGroup, update: updateAnimalGroup, delete: deleteAnimalGroup },
   genera: { create: createGenus, update: updateGenus, delete: deleteGenus },
@@ -116,7 +123,7 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           diet: form.diet || null,
           notes: form.notes || null,
         },
-        morphs: { species_id: Number(form.species_id), name: form.name, description: form.description || null },
+        morphs: { species_id: Number(form.species_id), name: quoteMorph(form.name), description: form.description || null },
       }[tab];
 
       const saved = isEdit
