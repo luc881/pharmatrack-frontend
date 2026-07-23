@@ -22,11 +22,13 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import {
   useAllGenera,
   useAllMorphs,
+  useGetAnimals,
   useAllSpecies,
   updateAnimalGroup,
   useAnimalGroupTree,
 } from 'src/actions/animal';
 
+import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
@@ -46,6 +48,14 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { speciesLabel, flattenGroupTree } from '../utils';
 import { TaxonDialog, TAXON_ACTIONS } from '../taxon-dialog';
+import {
+  STOCK,
+  StatCard,
+  HUSBANDRY,
+  ManageDialog,
+  stockStateOf,
+  DEFAULT_LOW_STOCK,
+} from './cultivos-view';
 
 // ----------------------------------------------------------------------
 
@@ -98,6 +108,7 @@ const CONTROL_FIELDS = new Set(['actions', 'show_public', 'show_in_nav', 'featur
 const ACTION_ICONS = {
   ficha: <Iconify icon="solar:document-text-bold" />,
   sell: <Iconify icon="solar:cart-plus-bold" />,
+  cultivo: <Iconify icon="solar:leaf-bold" />,
   add: <Iconify icon="mingcute:add-line" />,
   edit: <Iconify icon="solar:pen-bold" />,
   delete: <Iconify icon="solar:trash-bin-trash-bold" sx={{ color: 'error.main' }} />,
@@ -124,6 +135,7 @@ export function AnimalTaxonomyView() {
   const [filter, setFilter] = useState(null);
   const [dialog, setDialog] = useState(null); // { current } — abierto si no es null
   const [rowToDelete, setRowToDelete] = useState(null);
+  const [managing, setManaging] = useState(null); // especie cuyo cultivo se gestiona
 
   const { groupTree, groupTreeLoading, groupTreeMutate } = useAnimalGroupTree();
 
@@ -153,6 +165,31 @@ export function AnimalTaxonomyView() {
   const { species: allSpecies, speciesLoading, speciesMutate } = useAllSpecies();
   // Todos los morphs: ahora cuelgan de su especie en la misma tabla.
   const { morphs, morphsLoading, morphsMutate } = useAllMorphs();
+
+  // "Cultivos" dentro de la pestaña Especies: unidades disponibles derivadas del
+  // inventario más el estado de stock/cría por especie. Mismo cálculo que la
+  // vista Cultivos, reutilizando sus helpers.
+  const { animals } = useGetAnimals({ page: 1, pageSize: 500 });
+  const availableBySpecies = useMemo(() => {
+    const map = {};
+    animals.forEach((a) => {
+      if (a.status !== 'available' || !a.species_id) return;
+      map[a.species_id] = (map[a.species_id] ?? 0) + (a.stock ?? 1);
+    });
+    return map;
+  }, [animals]);
+  const cultivoCounts = useMemo(() => {
+    const list = allSpecies.map((sp) => ({
+      status: sp.husbandry_status ?? 'active',
+      state: stockStateOf(availableBySpecies[sp.id] ?? 0, sp.low_stock_threshold ?? DEFAULT_LOW_STOCK),
+    }));
+    return {
+      total: list.length,
+      active: list.filter((r) => r.status === 'active').length,
+      low: list.filter((r) => r.state === 'low').length,
+      out: list.filter((r) => r.state === 'out').length,
+    };
+  }, [allSpecies, availableBySpecies]);
 
   const groupsFlat = flattenGroupTree(groupTree);
   const speciesById = Object.fromEntries(allSpecies.map((s) => [s.id, s]));
@@ -268,9 +305,9 @@ export function AnimalTaxonomyView() {
     type: 'actions',
     field: 'actions',
     headerName: ' ',
-    // La especie tiene hasta 5 acciones (Ver ficha + Poner a la venta + Añadir
-    // morph + Editar + Eliminar); el resto de niveles, 2
-    width: tabValue === 'species' ? 216 : 96,
+    // La especie tiene hasta 6 acciones (Ver ficha + Gestionar cultivo + Añadir
+    // morph + Poner a la venta + Editar + Eliminar); el resto de niveles, 2
+    width: tabValue === 'species' ? 260 : 96,
     align: 'right',
     headerAlign: 'right',
     sortable: false,
@@ -290,6 +327,9 @@ export function AnimalTaxonomyView() {
       return [
         ...(kind === 'species'
           ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
+          : []),
+        ...(kind === 'species' && canDo('species', 'update')
+          ? [<CustomGridActionsCellItem label="Gestionar cultivo" icon={ACTION_ICONS.cultivo} onClick={() => setManaging(row)} />]
           : []),
         ...(kind === 'species' && canDo('morphs', 'create')
           ? [<CustomGridActionsCellItem label="Añadir morph" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
@@ -415,6 +455,38 @@ export function AnimalTaxonomyView() {
           ),
         },
         { field: 'common_name', headerName: 'Nombre común / morph', flex: 1, minWidth: 180, sortable: false, valueGetter: (_, row) => (row.__kind === 'morph' ? row.description ?? '—' : row.common_name ?? '—') },
+        // Columnas de "Cultivos": solo aplican a la especie, no a sus morphs
+        {
+          field: 'units',
+          headerName: 'Disponibles',
+          width: 110,
+          align: 'right',
+          headerAlign: 'right',
+          sortable: false,
+          renderCell: (params) => (params.row.__kind === 'morph' ? '' : availableBySpecies[params.row.id] ?? 0),
+        },
+        {
+          field: 'stock',
+          headerName: 'Stock',
+          width: 120,
+          sortable: false,
+          renderCell: (params) => {
+            if (params.row.__kind === 'morph') return '';
+            const state = stockStateOf(availableBySpecies[params.row.id] ?? 0, params.row.low_stock_threshold ?? DEFAULT_LOW_STOCK);
+            return <Label variant="soft" color={STOCK[state].color}>{STOCK[state].label}</Label>;
+          },
+        },
+        {
+          field: 'husbandry',
+          headerName: 'Cría',
+          width: 120,
+          sortable: false,
+          renderCell: (params) => {
+            if (params.row.__kind === 'morph') return '';
+            const status = params.row.husbandry_status ?? 'active';
+            return <Label variant="soft" color={HUSBANDRY[status]?.color ?? 'default'}>{HUSBANDRY[status]?.label ?? status}</Label>;
+          },
+        },
         actionsColumn,
       ],
     },
@@ -448,6 +520,15 @@ export function AnimalTaxonomyView() {
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
+
+        {tabValue === 'species' && (
+          <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap', gap: 2 }}>
+            <StatCard label="Especies" value={cultivoCounts.total} />
+            <StatCard label="En cultivo" value={cultivoCounts.active} color="success.main" />
+            <StatCard label="Bajo stock" value={cultivoCounts.low} color="warning.main" />
+            <StatCard label="Agotadas" value={cultivoCounts.out} color="error.main" />
+          </Stack>
+        )}
 
         <Card
           sx={{
@@ -528,6 +609,14 @@ export function AnimalTaxonomyView() {
           groupsFlat={groupsFlat}
           onClose={() => setDialog(null)}
           onSaved={mutateFor(dialog.tab)}
+        />
+      )}
+
+      {managing && (
+        <ManageDialog
+          species={managing}
+          onClose={() => setManaging(null)}
+          onSaved={speciesMutate}
         />
       )}
 

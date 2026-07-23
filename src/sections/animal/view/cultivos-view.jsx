@@ -320,7 +320,7 @@ export function CultivosView() {
 
 // ----------------------------------------------------------------------
 
-function StatCard({ label, value, color = 'text.primary' }) {
+export function StatCard({ label, value, color = 'text.primary' }) {
   return (
     <Card sx={{ p: 2.5, flex: 1, minWidth: 160 }}>
       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
