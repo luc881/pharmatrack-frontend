@@ -67,9 +67,7 @@ function ShippingToggle() {
     const shipping_enabled = e.target.checked;
     setSaving(true);
     try {
-      // el PUT reemplaza el objeto completo: hay que mandar lo demás tal cual
       const res = await axiosInstance.put('/api/v1/settings/site', {
-        ...data,
         shipping_enabled,
       });
       await mutate(res.data, { revalidate: false });
