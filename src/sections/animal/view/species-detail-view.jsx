@@ -1,4 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router';
+import { usePopover } from 'minimal-shared/hooks';
+import { useMemo, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -7,10 +9,13 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import MenuList from '@mui/material/MenuList';
+import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import TableContainer from '@mui/material/TableContainer';
 
@@ -19,10 +24,14 @@ import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
+  updateMorph,
+  deleteMorph,
   deleteAnimal,
   useAllGenera,
+  useAllMorphs,
   useGetAnimals,
   useAllSpecies,
+  deleteSpecies,
   useAnimalGroupTree,
 } from 'src/actions/animal';
 
@@ -31,6 +40,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
+import { CustomPopover } from 'src/components/custom-popover';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -53,11 +63,13 @@ import {
 // ----------------------------------------------------------------------
 
 export function SpeciesDetailView({ species, loading, error, onMutate }) {
+  const navigate = useNavigate();
   const { user } = useAuthContext();
-  const canUpdateSpecies = user?.permissions?.includes('species.update');
-  const canUpdateAnimals = user?.permissions?.includes('animals.update');
-  const canDeleteAnimals = user?.permissions?.includes('animals.delete');
-  const canCreateAnimals = user?.permissions?.includes('animals.create');
+  const has = (perm) => user?.permissions?.includes(perm);
+  const canUpdateSpecies = has('species.update');
+  const canUpdateAnimals = has('animals.update');
+  const canDeleteAnimals = has('animals.delete');
+  const canCreateAnimals = has('animals.create');
 
   const { animals, animalsMutate } = useGetAnimals({
     page: 1,
@@ -65,26 +77,54 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
     speciesId: species?.id || undefined,
   });
 
+  // Morphs de esta especie: la ficha es el hub, así no hay que ir a Taxonomía
+  const { morphs, morphsMutate } = useAllMorphs(species?.id);
+
   // Datos para el diálogo de ficha de cuidados (reusa TaxonDialog)
   const { genera } = useAllGenera();
   const { species: allSpecies } = useAllSpecies();
   const { groupTree } = useAnimalGroupTree();
 
-  const [editSheet, setEditSheet] = useState(false);
-  const [manage, setManage] = useState(false);
-  const [toDelete, setToDelete] = useState(null);
+  const [dialog, setDialog] = useState(null); // { tab, current, initial } — TaxonDialog
+  const [manage, setManage] = useState(null); // { row, kind } — cultivo de especie o morph
+  const [toDelete, setToDelete] = useState(null); // { kind, id, name }
+
+  // Unidades disponibles por morph: un ejemplar puede tener varios morphs y su
+  // stock cuenta para cada uno (mismo criterio que la vista de Taxonomía).
+  const unitsByMorph = useMemo(() => {
+    const map = {};
+    animals.forEach((a) => {
+      if (a.status !== 'available') return;
+      (a.morphs ?? []).forEach((m) => {
+        map[m.id] = (map[m.id] ?? 0) + (a.stock ?? 1);
+      });
+    });
+    return map;
+  }, [animals]);
 
   const handleConfirmDelete = useCallback(async () => {
+    const { kind, id } = toDelete;
     try {
-      await deleteAnimal(toDelete);
-      await animalsMutate();
-      toast.success('Ejemplar eliminado');
+      if (kind === 'animal') {
+        await deleteAnimal(id);
+        await animalsMutate();
+        toast.success('Ejemplar eliminado');
+      } else if (kind === 'morph') {
+        await deleteMorph(id);
+        await morphsMutate();
+        toast.success('Morph eliminado');
+      } else {
+        await deleteSpecies(id);
+        toast.success('Especie eliminada');
+        navigate(paths.dashboard.animal.taxonomy);
+      }
     } catch (err) {
+      // el backend rechaza con detalle si tiene dependencias
       toast.error(err.message || 'Error al eliminar');
     } finally {
       setToDelete(null);
     }
-  }, [toDelete, animalsMutate]);
+  }, [toDelete, animalsMutate, morphsMutate, navigate]);
 
   if (loading) {
     return (
@@ -137,15 +177,44 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
           { name: species.common_name ?? scientific },
         ]}
         action={
-          canUpdateSpecies && (
-            <Button
-              variant="contained"
-              startIcon={<Iconify icon="solar:pen-bold" />}
-              onClick={() => setEditSheet(true)}
-            >
-              Editar ficha
-            </Button>
-          )
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            {canCreateAnimals && (
+              <Button
+                component={RouterLink}
+                href={`${paths.dashboard.animal.new}?species_id=${species.id}`}
+                variant="outlined"
+                startIcon={<Iconify icon="solar:cart-plus-bold" />}
+              >
+                Poner a la venta
+              </Button>
+            )}
+            {canUpdateSpecies && (
+              <Button
+                variant="contained"
+                startIcon={<Iconify icon="solar:pen-bold" />}
+                onClick={() => setDialog({ tab: 'species', current: species })}
+              >
+                Editar ficha
+              </Button>
+            )}
+            {has('species.delete') && (
+              <MoreMenu
+                items={[
+                  {
+                    label: 'Eliminar especie',
+                    icon: 'solar:trash-bin-trash-bold',
+                    color: 'error.main',
+                    onClick: () =>
+                      setToDelete({
+                        kind: 'species',
+                        id: species.id,
+                        name: species.common_name ?? scientific,
+                      }),
+                  },
+                ]}
+              />
+            )}
+          </Stack>
         }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -247,7 +316,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                   size="small"
                   variant="outlined"
                   startIcon={<Iconify icon="solar:pen-bold" width={16} />}
-                  onClick={() => setManage(true)}
+                  onClick={() => setManage({ row: species, kind: 'species' })}
                   sx={{ mt: 2 }}
                 >
                   Gestionar cultivo
@@ -298,6 +367,108 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
           </Card>
         </Grid>
 
+        {/* Morphs — variantes de esta especie, con su cultivo independiente */}
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+              <Box>
+                <Typography variant="h6">Morphs</Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
+                  {morphs.length} {morphs.length === 1 ? 'variante' : 'variantes'} · cría y stock
+                  independientes de la especie
+                </Typography>
+              </Box>
+              {has('morphs.create') && (
+                <Button
+                  variant="contained"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                  onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: species.id } })}
+                >
+                  Añadir morph
+                </Button>
+              )}
+            </Box>
+
+            {morphs.length === 0 ? (
+              <Box sx={{ py: 4, textAlign: 'center' }}>
+                <Iconify icon="solar:leaf-bold" width={40} sx={{ color: 'text.disabled', mb: 1 }} />
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Sin morphs registrados
+                </Typography>
+              </Box>
+            ) : (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Morph</TableCell>
+                      <TableCell>Descripción</TableCell>
+                      <TableCell align="right">Disponibles</TableCell>
+                      <TableCell>Stock</TableCell>
+                      <TableCell>Cría</TableCell>
+                      <TableCell align="right"> </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {morphs.map((morph) => {
+                      const mUnits = unitsByMorph[morph.id] ?? 0;
+                      const mStock = STOCK[stockStateOf(mUnits, morph.low_stock_threshold ?? DEFAULT_LOW_STOCK)];
+                      const mHus = HUSBANDRY[morph.husbandry_status ?? 'active'] ?? HUSBANDRY.active;
+                      return (
+                        <TableRow key={morph.id} hover>
+                          <TableCell sx={{ fontWeight: 500 }}>{morph.name}</TableCell>
+                          <TableCell sx={{ color: 'text.secondary' }}>{morph.description || '—'}</TableCell>
+                          <TableCell align="right">{mUnits}</TableCell>
+                          <TableCell>
+                            <Label variant="soft" color={mStock.color}>
+                              {mStock.label}
+                            </Label>
+                          </TableCell>
+                          <TableCell>
+                            <Label variant="soft" color={mHus.color}>
+                              {mHus.label}
+                            </Label>
+                          </TableCell>
+                          <TableCell align="right">
+                            <MoreMenu
+                              items={[
+                                canUpdateSpecies && {
+                                  label: 'Gestionar cultivo',
+                                  icon: 'solar:leaf-bold',
+                                  onClick: () => setManage({ row: morph, kind: 'morph' }),
+                                },
+                                canCreateAnimals && {
+                                  label: 'Poner a la venta',
+                                  icon: 'solar:cart-plus-bold',
+                                  onClick: () =>
+                                    navigate(
+                                      `${paths.dashboard.animal.new}?species_id=${species.id}&morph_id=${morph.id}`
+                                    ),
+                                },
+                                has('morphs.update') && {
+                                  label: 'Editar morph',
+                                  icon: 'solar:pen-bold',
+                                  onClick: () => setDialog({ tab: 'morphs', current: morph }),
+                                },
+                                has('morphs.delete') && {
+                                  label: 'Eliminar',
+                                  icon: 'solar:trash-bin-trash-bold',
+                                  color: 'error.main',
+                                  onClick: () => setToDelete({ kind: 'morph', id: morph.id, name: morph.name }),
+                                },
+                              ].filter(Boolean)}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Card>
+        </Grid>
+
         {/* Abajo — Ejemplares (inventario de esta especie) */}
         <Grid size={{ xs: 12 }}>
           <Card sx={{ p: 3 }}>
@@ -312,7 +483,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
               {canCreateAnimals && (
                 <Button
                   component={RouterLink}
-                  href={paths.dashboard.animal.new}
+                  href={`${paths.dashboard.animal.new}?species_id=${species.id}`}
                   variant="contained"
                   startIcon={<Iconify icon="mingcute:add-line" />}
                 >
@@ -352,7 +523,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                         showStock={isBulk}
                         canUpdate={canUpdateAnimals}
                         canDelete={canDeleteAnimals}
-                        onDelete={setToDelete}
+                        onDelete={(id) => setToDelete({ kind: 'animal', id, name: animal.code })}
                       />
                     ))}
                   </TableBody>
@@ -363,27 +534,32 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
         </Grid>
       </Grid>
 
-      {editSheet && (
+      {dialog && (
         <TaxonDialog
-          tab="species"
-          singular="especie"
-          current={species}
+          tab={dialog.tab}
+          singular={dialog.tab === 'morphs' ? 'morph' : 'especie'}
+          current={dialog.current}
+          initial={dialog.initial}
           genera={genera}
           allSpecies={allSpecies}
           groupsFlat={flattenGroupTree(groupTree)}
-          onClose={() => setEditSheet(false)}
+          onClose={() => setDialog(null)}
           onSaved={async () => {
-            await onMutate?.();
+            if (dialog.tab === 'morphs') await morphsMutate();
+            else await onMutate?.();
           }}
         />
       )}
 
       {manage && (
         <ManageDialog
-          species={species}
-          onClose={() => setManage(false)}
+          species={manage.row}
+          title={manage.kind === 'morph' ? manage.row.name : undefined}
+          update={manage.kind === 'morph' ? updateMorph : undefined}
+          onClose={() => setManage(null)}
           onSaved={async () => {
-            await onMutate?.();
+            if (manage.kind === 'morph') await morphsMutate();
+            else await onMutate?.();
           }}
         />
       )}
@@ -392,7 +568,11 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
         open={!!toDelete}
         onClose={() => setToDelete(null)}
         title="Eliminar"
-        content="¿Estás seguro de eliminar este ejemplar?"
+        content={
+          <>
+            ¿Estás seguro de eliminar <strong>{toDelete?.name}</strong>?
+          </>
+        }
         action={
           <Button variant="contained" color="error" onClick={handleConfirmDelete}>
             Eliminar
@@ -407,6 +587,49 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
 
 const CARE_FIELDS = ['origin', 'temperature', 'humidity', 'adult_size', 'difficulty', 'rarity', 'habitat', 'diet', 'notes'];
 const hasCareSheet = (sp) => CARE_FIELDS.some((f) => sp[f]);
+
+// Menú "⋮" con acciones etiquetadas: un solo icono en la fila y el texto de
+// cada acción a la vista al abrirlo, en vez de una hilera de iconos mudos.
+function MoreMenu({ items }) {
+  const menu = usePopover();
+  if (!items.length) return null;
+
+  return (
+    <>
+      <IconButton
+        size="small"
+        color={menu.open ? 'inherit' : 'default'}
+        onClick={menu.onOpen}
+        aria-label="Más acciones"
+      >
+        <Iconify icon="eva:more-vertical-fill" />
+      </IconButton>
+
+      <CustomPopover
+        open={menu.open}
+        anchorEl={menu.anchorEl}
+        onClose={menu.onClose}
+        slotProps={{ arrow: { placement: 'right-top' } }}
+      >
+        <MenuList>
+          {items.map((item) => (
+            <MenuItem
+              key={item.label}
+              sx={item.color ? { color: item.color } : undefined}
+              onClick={() => {
+                menu.onClose();
+                item.onClick();
+              }}
+            >
+              <Iconify icon={item.icon} />
+              {item.label}
+            </MenuItem>
+          ))}
+        </MenuList>
+      </CustomPopover>
+    </>
+  );
+}
 
 function DetailRow({ label, value }) {
   if (!value && value !== 0) return null;

@@ -321,10 +321,9 @@ export function AnimalTaxonomyView() {
     type: 'actions',
     field: 'actions',
     headerName: ' ',
-    // Orden: primero las acciones solo-especie (Ver ficha, Añadir morph) y luego
-    // las que comparten especie y morph (Cultivo, Vender, Editar, Eliminar), para
-    // que estas últimas queden en la misma columna en ambos niveles. Hasta 6.
-    width: tabValue === 'species' ? 260 : 96,
+    // Solo dos iconos a la vista (Ver ficha / Editar). El resto vive en el menú
+    // "⋮" con su etiqueta de texto: seis iconos en fila eran indistinguibles.
+    width: 96,
     align: 'right',
     headerAlign: 'right',
     sortable: false,
@@ -342,23 +341,25 @@ export function AnimalTaxonomyView() {
           : `${paths.dashboard.animal.new}?species_id=${row.id}`;
 
       return [
+        // Visibles
         ...(kind === 'species'
           ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
-          : []),
-        ...(kind === 'species' && canDo('morphs', 'create')
-          ? [<CustomGridActionsCellItem label="Añadir morph" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
-          : []),
-        ...(tabValue === 'species' && canDo(kind, 'update')
-          ? [<CustomGridActionsCellItem label="Gestionar cultivo" icon={ACTION_ICONS.cultivo} onClick={() => setManaging({ row, kind })} />]
-          : []),
-        ...(tabValue === 'species' && canSell
-          ? [<CustomGridActionsCellItem label="Poner a la venta" icon={ACTION_ICONS.sell} onClick={() => navigate(sellHref)} />]
           : []),
         ...(canDo(kind, 'update')
           ? [<CustomGridActionsCellItem label="Editar" icon={ACTION_ICONS.edit} onClick={() => setDialog({ tab: kind, current: row })} />]
           : []),
+        // En el menú "⋮", con etiqueta
+        ...(kind === 'species' && canDo('morphs', 'create')
+          ? [<CustomGridActionsCellItem showInMenu label="Añadir morph" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
+          : []),
+        ...(tabValue === 'species' && canDo(kind, 'update')
+          ? [<CustomGridActionsCellItem showInMenu label="Gestionar cultivo" icon={ACTION_ICONS.cultivo} onClick={() => setManaging({ row, kind })} />]
+          : []),
+        ...(tabValue === 'species' && canSell
+          ? [<CustomGridActionsCellItem showInMenu label="Poner a la venta" icon={ACTION_ICONS.sell} onClick={() => navigate(sellHref)} />]
+          : []),
         ...(canDo(kind, 'delete')
-          ? [<CustomGridActionsCellItem label="Eliminar" icon={ACTION_ICONS.delete} onClick={() => setRowToDelete({ row, kind })} />]
+          ? [<CustomGridActionsCellItem showInMenu label="Eliminar" icon={ACTION_ICONS.delete} onClick={() => setRowToDelete({ row, kind })} />]
           : []),
       ];
     },
