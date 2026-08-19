@@ -31,6 +31,8 @@ import { ToolbarContainer, CustomToolbarQuickFilter } from 'src/components/custo
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { flattenGroupTree } from '../utils';
+
 // ----------------------------------------------------------------------
 
 // Rango de precios de los ejemplares disponibles detrás de una fila.
@@ -139,6 +141,29 @@ export function SiteAnimalsView() {
   const rowUnits = (row) => (row.__kind === 'morph' ? availableByMorph[row.id] : availableBySpecies[row.id]) ?? 0;
   const rowPrices = (row) => (row.__kind === 'morph' ? pricesByMorph[row.id] : pricesBySpecies[row.id]) ?? [];
 
+  // AnimalGroup es una jerarquía libre (parent_id anidable a cualquier
+  // profundidad) y los géneros cuelgan de cualquier nivel, no solo de la
+  // raíz — de hecho hoy ningún género cuelga directo de un grupo raíz. El
+  // backend oculta un grupo Y TODO SU SUBÁRBOL, así que "oculto" se decide
+  // recorriendo ancestros, nunca mirando el show_public del grupo inmediato
+  // (genus.group) solo. No lo simplifiques de vuelta a eso.
+  const groupsFlat = useMemo(() => flattenGroupTree(groupTree), [groupTree]);
+  const groupsById = useMemo(() => Object.fromEntries(groupsFlat.map((g) => [g.id, g])), [groupsFlat]);
+  const hiddenGroupIds = useMemo(() => {
+    const hidden = new Set();
+    groupsFlat.forEach((g) => {
+      const cascaded = g.show_public === false || g.ancestors.some((id) => groupsById[id]?.show_public === false);
+      if (cascaded) hidden.add(g.id);
+    });
+    return hidden;
+  }, [groupsFlat, groupsById]);
+  // Grupo raíz (el ancestro más alto) del grupo inmediato de un género.
+  const rootGroupOf = (groupId) => {
+    const g = groupsById[groupId];
+    if (!g) return null;
+    return groupsById[g.ancestors[0] ?? g.id] ?? null;
+  };
+
   const speciesById = useMemo(() => Object.fromEntries(allSpecies.map((s) => [s.id, s])), [allSpecies]);
   // La especie de una fila (ella misma, o la que le corresponde a un morph):
   // de ahí cuelgan el género y el grupo raíz que deciden si se ve o no.
@@ -174,7 +199,8 @@ export function SiteAnimalsView() {
   // repetirlo aquí.
   const statusReason = (row) => {
     const sp = rowSpecies(row);
-    if (sp?.genus?.group?.show_public === false) return 'Grupo oculto';
+    const groupId = sp?.genus?.group?.id;
+    if (groupId != null && hiddenGroupIds.has(groupId)) return 'Grupo oculto';
     if (row.__kind === 'morph' && sp?.show_public === false) return 'Especie oculta';
     if (row.show_public !== false && rowUnits(row) === 0) return 'Sin ejemplares disponibles';
     return null;
@@ -195,7 +221,7 @@ export function SiteAnimalsView() {
       headerName: 'Grupo raíz',
       width: 160,
       sortable: false,
-      valueGetter: (_, row) => rowSpecies(row)?.genus?.group?.name ?? '—',
+      valueGetter: (_, row) => rootGroupOf(rowSpecies(row)?.genus?.group?.id)?.name ?? '—',
     },
     {
       field: 'units',
