@@ -154,10 +154,14 @@ export const navData = [
         title: 'Sitio web',
         path: paths.dashboard.site.media,
         icon: ICONS.file,
-        allowedRoles: ['settings.update'],
+        // allowedRoles es un OR: el grupo aparece si puedes usar AL MENOS una de
+        // sus pantallas, y cada hija se filtra con el permiso que de verdad
+        // necesita. Sin esto, quien administra el catalogo pero no los ajustes
+        // no veria el enlace a Productos aunque la ruta si lo deje entrar.
+        allowedRoles: ['settings.update', 'products.update'],
         children: [
-          { title: 'Media',      path: paths.dashboard.site.media },
-          { title: 'Productos',  path: paths.dashboard.site.products },
+          { title: 'Media',      path: paths.dashboard.site.media,    allowedRoles: ['settings.update'] },
+          { title: 'Productos',  path: paths.dashboard.site.products, allowedRoles: ['products.update'] },
         ],
       },
       {

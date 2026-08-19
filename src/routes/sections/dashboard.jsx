@@ -358,7 +358,10 @@ export const dashboardRoutes = [
         path: 'site',
         children: [
           { path: 'media',    element: guard(P.siteUpdate, <SiteMediaPage />) },
-          { path: 'products', element: guard(P.productsRead, <SiteProductsPage />) },
+          // productsUpdate, no Read: la pantalla existe para prender/apagar el
+          // switch de cada producto, y ese PATCH exige products.update. Con solo
+          // lectura se entraria a una pagina donde todo da 403.
+          { path: 'products', element: guard(P.productsUpdate, <SiteProductsPage />) },
         ],
       },
 
