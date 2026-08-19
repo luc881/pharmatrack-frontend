@@ -1,5 +1,6 @@
 import useSWR from 'swr';
 import { useMemo, useState, useEffect } from 'react';
+import { useLocalStorage } from 'minimal-shared/hooks';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
@@ -130,7 +131,10 @@ const FILTER_TYPES = ['group', 'genus', 'species'];
 
 // Columnas ocultas de entrada. Se vuelven a mostrar desde el botón "Columnas"
 // de la barra: aquí la taxonomía se sigue por nombre científico, no por el
-// nombre común.
+// nombre común. La elección se guarda en localStorage bajo esta clave, así que
+// añadir columnas nuevas aquí sigue funcionando: lo guardado se mezcla encima
+// de estos valores por defecto, no los reemplaza.
+const COLUMNS_STORAGE_KEY = 'animal-taxonomy-columns';
 const HIDE_COLUMNS = { common_name: false };
 
 // ----------------------------------------------------------------------
@@ -178,7 +182,10 @@ export function AnimalTaxonomyView() {
     return qs ? `${paths.dashboard.animal.taxonomy}?${qs}` : paths.dashboard.animal.taxonomy;
   };
 
-  const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
+  const { state: columnVisibilityModel, setState: setColumnVisibilityModel } = useLocalStorage(
+    COLUMNS_STORAGE_KEY,
+    HIDE_COLUMNS
+  );
   const [dialog, setDialog] = useState(null); // { current } — abierto si no es null
   const [rowToDelete, setRowToDelete] = useState(null);
   const [managing, setManaging] = useState(null); // especie cuyo cultivo se gestiona

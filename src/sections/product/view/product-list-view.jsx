@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router';
-import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useCallback } from 'react';
+import { useBoolean, useLocalStorage } from 'minimal-shared/hooks';
 
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
@@ -33,6 +33,9 @@ import {
 
 // ----------------------------------------------------------------------
 
+// Igual que en Taxonomía: lo que el usuario elija en "Columnas" se recuerda
+// entre recargas; lo guardado se mezcla encima de estos valores por defecto.
+const COLUMNS_STORAGE_KEY = 'product-list-columns';
 const HIDE_COLUMNS = { price_cost: false, created_at: false };
 const HIDE_COLUMNS_TOGGLABLE = ['actions'];
 
@@ -59,7 +62,10 @@ export function ProductListView() {
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 20 });
   const [sortModel, setSortModel] = useState([]);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
-  const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
+  const { state: columnVisibilityModel, setState: setColumnVisibilityModel } = useLocalStorage(
+    COLUMNS_STORAGE_KEY,
+    HIDE_COLUMNS
+  );
   const [rowToDelete, setRowToDelete] = useState(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
