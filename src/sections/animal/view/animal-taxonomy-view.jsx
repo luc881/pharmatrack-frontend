@@ -123,6 +123,11 @@ const TABS = [
   { value: 'morphs', label: 'Morphs', singular: 'morph', resource: 'morphs' },
 ];
 
+// Valores admitidos en la URL (?tab= y ?ft=): cualquier otra cosa se ignora,
+// así una URL manipulada cae en el estado por defecto en vez de romper la vista.
+const TAB_VALUES = ['groups', 'genera', 'species'];
+const FILTER_TYPES = ['group', 'genus', 'species'];
+
 // ----------------------------------------------------------------------
 
 export function AnimalTaxonomyView() {
@@ -131,10 +136,43 @@ export function AnimalTaxonomyView() {
 
   const { user } = useAuthContext();
 
-  const [tabValue, setTabValue] = useState('groups');
-  // Filtro encadenado al dar clic en una fila: {type: group|genus|species, id, label}.
+  // La pestaña y el filtro viven en la URL, no en useState: así el botón
+  // "atrás" del navegador (o volver desde la ficha de una especie) devuelve a
+  // donde estabas —p. ej. Especies filtradas por Isópodos— en vez de reiniciar
+  // en Grupos. De paso el estado se puede compartir por enlace.
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const tabParam = searchParams.get('tab');
+  const tabValue = TAB_VALUES.includes(tabParam) ? tabParam : 'groups';
+
+  // Filtro encadenado al dar clic en una fila: {type: group|genus|species, id}.
   // Persiste al cambiar de tab, así "todo lo relacionado" se ve en cada nivel.
-  const [filter, setFilter] = useState(null);
+  const filterType = searchParams.get('ft');
+  const filterId = Number(searchParams.get('fid'));
+  const filter =
+    FILTER_TYPES.includes(filterType) && Number.isInteger(filterId) && filterId > 0
+      ? { type: filterType, id: filterId }
+      : null;
+
+  // Escribe pestaña + filtro en la URL. Por defecto empuja una entrada de
+  // historial, así "atrás" también deshace el último drill-down.
+  const goTo = (tab, nextFilter, { replace = false } = {}) => {
+    const next = new URLSearchParams();
+    if (tab && tab !== 'groups') next.set('tab', tab);
+    if (nextFilter) {
+      next.set('ft', nextFilter.type);
+      next.set('fid', String(nextFilter.id));
+    }
+    setSearchParams(next, { replace });
+  };
+
+  // URL exacta de esta vista (con pestaña y filtro) para que la ficha de una
+  // especie sepa a dónde regresar con su flecha "atrás".
+  const currentUrl = () => {
+    const qs = searchParams.toString();
+    return qs ? `${paths.dashboard.animal.taxonomy}?${qs}` : paths.dashboard.animal.taxonomy;
+  };
+
   const [dialog, setDialog] = useState(null); // { current } — abierto si no es null
   const [rowToDelete, setRowToDelete] = useState(null);
   const [managing, setManaging] = useState(null); // especie cuyo cultivo se gestiona
@@ -228,20 +266,26 @@ export function AnimalTaxonomyView() {
     return rows;
   }, [allSpecies, morphs]);
 
+  // Etiqueta del chip del filtro: se deriva de los datos ya cargados, la URL
+  // solo guarda tipo + id (así el enlace no arrastra texto ni se desincroniza
+  // si renombras el grupo).
+  const filterLabel = () => {
+    if (!filter) return null;
+    if (filter.type === 'group') return `Grupo: ${groupsFlat.find((g) => g.id === filter.id)?.name ?? '…'}`;
+    if (filter.type === 'genus') return `Género: ${genera.find((g) => g.id === filter.id)?.name ?? '…'}`;
+    const sp = speciesById[filter.id];
+    return `Especie: ${sp ? speciesLabel(sp) : '…'}`;
+  };
+
   // Deep-link desde la lista de animales: ?edit_species=ID abre la ficha de esa
   // especie (tab Especies, filtrada, con el diálogo de edición abierto).
-  const [searchParams, setSearchParams] = useSearchParams();
   const editSpeciesId = searchParams.get('edit_species');
   useEffect(() => {
     if (!editSpeciesId || speciesLoading) return;
     const sp = allSpecies.find((s) => s.id === Number(editSpeciesId));
-    if (sp) {
-      setTabValue('species');
-      setFilter({ type: 'species', id: sp.id, label: `Especie: ${speciesLabel(sp)}` });
-      setDialog({ tab: 'species', current: sp });
-    }
-    searchParams.delete('edit_species');
-    setSearchParams(searchParams, { replace: true });
+    if (sp) setDialog({ tab: 'species', current: sp });
+    // reemplaza la URL (quita edit_species) para no repetir la apertura al recargar
+    goTo(sp ? 'species' : tabValue, sp ? { type: 'species', id: sp.id } : filter, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editSpeciesId, speciesLoading]);
 
@@ -283,8 +327,7 @@ export function AnimalTaxonomyView() {
     // de este tipo no vuelva a chocar con el drill-down.
     if (CONTROL_FIELDS.has(params.field) || !drillDown[tabValue]) return;
     const { next, filter: nextFilter } = drillDown[tabValue](params.row);
-    setFilter(nextFilter);
-    setTabValue(next);
+    goTo(next, nextFilter);
     apiRef.current?.setQuickFilterValues([]);
   };
 
@@ -343,7 +386,7 @@ export function AnimalTaxonomyView() {
       return [
         // Visibles
         ...(kind === 'species'
-          ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id))} />]
+          ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id), { state: { from: currentUrl() } })} />]
           : []),
         ...(canDo(kind, 'update')
           ? [<CustomGridActionsCellItem label="Editar" icon={ACTION_ICONS.edit} onClick={() => setDialog({ tab: kind, current: row })} />]
@@ -557,7 +600,7 @@ export function AnimalTaxonomyView() {
         >
           <Tabs
             value={tabValue}
-            onChange={(_, v) => setTabValue(v)}
+            onChange={(_, v) => goTo(v, filter)}
             sx={{ px: 2.5, boxShadow: (t) => `inset 0 -2px 0 0 ${t.vars.palette.divider}` }}
           >
             {TABS.filter((t) => t.value !== 'morphs').map((tab) => (
@@ -586,7 +629,7 @@ export function AnimalTaxonomyView() {
                     <CustomToolbarQuickFilter />
 
                     {filter && (
-                      <Chip color="primary" variant="soft" label={filter.label} onDelete={() => setFilter(null)} />
+                      <Chip color="primary" variant="soft" label={filterLabel()} onDelete={() => goTo(tabValue, null)} />
                     )}
 
                     <ToolbarRightPanel>

@@ -1,6 +1,6 @@
-import { useNavigate } from 'react-router';
 import { usePopover } from 'minimal-shared/hooks';
 import { useMemo, useState, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -64,6 +64,11 @@ import {
 
 export function SpeciesDetailView({ species, loading, error, onMutate }) {
   const navigate = useNavigate();
+  // De dónde vino el usuario (Taxonomía con su pestaña y filtro, Cultivos, …):
+  // la flecha "atrás" lo devuelve ahí en vez de a la lista de animales.
+  const { state } = useLocation();
+  const backHref = state?.from ?? paths.dashboard.animal.root;
+
   const { user } = useAuthContext();
   const has = (perm) => user?.permissions?.includes(perm);
   const canUpdateSpecies = has('species.update');
@@ -170,7 +175,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
     <DashboardContent>
       <CustomBreadcrumbs
         heading={species.common_name ?? scientific}
-        backHref={paths.dashboard.animal.root}
+        backHref={backHref}
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Animales', href: paths.dashboard.animal.root },
