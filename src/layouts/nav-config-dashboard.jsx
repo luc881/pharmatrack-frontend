@@ -148,12 +148,13 @@ export const navData = [
         // sus pantallas, y cada hija se filtra con el permiso que de verdad
         // necesita. Sin esto, quien administra el catalogo pero no los ajustes
         // no veria el enlace a Productos aunque la ruta si lo deje entrar.
-        allowedRoles: ['settings.update', 'products.update', 'articles.read'],
+        allowedRoles: ['settings.update', 'products.update', 'articles.read', 'species.update'],
         children: [
           { title: 'Media',      path: paths.dashboard.site.media,    allowedRoles: ['settings.update'] },
           { title: 'Productos',  path: paths.dashboard.site.products, allowedRoles: ['products.update'] },
           { title: 'Artículos',  path: paths.dashboard.article.root,  allowedRoles: ['articles.read'] },
           { title: 'Nuevo artículo', path: paths.dashboard.article.new, allowedRoles: ['articles.create'] },
+          { title: 'Animales',   path: paths.dashboard.site.animals,  allowedRoles: ['species.update'] },
         ],
       },
       {

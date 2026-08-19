@@ -85,6 +85,7 @@ const ArticleListPage   = lazy(() => import('src/pages/dashboard/article/list'))
 const OrderListPage     = lazy(() => import('src/pages/dashboard/order/list'));
 const SiteMediaPage     = lazy(() => import('src/pages/dashboard/site/media'));
 const SiteProductsPage  = lazy(() => import('src/pages/dashboard/site/products'));
+const SiteAnimalsPage   = lazy(() => import('src/pages/dashboard/site/animals'));
 const ArticleCreatePage = lazy(() => import('src/pages/dashboard/article/new'));
 const ArticleEditPage   = lazy(() => import('src/pages/dashboard/article/edit'));
 
@@ -141,6 +142,7 @@ const P = {
   // Animals
   animalsCreate: ['animals.create'],
   animalsUpdate: ['animals.update'],
+  speciesUpdate: ['species.update'],
   // Articles
   articlesRead:   ['articles.read'],
   ordersRead:     ['orders.read'],
@@ -362,6 +364,9 @@ export const dashboardRoutes = [
           // switch de cada producto, y ese PATCH exige products.update. Con solo
           // lectura se entraria a una pagina donde todo da 403.
           { path: 'products', element: guard(P.productsUpdate, <SiteProductsPage />) },
+          // speciesUpdate, no una lectura: la pantalla existe para mover
+          // switches de especies/morphs/grupos, no solo para verlos.
+          { path: 'animals',  element: guard(P.speciesUpdate, <SiteAnimalsPage />) },
         ],
       },
 
