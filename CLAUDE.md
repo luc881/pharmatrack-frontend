@@ -40,9 +40,13 @@ Create `.env.local` in the project root:
 
 ```env
 VITE_SERVER_URL=http://localhost:8000   # or https://api.opuntiaden.com
+VITE_CLOUDINARY_CLOUD_NAME=...
+VITE_CLOUDINARY_UPLOAD_PRESET=...
 ```
 
 `VITE_SERVER_URL` is the only env var required for JWT auth (the active auth method).
+
+`VITE_CLOUDINARY_CLOUD_NAME` and `VITE_CLOUDINARY_UPLOAD_PRESET` are required by `src/lib/cloudinary.js`, which uploads images and video straight from the browser to Cloudinary (animal photos, article images, product images, and the public site's media slots). Vite bakes these into the build at build time, not runtime — a deployed build missing them will POST to `.../v1_1/undefined/...` on every upload and fail with a generic error.
 
 ## Architecture
 

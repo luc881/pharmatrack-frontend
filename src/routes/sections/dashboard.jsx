@@ -355,7 +355,6 @@ export const dashboardRoutes = [
       {
         path: 'site',
         children: [
-          { index: true,    element: guard(P.siteUpdate, <SiteMediaPage />) },
           { path: 'media',  element: guard(P.siteUpdate, <SiteMediaPage />) },
         ],
       },

@@ -14,6 +14,7 @@ import { updateSiteMedia, useGetSiteSettings } from 'src/actions/site';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 // ----------------------------------------------------------------------
@@ -35,7 +36,7 @@ const SLOTS = [
 ];
 
 export function SiteMediaView() {
-  const { site, siteLoading, siteMutate } = useGetSiteSettings();
+  const { site, siteLoading, siteError, siteMutate } = useGetSiteSettings();
   const [busy, setBusy] = useState(null); // key del slot que se está subiendo
 
   const handlePick = async (slot, file) => {
@@ -69,7 +70,16 @@ export function SiteMediaView() {
         Los cambios aparecen en el sitio en aproximadamente un minuto.
       </Typography>
 
-      {siteLoading ? (
+      {siteError ? (
+        // Sin archivos locales de respaldo, un error de carga NO significa que
+        // los 9 slots se hayan vaciado: hay que decirlo claro para que el
+        // operador no resuba todo por pánico.
+        <EmptyContent
+          title="No se pudieron cargar los ajustes del sitio"
+          description="Los archivos siguen en Cloudinary. Reintenta en unos segundos antes de reemplazar nada."
+          sx={{ py: 10 }}
+        />
+      ) : siteLoading ? (
         <Typography>Cargando…</Typography>
       ) : (
         <Grid container spacing={3}>
