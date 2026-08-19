@@ -141,16 +141,6 @@ export const navData = [
         ],
       },
       {
-        title: 'Artículos',
-        path: paths.dashboard.article.root,
-        icon: ICONS.blog,
-        allowedRoles: ['articles.read'],
-        children: [
-          { title: 'Lista', path: paths.dashboard.article.root },
-          { title: 'Nuevo', path: paths.dashboard.article.new, allowedRoles: ['articles.create'] },
-        ],
-      },
-      {
         title: 'Sitio web',
         path: paths.dashboard.site.media,
         icon: ICONS.file,
@@ -158,10 +148,12 @@ export const navData = [
         // sus pantallas, y cada hija se filtra con el permiso que de verdad
         // necesita. Sin esto, quien administra el catalogo pero no los ajustes
         // no veria el enlace a Productos aunque la ruta si lo deje entrar.
-        allowedRoles: ['settings.update', 'products.update'],
+        allowedRoles: ['settings.update', 'products.update', 'articles.read'],
         children: [
           { title: 'Media',      path: paths.dashboard.site.media,    allowedRoles: ['settings.update'] },
           { title: 'Productos',  path: paths.dashboard.site.products, allowedRoles: ['products.update'] },
+          { title: 'Artículos',  path: paths.dashboard.article.root,  allowedRoles: ['articles.read'] },
+          { title: 'Nuevo artículo', path: paths.dashboard.article.new, allowedRoles: ['articles.create'] },
         ],
       },
       {
