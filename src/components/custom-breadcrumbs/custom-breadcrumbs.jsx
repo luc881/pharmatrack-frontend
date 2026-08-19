@@ -17,6 +17,10 @@ export function CustomBreadcrumbs({
   sx,
   action,
   backHref,
+  // Opcional: intercepta el clic de la flecha "atrás" (p. ej. para usar el
+  // historial del navegador). `backHref` sigue siendo el destino real del
+  // enlace, así el clic con el medio / "abrir en pestaña nueva" funcionan.
+  backOnClick,
   heading,
   slots = {},
   links = [],
@@ -29,7 +33,7 @@ export function CustomBreadcrumbs({
 
   const renderHeading = () => (
     <BreadcrumbsHeading {...slotProps?.heading}>
-      {backHref ? <BackLink href={backHref} label={heading} /> : heading}
+      {backHref ? <BackLink href={backHref} label={heading} onClick={backOnClick} /> : heading}
     </BreadcrumbsHeading>
   );
 

@@ -366,7 +366,9 @@ export function AnimalTaxonomyView() {
     headerName: ' ',
     // Solo dos iconos a la vista (Ver ficha / Editar). El resto vive en el menú
     // "⋮" con su etiqueta de texto: seis iconos en fila eran indistinguibles.
-    width: 96,
+    // En Especies caben tres controles (Ver ficha + Editar + "⋮"), en el resto
+    // dos, así que la columna se ajusta para que no se recorten.
+    width: tabValue === 'species' ? 140 : 100,
     align: 'right',
     headerAlign: 'right',
     sortable: false,

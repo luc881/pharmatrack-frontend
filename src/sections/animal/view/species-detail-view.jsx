@@ -66,8 +66,18 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
   const navigate = useNavigate();
   // De dónde vino el usuario (Taxonomía con su pestaña y filtro, Cultivos, …):
   // la flecha "atrás" lo devuelve ahí en vez de a la lista de animales.
-  const { state } = useLocation();
+  const { state, key } = useLocation();
   const backHref = state?.from ?? paths.dashboard.animal.root;
+  // Si hay historial dentro de la app, la flecha se comporta igual que el botón
+  // "atrás" del navegador (vuelve al estado exacto y no apila otra entrada).
+  // key === 'default' = se entró directo por URL: ahí queda el href de respaldo.
+  const backOnClick =
+    key !== 'default'
+      ? (event) => {
+          event.preventDefault();
+          navigate(-1);
+        }
+      : undefined;
 
   const { user } = useAuthContext();
   const has = (perm) => user?.permissions?.includes(perm);
@@ -176,6 +186,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
       <CustomBreadcrumbs
         heading={species.common_name ?? scientific}
         backHref={backHref}
+        backOnClick={backOnClick}
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Animales', href: paths.dashboard.animal.root },
