@@ -12,6 +12,7 @@ import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import { Toolbar, DataGrid, gridClasses, useGridApiRef } from '@mui/x-data-grid';
@@ -115,6 +116,14 @@ const ACTION_ICONS = {
   add: <Iconify icon="mingcute:add-line" />,
   edit: <Iconify icon="solar:pen-bold" />,
   delete: <Iconify icon="solar:trash-bin-trash-bold" sx={{ color: 'error.main' }} />,
+};
+
+// Flechas del acordeón de morphs. Dos elementos fijos (no una rotación con sx)
+// por la misma razón que ACTION_ICONS: así el re-render que provoca el foco de
+// la celda reutiliza el mismo elemento y el clic llega a la primera.
+const CHEVRON = {
+  closed: <Iconify width={16} icon="eva:arrow-ios-forward-fill" />,
+  open: <Iconify width={16} icon="eva:arrow-ios-downward-fill" />,
 };
 
 const TABS = [
@@ -262,22 +271,38 @@ export function AnimalTaxonomyView() {
   const speciesById = Object.fromEntries(allSpecies.map((s) => [s.id, s]));
   const generaById = Object.fromEntries(genera.map((g) => [g.id, g]));
 
-  // Especies con sus morphs anidados debajo (nivel 1), como el árbol de grupos.
-  // Así no hace falta una pestaña aparte para morphs.
-  const speciesTree = useMemo(() => {
-    const bySpecies = {};
+  // Morphs agrupados por especie: alimenta el contador del acordeón y las filas
+  const morphsBySpecies = useMemo(() => {
+    const map = {};
     morphs.forEach((m) => {
-      (bySpecies[m.species_id] ??= []).push(m);
+      (map[m.species_id] ??= []).push(m);
     });
+    return map;
+  }, [morphs]);
+
+  // Especies con sus morphs anidados debajo (nivel 1), como el árbol de grupos,
+  // pero plegados: una especie con muchos morphs empujaba al resto fuera de la
+  // página. Solo se insertan las filas de las especies desplegadas.
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggleExpanded = (speciesId) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(speciesId)) next.add(speciesId);
+      return next;
+    });
+
+  const speciesTree = useMemo(() => {
     const rows = [];
     allSpecies.forEach((sp) => {
       rows.push({ ...sp, _rowId: `s${sp.id}`, __kind: 'species', depth: 0 });
-      (bySpecies[sp.id] ?? []).forEach((m) =>
-        rows.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
-      );
+      if (expanded.has(sp.id)) {
+        (morphsBySpecies[sp.id] ?? []).forEach((m) =>
+          rows.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
+        );
+      }
     });
     return rows;
-  }, [allSpecies, morphs]);
+  }, [allSpecies, morphsBySpecies, expanded]);
 
   // Etiqueta del chip del filtro: se deriva de los datos ya cargados, la URL
   // solo guarda tipo + id (así el enlace no arrastra texto ni se desincroniza
@@ -523,12 +548,41 @@ export function AnimalTaxonomyView() {
           flex: 1,
           minWidth: 200,
           sortable: false,
-          renderCell: (params) => (
-            <Box sx={{ pl: params.row.depth * 3 }}>
-              {params.row.depth > 0 && '└ '}
-              {params.row.name}
-            </Box>
-          ),
+          renderCell: (params) => {
+            const { row } = params;
+            if (row.__kind === 'morph') return <Box sx={{ pl: 3 }}>└ {row.name}</Box>;
+
+            const count = morphsBySpecies[row.id]?.length ?? 0;
+            const open = expanded.has(row.id);
+
+            return (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                {count > 0 ? (
+                  <IconButton
+                    size="small"
+                    onClick={() => toggleExpanded(row.id)}
+                    aria-label={open ? 'Ocultar morphs' : `Ver ${count} morphs`}
+                    sx={{ flexShrink: 0 }}
+                  >
+                    {open ? CHEVRON.open : CHEVRON.closed}
+                  </IconButton>
+                ) : (
+                  // hueco del mismo ancho para que los nombres queden alineados
+                  <Box sx={{ width: 30, flexShrink: 0 }} />
+                )}
+
+                <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {row.name}
+                </Box>
+
+                {count > 0 && (
+                  <Box component="span" sx={{ flexShrink: 0, color: 'text.disabled' }}>
+                    ({count})
+                  </Box>
+                )}
+              </Box>
+            );
+          },
         },
         { field: 'common_name', headerName: 'Nombre común / morph', flex: 1, minWidth: 180, sortable: false, valueGetter: (_, row) => (row.__kind === 'morph' ? row.description ?? '—' : row.common_name ?? '—') },
         // Columnas de "Cultivos": aplican a especies y morphs (cría independiente)
