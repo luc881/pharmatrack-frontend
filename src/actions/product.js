@@ -20,6 +20,7 @@ export function useGetProducts({
   brandId = null,
   categoryId = null,
   isActive = null,
+  showOnline = null,
   ordering = null,
   excludeAnimalTwins = false,
   onlyBundles = false,
@@ -29,6 +30,7 @@ export function useGetProducts({
   if (brandId) params.brand_id = brandId;
   if (categoryId) params.category_id = categoryId;
   if (isActive !== null) params.is_active = isActive;
+  if (showOnline !== null) params.show_online = showOnline;
   if (ordering) params.ordering = ordering;
   if (excludeAnimalTwins) params.exclude_animal_twins = true;
   if (onlyBundles) params.only_bundles = true;
@@ -105,6 +107,9 @@ export const updateProduct = (id, data) =>
 
 export const deleteProduct = (id) =>
   axiosInstance.delete(endpoints.product.delete(id)).then((res) => res.data);
+
+export const toggleProductOnline = (id) =>
+  axiosInstance.patch(endpoints.product.toggleOnline(id)).then((res) => res.data);
 
 // ----------------------------------------------------------------------
 // Paquetes (bundles)

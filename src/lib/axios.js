@@ -81,6 +81,7 @@ export const endpoints = {
     create: '/api/v1/products',
     update: (id) => `/api/v1/products/${id}`,
     delete: (id) => `/api/v1/products/${id}`,
+    toggleOnline: (id) => `/api/v1/products/${id}/toggle-online`,
   },
   supplier: {
     list: '/api/v1/suppliers',

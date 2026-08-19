@@ -104,6 +104,7 @@ export const paths = {
     },
     site: {
       media: `${ROOTS.DASHBOARD}/site/media`,
+      products: `${ROOTS.DASHBOARD}/site/products`,
     },
     article: {
       root: `${ROOTS.DASHBOARD}/article`,

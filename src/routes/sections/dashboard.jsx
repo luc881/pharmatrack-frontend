@@ -84,6 +84,7 @@ const AnimalSpeciesPage = lazy(() => import('src/pages/dashboard/animal/species'
 const ArticleListPage   = lazy(() => import('src/pages/dashboard/article/list'));
 const OrderListPage     = lazy(() => import('src/pages/dashboard/order/list'));
 const SiteMediaPage     = lazy(() => import('src/pages/dashboard/site/media'));
+const SiteProductsPage  = lazy(() => import('src/pages/dashboard/site/products'));
 const ArticleCreatePage = lazy(() => import('src/pages/dashboard/article/new'));
 const ArticleEditPage   = lazy(() => import('src/pages/dashboard/article/edit'));
 
@@ -109,6 +110,7 @@ const P = {
   rolesCreate: ['roles.create'],
   rolesUpdate: ['roles.update'],
   // Products
+  productsRead:              ['products.read'],
   productsCreate:            ['products.create'],
   productsUpdate:            ['products.update'],
   productBatchesCreate:      ['productbatches.create'],
@@ -355,7 +357,8 @@ export const dashboardRoutes = [
       {
         path: 'site',
         children: [
-          { path: 'media',  element: guard(P.siteUpdate, <SiteMediaPage />) },
+          { path: 'media',    element: guard(P.siteUpdate, <SiteMediaPage />) },
+          { path: 'products', element: guard(P.productsRead, <SiteProductsPage />) },
         ],
       },
 

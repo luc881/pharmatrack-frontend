@@ -155,7 +155,10 @@ export const navData = [
         path: paths.dashboard.site.media,
         icon: ICONS.file,
         allowedRoles: ['settings.update'],
-        children: [{ title: 'Media', path: paths.dashboard.site.media }],
+        children: [
+          { title: 'Media',      path: paths.dashboard.site.media },
+          { title: 'Productos',  path: paths.dashboard.site.products },
+        ],
       },
       {
         title: 'Pedidos',
