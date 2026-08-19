@@ -128,6 +128,11 @@ const TABS = [
 const TAB_VALUES = ['groups', 'genera', 'species'];
 const FILTER_TYPES = ['group', 'genus', 'species'];
 
+// Columnas ocultas de entrada. Se vuelven a mostrar desde el botón "Columnas"
+// de la barra: aquí la taxonomía se sigue por nombre científico, no por el
+// nombre común.
+const HIDE_COLUMNS = { common_name: false };
+
 // ----------------------------------------------------------------------
 
 export function AnimalTaxonomyView() {
@@ -173,6 +178,7 @@ export function AnimalTaxonomyView() {
     return qs ? `${paths.dashboard.animal.taxonomy}?${qs}` : paths.dashboard.animal.taxonomy;
   };
 
+  const [columnVisibilityModel, setColumnVisibilityModel] = useState(HIDE_COLUMNS);
   const [dialog, setDialog] = useState(null); // { current } — abierto si no es null
   const [rowToDelete, setRowToDelete] = useState(null);
   const [managing, setManaging] = useState(null); // especie cuyo cultivo se gestiona
@@ -619,6 +625,8 @@ export function AnimalTaxonomyView() {
             getRowId={(row) => row._rowId ?? row.id}
             loading={gridProps.loading}
             onCellClick={handleCellClick}
+            columnVisibilityModel={columnVisibilityModel}
+            onColumnVisibilityModelChange={setColumnVisibilityModel}
             pageSizeOptions={[25, 50, 100]}
             initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
             slots={{
