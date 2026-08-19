@@ -102,6 +102,9 @@ export const paths = {
     order: {
       root: `${ROOTS.DASHBOARD}/order`,
     },
+    site: {
+      media: `${ROOTS.DASHBOARD}/site/media`,
+    },
     article: {
       root: `${ROOTS.DASHBOARD}/article`,
       new: `${ROOTS.DASHBOARD}/article/new`,

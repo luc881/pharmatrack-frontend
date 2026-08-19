@@ -151,6 +151,13 @@ export const navData = [
         ],
       },
       {
+        title: 'Sitio web',
+        path: paths.dashboard.site.media,
+        icon: ICONS.file,
+        allowedRoles: ['settings.update'],
+        children: [{ title: 'Media', path: paths.dashboard.site.media }],
+      },
+      {
         title: 'Pedidos',
         path: paths.dashboard.order.root,
         icon: ICONS.order,

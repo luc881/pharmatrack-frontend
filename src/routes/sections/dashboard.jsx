@@ -83,6 +83,7 @@ const AnimalSpeciesPage = lazy(() => import('src/pages/dashboard/animal/species'
 
 const ArticleListPage   = lazy(() => import('src/pages/dashboard/article/list'));
 const OrderListPage     = lazy(() => import('src/pages/dashboard/order/list'));
+const SiteMediaPage     = lazy(() => import('src/pages/dashboard/site/media'));
 const ArticleCreatePage = lazy(() => import('src/pages/dashboard/article/new'));
 const ArticleEditPage   = lazy(() => import('src/pages/dashboard/article/edit'));
 
@@ -143,6 +144,8 @@ const P = {
   ordersRead:     ['orders.read'],
   articlesCreate: ['articles.create'],
   articlesUpdate: ['articles.update'],
+  // Sitio publico
+  siteUpdate: ['settings.update'],
 };
 
 function guard(allowedPermissions, element) {
@@ -345,6 +348,15 @@ export const dashboardRoutes = [
         children: [
           { index: true,  element: guard(P.ordersRead, <OrderListPage />) },
           { path: 'list', element: guard(P.ordersRead, <OrderListPage />) },
+        ],
+      },
+
+      // ── Sitio publico ───────────────────────────────────────────────
+      {
+        path: 'site',
+        children: [
+          { index: true,    element: guard(P.siteUpdate, <SiteMediaPage />) },
+          { path: 'media',  element: guard(P.siteUpdate, <SiteMediaPage />) },
         ],
       },
 
