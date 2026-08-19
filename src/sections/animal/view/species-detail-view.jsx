@@ -208,29 +208,6 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
               <DetailRow label="Formato de venta" value={format ?? 'Individual'} />
             </Card>
 
-            <Card sx={{ p: 3 }}>
-              <Typography variant="subtitle2" sx={{ mb: 2 }}>
-                Ficha de cuidados
-              </Typography>
-              {hasCareSheet(species) ? (
-                <>
-                  <DetailRow label="Origen" value={species.origin} />
-                  <DetailRow label="Temperatura" value={species.temperature} />
-                  <DetailRow label="Humedad" value={species.humidity} />
-                  <DetailRow label="Tamaño adulto" value={species.adult_size} />
-                  <DetailRow label="Dificultad" value={species.difficulty} />
-                  <DetailRow label="Rareza" value={species.rarity} />
-                  <CareParagraph label="Hábitat" value={species.habitat} />
-                  <CareParagraph label="Dieta" value={species.diet} />
-                  <CareParagraph label="Notas" value={species.notes} />
-                </>
-              ) : (
-                <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                  Sin ficha de cuidados.{canUpdateSpecies ? ' Usa “Editar ficha”.' : ''}
-                </Typography>
-              )}
-            </Card>
-
             {/* Cultivo — privado */}
             <Card sx={{ p: 3, border: (t) => `dashed 1px ${t.vars.palette.divider}` }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
@@ -278,6 +255,47 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
               )}
             </Card>
           </Stack>
+        </Grid>
+
+        {/* Ficha de cuidados — horizontal, ancho completo */}
+        <Grid size={{ xs: 12 }}>
+          <Card sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ mb: 2.5 }}>
+              Ficha de cuidados
+            </Typography>
+            {hasCareSheet(species) ? (
+              <Stack spacing={3}>
+                {/* Datos rápidos en fila de mosaicos */}
+                <Grid container spacing={1.5}>
+                  {[
+                    ['Origen', species.origin],
+                    ['Temperatura', species.temperature],
+                    ['Humedad', species.humidity],
+                    ['Tamaño adulto', species.adult_size],
+                    ['Dificultad', species.difficulty],
+                    ['Rareza', species.rarity],
+                  ]
+                    .filter(([, v]) => v)
+                    .map(([label, value]) => (
+                      <Grid key={label} size={{ xs: 6, sm: 4, md: 2 }}>
+                        <FactTile label={label} value={value} />
+                      </Grid>
+                    ))}
+                </Grid>
+
+                {/* Textos largos en columnas */}
+                <Grid container spacing={3}>
+                  <CareColumn label="Hábitat" value={species.habitat} />
+                  <CareColumn label="Dieta" value={species.diet} />
+                  <CareColumn label="Notas" value={species.notes} />
+                </Grid>
+              </Stack>
+            ) : (
+              <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                Sin ficha de cuidados.{canUpdateSpecies ? ' Usa “Editar ficha”.' : ''}
+              </Typography>
+            )}
+          </Card>
         </Grid>
 
         {/* Abajo — Ejemplares (inventario de esta especie) */}
@@ -401,6 +419,41 @@ function DetailRow({ label, value }) {
         {value}
       </Typography>
     </Box>
+  );
+}
+
+// Mosaico de dato rápido (origen, temperatura, …) para la ficha horizontal
+function FactTile({ label, value }) {
+  return (
+    <Box sx={{ p: 1.5, height: '100%', borderRadius: 1.5, bgcolor: 'background.neutral' }}>
+      <Typography
+        variant="caption"
+        sx={{ display: 'block', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}
+      >
+        {label}
+      </Typography>
+      <Typography variant="subtitle2" sx={{ mt: 0.5 }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
+// Columna de texto largo (hábitat, dieta, notas) en la ficha horizontal
+function CareColumn({ label, value }) {
+  if (!value) return null;
+  return (
+    <Grid size={{ xs: 12, md: 4 }}>
+      <Typography
+        variant="overline"
+        sx={{ display: 'block', mb: 1, color: 'text.secondary' }}
+      >
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ whiteSpace: 'pre-line', lineHeight: 1.7, color: 'text.secondary' }}>
+        {value}
+      </Typography>
+    </Grid>
   );
 }
 
