@@ -1,11 +1,16 @@
 import { useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
+import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
@@ -15,6 +20,7 @@ import { fCurrency } from 'src/utils/format-number';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   updateMorph,
+  useAllGenera,
   useAllMorphs,
   useGetAnimals,
   useAllSpecies,
@@ -43,13 +49,30 @@ const priceRange = (prices) => {
   return min === max ? fCurrency(min) : `${fCurrency(min)} – ${fCurrency(max)}`;
 };
 
+const TABS = [
+  { value: 'online', label: 'En el sitio' },
+  { value: 'offline', label: 'Fuera del sitio' },
+];
+// Valores admitidos en ?tab=: cualquier otra cosa cae al estado por defecto,
+// así una URL manipulada no rompe la vista.
+const TAB_VALUES = TABS.map((t) => t.value);
+
 // ----------------------------------------------------------------------
 
 export function SiteAnimalsView() {
   const { user } = useAuthContext();
   const has = (perm) => !!user?.permissions?.includes(perm);
 
+  // Pestaña y filtro de taxonomía en la URL, no en useState: así "atrás" del
+  // navegador y compartir el enlace conservan lo que se estaba viendo. Mismo
+  // patrón que animal-taxonomy-view.jsx con su pestaña y su filtro.
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const tabParam = searchParams.get('tab');
+  const tab = TAB_VALUES.includes(tabParam) ? tabParam : 'online';
+
   const { groupTree, groupTreeLoading, groupTreeMutate } = useAnimalGroupTree();
+  const { genera } = useAllGenera();
   const { species: allSpecies, speciesLoading, speciesMutate } = useAllSpecies();
   const { morphs, morphsLoading, morphsMutate } = useAllMorphs();
   // 500: mismo límite que usa Taxonomía para traer el catálogo completo de un jalón.
@@ -180,6 +203,58 @@ export function SiteAnimalsView() {
     if (!g) return null;
     return groupsById[g.ancestors[0] ?? g.id] ?? null;
   };
+  // Un género/especie pertenece al grupo `targetGroupId` si su propio grupo
+  // ES ese grupo, o lo tiene entre sus ancestros (mismo campo `ancestors`,
+  // raíz → abajo, que usa hiddenGroupIds arriba). El filtro de taxonomía
+  // reusa esta regla en vez de reimplementarla.
+  const groupMatches = (candidateGroupId, targetGroupId) => {
+    if (candidateGroupId == null || targetGroupId == null) return false;
+    if (candidateGroupId === targetGroupId) return true;
+    return groupsById[candidateGroupId]?.ancestors.includes(targetGroupId) ?? false;
+  };
+
+  // Filtro de taxonomía (grupo → género), en la URL. Solo se valida la forma
+  // (entero positivo) hasta que los datos cargan; ya con datos, un id que no
+  // exista (o un género fuera del grupo elegido) cae al estado por defecto.
+  const groupParam = Number(searchParams.get('grupo'));
+  const groupParamValid = Number.isInteger(groupParam) && groupParam > 0;
+  const groupFilterId =
+    groupParamValid && (groupsFlat.length === 0 || groupsById[groupParam]) ? groupParam : null;
+
+  // Géneros del selector: los del grupo elegido (con subgrupos), o todos sin grupo elegido.
+  const generaOptions = groupFilterId ? genera.filter((g) => groupMatches(g.group?.id, groupFilterId)) : genera;
+
+  const generoParam = Number(searchParams.get('genero'));
+  const generoParamValid = Number.isInteger(generoParam) && generoParam > 0;
+  const generoFilterId =
+    generoParamValid && (genera.length === 0 || generaOptions.some((g) => g.id === generoParam))
+      ? generoParam
+      : null;
+
+  const setSingleParam = (key, value) => {
+    const next = new URLSearchParams(searchParams);
+    if (value == null) next.delete(key);
+    else next.set(key, String(value));
+    setSearchParams(next);
+  };
+
+  const handleTabChange = (_, value) => setSingleParam('tab', value === 'online' ? null : value);
+
+  const handleGroupClick = (groupId) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('grupo', String(groupId));
+    next.delete('genero'); // el género elegido puede no pertenecer al grupo nuevo
+    setSearchParams(next);
+  };
+
+  const handleGeneroChange = (value) => setSingleParam('genero', value || null);
+
+  const clearTaxonomyFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('grupo');
+    next.delete('genero');
+    setSearchParams(next);
+  };
 
   const speciesById = useMemo(() => Object.fromEntries(allSpecies.map((s) => [s.id, s])), [allSpecies]);
   // La especie de una fila (ella misma, o la que le corresponde a un morph):
@@ -199,17 +274,6 @@ export function SiteAnimalsView() {
     return map;
   }, [morphs]);
 
-  const rows = useMemo(() => {
-    const list = [];
-    allSpecies.forEach((sp) => {
-      list.push({ ...sp, _rowId: `s${sp.id}`, __kind: 'species', depth: 0 });
-      (morphsBySpecies[sp.id] ?? []).forEach((m) =>
-        list.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
-      );
-    });
-    return list;
-  }, [allSpecies, morphsBySpecies]);
-
   // Motivo por el que una fila no se ve en el sitio, en orden de precedencia.
   // Si ninguno aplica, la fila se ve (celda vacía) — incluido el caso en que
   // su propio switch está apagado: eso ya lo dice el switch, no hace falta
@@ -221,6 +285,36 @@ export function SiteAnimalsView() {
     if (row.__kind === 'morph' && sp?.show_public === false) return 'Especie oculta';
     if (row.show_public !== false && rowUnits(row) === 0) return 'Sin ejemplares disponibles';
     return null;
+  };
+
+  // Filas: especies + sus morphs anidados, acotadas por el filtro de
+  // taxonomía y por la pestaña activa — AMBOS a nivel de especie, nunca de
+  // morph por su cuenta (dejaría morphs huérfanos sin su fila padre, el
+  // mismo defecto de agrupación que ya se corrigió aquí con la paginación).
+  // La pestaña reusa statusReason, la misma función que llena la columna
+  // Estado: reimplementarla aparte ya causó tres bugs de divergencia.
+  const rows = [];
+  allSpecies.forEach((sp) => {
+    const speciesGroupId = sp.genus?.group?.id;
+    if (groupFilterId && !groupMatches(speciesGroupId, groupFilterId)) return;
+    if (generoFilterId && sp.genus_id !== generoFilterId) return;
+
+    const speciesRow = { ...sp, _rowId: `s${sp.id}`, __kind: 'species', depth: 0 };
+    const visible = !statusReason(speciesRow);
+    if (tab === 'online' ? !visible : visible) return;
+
+    rows.push(speciesRow);
+    (morphsBySpecies[sp.id] ?? []).forEach((m) =>
+      rows.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
+    );
+  });
+
+  // Etiqueta del chip del filtro de taxonomía activo.
+  const filterLabel = () => {
+    const parts = [];
+    if (groupFilterId) parts.push(`Grupo: ${groupsById[groupFilterId]?.name ?? '…'}`);
+    if (generoFilterId) parts.push(`Género: ${generaOptions.find((g) => g.id === generoFilterId)?.name ?? '…'}`);
+    return parts.join(' · ');
   };
 
   const columns = [
@@ -305,22 +399,51 @@ export function SiteAnimalsView() {
         <Typography variant="subtitle2" sx={{ mb: 2 }}>
           Grupos raíz
         </Typography>
-        <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+        <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', rowGap: 1, mb: 2 }}>
           {groupTree.map((group) => (
-            <FormControlLabel
+            <Box
               key={group.id}
-              label={group.name}
               title={has('animalgroups.update') ? undefined : 'Requiere el permiso animalgroups.update'}
-              control={
-                <Switch
-                  checked={group.show_public !== false}
-                  disabled={!has('animalgroups.update')}
-                  onChange={(e) => handleGroupFlag(group, e.target.checked)}
-                />
-              }
-            />
+              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+            >
+              <Switch
+                checked={group.show_public !== false}
+                disabled={!has('animalgroups.update')}
+                onChange={(e) => handleGroupFlag(group, e.target.checked)}
+              />
+              {/* Clic en el nombre filtra la tabla a este grupo (con subgrupos); el
+                  switch de al lado sigue controlando la visibilidad, son controles
+                  independientes a propósito. */}
+              <Typography
+                variant="body2"
+                onClick={() => handleGroupClick(group.id)}
+                sx={{
+                  cursor: 'pointer',
+                  fontWeight: groupFilterId === group.id ? 700 : 400,
+                  color: groupFilterId === group.id ? 'primary.main' : 'text.primary',
+                }}
+              >
+                {group.name}
+              </Typography>
+            </Box>
           ))}
         </Stack>
+
+        <TextField
+          select
+          size="small"
+          label="Género"
+          value={generoFilterId ?? ''}
+          onChange={(e) => handleGeneroChange(e.target.value ? Number(e.target.value) : null)}
+          sx={{ minWidth: 220 }}
+        >
+          <MenuItem value="">Todos</MenuItem>
+          {generaOptions.map((g) => (
+            <MenuItem key={g.id} value={g.id}>
+              {g.name}
+            </MenuItem>
+          ))}
+        </TextField>
       </Card>
 
       <Card
@@ -332,6 +455,16 @@ export function SiteAnimalsView() {
           flexDirection: { md: 'column' },
         }}
       >
+        <Tabs
+          value={tab}
+          onChange={handleTabChange}
+          sx={{ px: 2.5, boxShadow: (t) => `inset 0 -2px 0 0 ${t.vars.palette.divider}` }}
+        >
+          {TABS.map((t) => (
+            <Tab key={t.value} value={t.value} label={t.label} />
+          ))}
+        </Tabs>
+
         <DataGrid
           disableRowSelectionOnClick
           ignoreDiacritics
@@ -350,6 +483,9 @@ export function SiteAnimalsView() {
               <Toolbar>
                 <ToolbarContainer>
                   <CustomToolbarQuickFilter />
+                  {(groupFilterId || generoFilterId) && (
+                    <Chip color="primary" variant="soft" label={filterLabel()} onDelete={clearTaxonomyFilter} />
+                  )}
                 </ToolbarContainer>
               </Toolbar>
             ),
