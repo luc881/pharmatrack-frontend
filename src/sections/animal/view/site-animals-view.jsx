@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -103,6 +103,14 @@ export function SiteAnimalsView() {
     () => new Set(morphs.filter((m) => m.show_public === false).map((m) => m.id)),
     [morphs]
   );
+  // Un ejemplar con cualquier morph oculto no aparece en el sitio en NINGUNA
+  // tarjeta (ni especie ni morph). Único punto que decide eso: conteos y
+  // precios lo reusan para no poder corregir uno y olvidar el otro.
+  const isHiddenByMorph = useCallback(
+    (a) => (a.morphs ?? []).some((m) => hiddenMorphIds.has(m.id)),
+    [hiddenMorphIds]
+  );
+
   // Unidades disponibles y rango de precio, por especie y por morph. Un
   // animal puede tener varios morphs: suma/agrega a cada uno de los suyos.
   // Descuenta los ejemplares con algún morph oculto: el sitio no los muestra
@@ -110,44 +118,42 @@ export function SiteAnimalsView() {
   const availableBySpecies = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      const hidden = (a.morphs ?? []).some((m) => hiddenMorphIds.has(m.id));
-      if (a.status !== 'available' || !a.species_id || hidden) return;
+      if (a.status !== 'available' || !a.species_id || isHiddenByMorph(a)) return;
       map[a.species_id] = (map[a.species_id] ?? 0) + (a.stock ?? 1);
     });
     return map;
-  }, [animals, hiddenMorphIds]);
+  }, [animals, isHiddenByMorph]);
 
   const availableByMorph = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      const hidden = (a.morphs ?? []).some((m) => hiddenMorphIds.has(m.id));
-      if (a.status !== 'available' || hidden) return;
+      if (a.status !== 'available' || isHiddenByMorph(a)) return;
       (a.morphs ?? []).forEach((m) => {
         map[m.id] = (map[m.id] ?? 0) + (a.stock ?? 1);
       });
     });
     return map;
-  }, [animals, hiddenMorphIds]);
+  }, [animals, isHiddenByMorph]);
 
   const pricesBySpecies = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      if (a.status !== 'available' || !a.species_id || !a.price) return;
+      if (a.status !== 'available' || !a.species_id || !a.price || isHiddenByMorph(a)) return;
       (map[a.species_id] ??= []).push(a.price);
     });
     return map;
-  }, [animals]);
+  }, [animals, isHiddenByMorph]);
 
   const pricesByMorph = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      if (a.status !== 'available' || !a.price) return;
+      if (a.status !== 'available' || !a.price || isHiddenByMorph(a)) return;
       (a.morphs ?? []).forEach((m) => {
         (map[m.id] ??= []).push(a.price);
       });
     });
     return map;
-  }, [animals]);
+  }, [animals, isHiddenByMorph]);
 
   const rowUnits = (row) => (row.__kind === 'morph' ? availableByMorph[row.id] : availableBySpecies[row.id]) ?? 0;
   const rowPrices = (row) => (row.__kind === 'morph' ? pricesByMorph[row.id] : pricesBySpecies[row.id]) ?? [];
