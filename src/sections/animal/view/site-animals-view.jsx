@@ -6,11 +6,8 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Tabs from '@mui/material/Tabs';
-import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
-import MenuItem from '@mui/material/MenuItem';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
+import Checkbox from '@mui/material/Checkbox';
 import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
@@ -49,13 +46,25 @@ const priceRange = (prices) => {
   return min === max ? fCurrency(min) : `${fCurrency(min)} – ${fCurrency(max)}`;
 };
 
+// Fila 1: visibilidad. Fila 2: nivel de taxonomía (drill-down, como Taxonomía).
 const TABS = [
   { value: 'online', label: 'En el sitio' },
   { value: 'offline', label: 'Fuera del sitio' },
 ];
-// Valores admitidos en ?tab=: cualquier otra cosa cae al estado por defecto,
-// así una URL manipulada no rompe la vista.
+const NIVELES = [
+  { value: 'groups', label: 'Grupos' },
+  { value: 'genera', label: 'Géneros' },
+  { value: 'species', label: 'Especies' },
+];
+// Valores admitidos en ?tab= / ?nivel= / ?ft=: cualquier otra cosa cae al
+// estado por defecto, así una URL manipulada no rompe la vista.
 const TAB_VALUES = TABS.map((t) => t.value);
+const NIVEL_VALUES = NIVELES.map((n) => n.value);
+const FILTER_TYPES = ['group', 'genus'];
+
+// Columnas cuyo clic controla algo propio (switch/casilla): ahí el clic no
+// debe bajar de nivel. Mismo propósito que CONTROL_FIELDS en animal-taxonomy-view.jsx.
+const CONTROL_FIELDS = new Set(['show_public']);
 
 // ----------------------------------------------------------------------
 
@@ -63,24 +72,49 @@ export function SiteAnimalsView() {
   const { user } = useAuthContext();
   const has = (perm) => !!user?.permissions?.includes(perm);
 
-  // Pestaña y filtro de taxonomía en la URL, no en useState: así "atrás" del
+  // Pestaña, nivel y filtro en la URL, no en useState: así "atrás" del
   // navegador y compartir el enlace conservan lo que se estaba viendo. Mismo
-  // patrón que animal-taxonomy-view.jsx con su pestaña y su filtro.
+  // mecanismo que animal-taxonomy-view.jsx (su goTo/drillDown/filtro).
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tabParam = searchParams.get('tab');
   const tab = TAB_VALUES.includes(tabParam) ? tabParam : 'online';
 
+  const nivelParam = searchParams.get('nivel');
+  const nivel = NIVEL_VALUES.includes(nivelParam) ? nivelParam : 'groups';
+
+  // Filtro encadenado al dar clic en una fila: {type: group|genus, id}.
+  const filterType = searchParams.get('ft');
+  const filterIdParam = Number(searchParams.get('fid'));
+  const filter =
+    FILTER_TYPES.includes(filterType) && Number.isInteger(filterIdParam) && filterIdParam > 0
+      ? { type: filterType, id: filterIdParam }
+      : null;
+
+  // Escribe pestaña + nivel + filtro en la URL. Cualquier clave omitida
+  // conserva el valor actual (útil: cambiar de nivel sin perder el filtro).
+  const goTo = ({ tab: nextTab = tab, nivel: nextNivel = nivel, filter: nextFilter = filter, replace = false } = {}) => {
+    const next = new URLSearchParams();
+    if (nextTab !== 'online') next.set('tab', nextTab);
+    if (nextNivel !== 'groups') next.set('nivel', nextNivel);
+    if (nextFilter) {
+      next.set('ft', nextFilter.type);
+      next.set('fid', String(nextFilter.id));
+    }
+    setSearchParams(next, { replace });
+  };
+
   const { groupTree, groupTreeLoading, groupTreeMutate } = useAnimalGroupTree();
-  const { genera } = useAllGenera();
+  const { genera, generaLoading } = useAllGenera();
   const { species: allSpecies, speciesLoading, speciesMutate } = useAllSpecies();
   const { morphs, morphsLoading, morphsMutate } = useAllMorphs();
   // 500: mismo límite que usa Taxonomía para traer el catálogo completo de un jalón.
   const { animals } = useGetAnimals({ page: 1, pageSize: 500 });
 
   // Alterna show_public de un grupo raíz. Optimista: mismo patrón que
-  // handleFlag en animal-taxonomy-view.jsx, pero sin recorrer subárbol —
-  // el panel solo lista grupos raíz, no hay hijos que parchear.
+  // handleFlag en animal-taxonomy-view.jsx. Solo los grupos raíz tienen
+  // switch propio (los subgrupos heredan la cascada), así que solo hace
+  // falta parchear el nivel superior del árbol.
   const handleGroupFlag = async (row, value) => {
     groupTreeMutate(
       (current) => (current ?? []).map((node) => (node.id === row.id ? { ...node, show_public: value } : node)),
@@ -203,58 +237,14 @@ export function SiteAnimalsView() {
     if (!g) return null;
     return groupsById[g.ancestors[0] ?? g.id] ?? null;
   };
-  // Un género/especie pertenece al grupo `targetGroupId` si su propio grupo
-  // ES ese grupo, o lo tiene entre sus ancestros (mismo campo `ancestors`,
-  // raíz → abajo, que usa hiddenGroupIds arriba). El filtro de taxonomía
-  // reusa esta regla en vez de reimplementarla.
-  const groupMatches = (candidateGroupId, targetGroupId) => {
-    if (candidateGroupId == null || targetGroupId == null) return false;
-    if (candidateGroupId === targetGroupId) return true;
-    return groupsById[candidateGroupId]?.ancestors.includes(targetGroupId) ?? false;
-  };
 
-  // Filtro de taxonomía (grupo → género), en la URL. Solo se valida la forma
-  // (entero positivo) hasta que los datos cargan; ya con datos, un id que no
-  // exista (o un género fuera del grupo elegido) cae al estado por defecto.
-  const groupParam = Number(searchParams.get('grupo'));
-  const groupParamValid = Number.isInteger(groupParam) && groupParam > 0;
-  const groupFilterId =
-    groupParamValid && (groupsFlat.length === 0 || groupsById[groupParam]) ? groupParam : null;
-
-  // Géneros del selector: los del grupo elegido (con subgrupos), o todos sin grupo elegido.
-  const generaOptions = groupFilterId ? genera.filter((g) => groupMatches(g.group?.id, groupFilterId)) : genera;
-
-  const generoParam = Number(searchParams.get('genero'));
-  const generoParamValid = Number.isInteger(generoParam) && generoParam > 0;
-  const generoFilterId =
-    generoParamValid && (genera.length === 0 || generaOptions.some((g) => g.id === generoParam))
-      ? generoParam
+  // IDs del grupo elegido en el filtro + todo su subárbol (mismo cálculo que
+  // groupIdSet en animal-taxonomy-view.jsx: `ancestors` va raíz → abajo, así
+  // que un descendiente siempre lo incluye).
+  const groupIdSet =
+    filter?.type === 'group'
+      ? new Set([filter.id, ...groupsFlat.filter((g) => g.ancestors.includes(filter.id)).map((g) => g.id)])
       : null;
-
-  const setSingleParam = (key, value) => {
-    const next = new URLSearchParams(searchParams);
-    if (value == null) next.delete(key);
-    else next.set(key, String(value));
-    setSearchParams(next);
-  };
-
-  const handleTabChange = (_, value) => setSingleParam('tab', value === 'online' ? null : value);
-
-  const handleGroupClick = (groupId) => {
-    const next = new URLSearchParams(searchParams);
-    next.set('grupo', String(groupId));
-    next.delete('genero'); // el género elegido puede no pertenecer al grupo nuevo
-    setSearchParams(next);
-  };
-
-  const handleGeneroChange = (value) => setSingleParam('genero', value || null);
-
-  const clearTaxonomyFilter = () => {
-    const next = new URLSearchParams(searchParams);
-    next.delete('grupo');
-    next.delete('genero');
-    setSearchParams(next);
-  };
 
   const speciesById = useMemo(() => Object.fromEntries(allSpecies.map((s) => [s.id, s])), [allSpecies]);
   // La especie de una fila (ella misma, o la que le corresponde a un morph):
@@ -274,10 +264,12 @@ export function SiteAnimalsView() {
     return map;
   }, [morphs]);
 
-  // Motivo por el que una fila no se ve en el sitio, en orden de precedencia.
-  // Si ninguno aplica, la fila se ve (celda vacía) — incluido el caso en que
-  // su propio switch está apagado: eso ya lo dice el switch, no hace falta
-  // repetirlo aquí.
+  // Motivo por el que una fila (especie o morph) no se ve en el sitio, en
+  // orden de precedencia. Si ninguno aplica, la fila se ve (celda vacía) —
+  // incluido el caso en que su propio switch está apagado: eso ya lo dice el
+  // switch, no hace falta repetirlo aquí. ÚNICA fuente de verdad de "¿esto
+  // se ve?" para especies/morphs: la fila 1 (tab) y el switch deshabilitado
+  // la reusan en vez de reimplementarla — divergir de esto ya causó tres bugs.
   const statusReason = (row) => {
     const sp = rowSpecies(row);
     const groupId = sp?.genus?.group?.id;
@@ -287,37 +279,78 @@ export function SiteAnimalsView() {
     return null;
   };
 
-  // Filas: especies + sus morphs anidados, acotadas por el filtro de
-  // taxonomía y por la pestaña activa — AMBOS a nivel de especie, nunca de
-  // morph por su cuenta (dejaría morphs huérfanos sin su fila padre, el
-  // mismo defecto de agrupación que ya se corrigió aquí con la paginación).
-  // La pestaña reusa statusReason, la misma función que llena la columna
-  // Estado: reimplementarla aparte ya causó tres bugs de divergencia.
-  const rows = [];
-  allSpecies.forEach((sp) => {
-    const speciesGroupId = sp.genus?.group?.id;
-    if (groupFilterId && !groupMatches(speciesGroupId, groupFilterId)) return;
-    if (generoFilterId && sp.genus_id !== generoFilterId) return;
+  // Un género no se ve en el sitio si el grupo del que cuelga (a cualquier
+  // profundidad) está oculto. Mismo hiddenGroupIds que arriba, ninguna regla nueva.
+  const genusHidden = (g) => hiddenGroupIds.has(g.group?.id);
 
-    const speciesRow = { ...sp, _rowId: `s${sp.id}`, __kind: 'species', depth: 0 };
-    const visible = !statusReason(speciesRow);
-    if (tab === 'online' ? !visible : visible) return;
-
-    rows.push(speciesRow);
-    (morphsBySpecies[sp.id] ?? []).forEach((m) =>
-      rows.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
-    );
-  });
-
-  // Etiqueta del chip del filtro de taxonomía activo.
-  const filterLabel = () => {
-    const parts = [];
-    if (groupFilterId) parts.push(`Grupo: ${groupsById[groupFilterId]?.name ?? '…'}`);
-    if (generoFilterId) parts.push(`Género: ${generaOptions.find((g) => g.id === generoFilterId)?.name ?? '…'}`);
-    return parts.join(' · ');
+  // Clic en una fila baja un nivel: grupo → géneros, género → especies.
+  // Especies no baja más: sus morphs ya se ven anidados en la misma tabla.
+  const drillDown = {
+    groups: (row) => ({ next: 'genera', filter: { type: 'group', id: row.id } }),
+    genera: (row) => ({ next: 'species', filter: { type: 'genus', id: row.id } }),
   };
 
-  const columns = [
+  const handleCellClick = (params) => {
+    if (CONTROL_FIELDS.has(params.field) || !drillDown[nivel]) return;
+    const { next, filter: nextFilter } = drillDown[nivel](params.row);
+    goTo({ nivel: next, filter: nextFilter });
+  };
+
+  // Etiqueta del chip del filtro activo, derivada de los datos ya cargados
+  // (la URL solo guarda tipo + id).
+  const filterLabel = () => {
+    if (!filter) return null;
+    if (filter.type === 'group') return `Grupo: ${groupsById[filter.id]?.name ?? '…'}`;
+    return `Género: ${genera.find((g) => g.id === filter.id)?.name ?? '…'}`;
+  };
+
+  // ----------------------------------------------------------------------
+  // Filas + columnas por nivel. La fila 1 (tab) filtra con el mismo criterio
+  // que ya existe para cada nivel, nunca con una regla nueva.
+
+  const groupsColumns = [
+    {
+      field: 'name',
+      headerName: 'Nombre',
+      flex: 1,
+      minWidth: 240,
+      sortable: false, // el orden del árbol es la jerarquía
+      renderCell: (params) => (
+        <Box sx={{ pl: params.row.depth * 3 }}>
+          {params.row.depth > 0 && '└ '}
+          {params.row.name}
+        </Box>
+      ),
+    },
+    {
+      field: 'show_public',
+      headerName: 'En el sitio',
+      width: 120,
+      sortable: false,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) =>
+        // La visibilidad se controla por grupo raíz: ocultar uno esconde todo
+        // su subárbol, así que en los hijos no hay nada que marcar.
+        params.row.depth === 0 ? (
+          <Checkbox
+            checked={params.row.show_public !== false}
+            disabled={!has('animalgroups.update')}
+            title={has('animalgroups.update') ? undefined : 'Requiere el permiso animalgroups.update'}
+            onChange={(e) => handleGroupFlag(params.row, e.target.checked)}
+          />
+        ) : (
+          <Box sx={{ color: 'text.disabled' }}>—</Box>
+        ),
+    },
+  ];
+
+  const generaColumns = [
+    { field: 'name', headerName: 'Nombre', flex: 1, minWidth: 200 },
+    { field: 'group', headerName: 'Grupo', flex: 1, minWidth: 160, valueGetter: (v) => v?.name ?? '—' },
+  ];
+
+  const speciesColumns = [
     {
       field: 'name',
       headerName: 'Nombre',
@@ -361,11 +394,24 @@ export function SiteAnimalsView() {
         const { row } = params;
         const perm = row.__kind === 'morph' ? 'morphs.update' : 'species.update';
         const canWrite = has(perm);
+        // El grupo manda por encima en la cascada de visibilidad: si está
+        // oculto, encender el switch de la especie/morph no la haría
+        // aparecer en el sitio. Se deshabilita también en ese caso — se suma
+        // a (no reemplaza) la falta de permiso, y el title dice cuál aplica.
+        const sp = rowSpecies(row);
+        const groupId = sp?.genus?.group?.id;
+        const groupHidden = groupId != null && hiddenGroupIds.has(groupId);
+        const disabled = !canWrite || groupHidden;
+        const title = !canWrite
+          ? `Requiere el permiso ${perm}`
+          : groupHidden
+            ? 'El grupo está oculto: enciéndelo primero'
+            : undefined;
         return (
           <Switch
             checked={row.show_public !== false}
-            disabled={!canWrite}
-            title={canWrite ? undefined : `Requiere el permiso ${perm}`}
+            disabled={disabled}
+            title={title}
             onChange={(e) => handleRowFlag(row, e.target.checked)}
           />
         );
@@ -383,6 +429,50 @@ export function SiteAnimalsView() {
     },
   ];
 
+  const gridProps = {
+    groups: {
+      rows: groupsFlat
+        .filter((g) => !groupIdSet || groupIdSet.has(g.id))
+        .filter((g) => (tab === 'online' ? !hiddenGroupIds.has(g.id) : hiddenGroupIds.has(g.id))),
+      loading: groupTreeLoading,
+      columns: groupsColumns,
+    },
+    genera: {
+      rows: genera
+        .filter((g) => {
+          if (!filter) return true;
+          if (filter.type === 'group') return groupIdSet.has(g.group?.id);
+          return g.id === filter.id;
+        })
+        .filter((g) => (tab === 'online' ? !genusHidden(g) : genusHidden(g))),
+      loading: generaLoading || groupTreeLoading,
+      columns: generaColumns,
+    },
+    species: {
+      rows: (() => {
+        const rows = [];
+        allSpecies.forEach((sp) => {
+          if (filter) {
+            if (filter.type === 'group' && !groupIdSet.has(sp.genus?.group?.id)) return;
+            if (filter.type === 'genus' && sp.genus_id !== filter.id) return;
+          }
+
+          const speciesRow = { ...sp, _rowId: `s${sp.id}`, __kind: 'species', depth: 0 };
+          const visible = !statusReason(speciesRow);
+          if (tab === 'online' ? !visible : visible) return;
+
+          rows.push(speciesRow);
+          (morphsBySpecies[sp.id] ?? []).forEach((m) =>
+            rows.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
+          );
+        });
+        return rows;
+      })(),
+      loading: groupTreeLoading || speciesLoading || morphsLoading,
+      columns: speciesColumns,
+    },
+  }[nivel];
+
   return (
     <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
       <CustomBreadcrumbs
@@ -395,57 +485,6 @@ export function SiteAnimalsView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <Card sx={{ p: 3, mb: 3 }}>
-        <Typography variant="subtitle2" sx={{ mb: 2 }}>
-          Grupos raíz
-        </Typography>
-        <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap', rowGap: 1, mb: 2 }}>
-          {groupTree.map((group) => (
-            <Box
-              key={group.id}
-              title={has('animalgroups.update') ? undefined : 'Requiere el permiso animalgroups.update'}
-              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-            >
-              <Switch
-                checked={group.show_public !== false}
-                disabled={!has('animalgroups.update')}
-                onChange={(e) => handleGroupFlag(group, e.target.checked)}
-              />
-              {/* Clic en el nombre filtra la tabla a este grupo (con subgrupos); el
-                  switch de al lado sigue controlando la visibilidad, son controles
-                  independientes a propósito. */}
-              <Typography
-                variant="body2"
-                onClick={() => handleGroupClick(group.id)}
-                sx={{
-                  cursor: 'pointer',
-                  fontWeight: groupFilterId === group.id ? 700 : 400,
-                  color: groupFilterId === group.id ? 'primary.main' : 'text.primary',
-                }}
-              >
-                {group.name}
-              </Typography>
-            </Box>
-          ))}
-        </Stack>
-
-        <TextField
-          select
-          size="small"
-          label="Género"
-          value={generoFilterId ?? ''}
-          onChange={(e) => handleGeneroChange(e.target.value ? Number(e.target.value) : null)}
-          sx={{ minWidth: 220 }}
-        >
-          <MenuItem value="">Todos</MenuItem>
-          {generaOptions.map((g) => (
-            <MenuItem key={g.id} value={g.id}>
-              {g.name}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Card>
-
       <Card
         sx={{
           minHeight: 480,
@@ -457,7 +496,7 @@ export function SiteAnimalsView() {
       >
         <Tabs
           value={tab}
-          onChange={handleTabChange}
+          onChange={(_, value) => goTo({ tab: value })}
           sx={{ px: 2.5, boxShadow: (t) => `inset 0 -2px 0 0 ${t.vars.palette.divider}` }}
         >
           {TABS.map((t) => (
@@ -465,13 +504,24 @@ export function SiteAnimalsView() {
           ))}
         </Tabs>
 
+        <Tabs
+          value={nivel}
+          onChange={(_, value) => goTo({ nivel: value })}
+          sx={{ px: 2.5, boxShadow: (t) => `inset 0 -2px 0 0 ${t.vars.palette.divider}` }}
+        >
+          {NIVELES.map((n) => (
+            <Tab key={n.value} value={n.value} label={n.label} />
+          ))}
+        </Tabs>
+
         <DataGrid
           disableRowSelectionOnClick
           ignoreDiacritics
-          rows={rows}
-          columns={columns}
-          getRowId={(row) => row._rowId}
-          loading={groupTreeLoading || speciesLoading || morphsLoading}
+          rows={gridProps.rows}
+          columns={gridProps.columns}
+          getRowId={(row) => row._rowId ?? row.id}
+          loading={gridProps.loading}
+          onCellClick={handleCellClick}
           // 100 por defecto: paginar más bajo partiría el bloque de una especie
           // de sus morphs entre dos páginas (misma cota que ALL en actions/animal.js).
           pageSizeOptions={[25, 50, 100]}
@@ -483,14 +533,17 @@ export function SiteAnimalsView() {
               <Toolbar>
                 <ToolbarContainer>
                   <CustomToolbarQuickFilter />
-                  {(groupFilterId || generoFilterId) && (
-                    <Chip color="primary" variant="soft" label={filterLabel()} onDelete={clearTaxonomyFilter} />
+                  {filter && (
+                    <Chip color="primary" variant="soft" label={filterLabel()} onDelete={() => goTo({ filter: null })} />
                   )}
                 </ToolbarContainer>
               </Toolbar>
             ),
           }}
-          sx={{ [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' } }}
+          sx={{
+            [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' },
+            ...(drillDown[nivel] && { [`& .${gridClasses.row}`]: { cursor: 'pointer' } }),
+          }}
         />
       </Card>
     </DashboardContent>
