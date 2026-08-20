@@ -96,27 +96,38 @@ export function SiteAnimalsView() {
     }
   };
 
+  // IDs de morphs ocultos: un ejemplar que lleve cualquiera de estos no se ve
+  // en el sitio en NINGUNA de sus tarjetas (ni especie ni morph), aunque
+  // lleve otro morph visible. Replica la condición 4 del backend.
+  const hiddenMorphIds = useMemo(
+    () => new Set(morphs.filter((m) => m.show_public === false).map((m) => m.id)),
+    [morphs]
+  );
   // Unidades disponibles y rango de precio, por especie y por morph. Un
   // animal puede tener varios morphs: suma/agrega a cada uno de los suyos.
+  // Descuenta los ejemplares con algún morph oculto: el sitio no los muestra
+  // en ninguna tarjeta, así que tampoco deben sumar aquí (no es un descuido).
   const availableBySpecies = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      if (a.status !== 'available' || !a.species_id) return;
+      const hidden = (a.morphs ?? []).some((m) => hiddenMorphIds.has(m.id));
+      if (a.status !== 'available' || !a.species_id || hidden) return;
       map[a.species_id] = (map[a.species_id] ?? 0) + (a.stock ?? 1);
     });
     return map;
-  }, [animals]);
+  }, [animals, hiddenMorphIds]);
 
   const availableByMorph = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      if (a.status !== 'available') return;
+      const hidden = (a.morphs ?? []).some((m) => hiddenMorphIds.has(m.id));
+      if (a.status !== 'available' || hidden) return;
       (a.morphs ?? []).forEach((m) => {
         map[m.id] = (map[m.id] ?? 0) + (a.stock ?? 1);
       });
     });
     return map;
-  }, [animals]);
+  }, [animals, hiddenMorphIds]);
 
   const pricesBySpecies = useMemo(() => {
     const map = {};
@@ -322,8 +333,10 @@ export function SiteAnimalsView() {
           columns={columns}
           getRowId={(row) => row._rowId}
           loading={groupTreeLoading || speciesLoading || morphsLoading}
+          // 100 por defecto: paginar más bajo partiría el bloque de una especie
+          // de sus morphs entre dos páginas (misma cota que ALL en actions/animal.js).
           pageSizeOptions={[25, 50, 100]}
-          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
+          initialState={{ pagination: { paginationModel: { pageSize: 100 } } }}
           slots={{
             noRowsOverlay: () => <EmptyContent />,
             noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
