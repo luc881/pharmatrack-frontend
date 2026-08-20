@@ -273,12 +273,16 @@ export function SiteAnimalsView() {
   // switch, no hace falta repetirlo aquí. ÚNICA fuente de verdad de "¿esto
   // se ve?" para especies/morphs: la fila 1 (tab) y el switch deshabilitado
   // la reusan en vez de reimplementarla — divergir de esto ya causó tres bugs.
+  //
+  // "Sin ejemplares disponibles" NO es un motivo: el catálogo público ahora
+  // muestra las especies agotadas (marcadas "Agotado" ahí), en vez de
+  // esconderlas como hacía antes. rowUnits() === 0 ya no saca nada del
+  // sitio; ver el Label "Agotado" en la columna Estado más abajo.
   const statusReason = (row) => {
     const sp = rowSpecies(row);
     const groupId = sp?.genus?.group?.id;
     if (groupId != null && hiddenGroupIds.has(groupId)) return 'Grupo oculto';
     if (row.__kind === 'morph' && sp?.show_public === false) return 'Especie oculta';
-    if (row.show_public !== false && rowUnits(row) === 0) return 'Sin ejemplares disponibles';
     return null;
   };
 
@@ -426,8 +430,14 @@ export function SiteAnimalsView() {
       width: 200,
       sortable: false,
       renderCell: (params) => {
-        const reason = statusReason(params.row);
-        return reason ? <Label color="warning">{reason}</Label> : null;
+        const { row } = params;
+        const reason = statusReason(row);
+        if (reason) return <Label color="warning">{reason}</Label>;
+        // Agotado es lo opuesto de un motivo de no-visibilidad: la fila SÍ
+        // se ve en el sitio, solo que sin existencias. Color distinto
+        // (default, no warning) para que no se confundan de un vistazo.
+        if (row.show_public !== false && rowUnits(row) === 0) return <Label color="default">Agotado</Label>;
+        return null;
       },
     },
   ];
