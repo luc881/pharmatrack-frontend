@@ -80,8 +80,11 @@ export function SiteAnimalsView() {
   const tabParam = searchParams.get('tab');
   const tab = TAB_VALUES.includes(tabParam) ? tabParam : 'online';
 
+  // Arranca en Especies, no en Grupos como Taxonomía: esta pantalla existe para
+  // responder "que ve un visitante", y lo que ve son especies. Grupos y Generos
+  // estan aqui para acotar, no para ser el punto de partida.
   const nivelParam = searchParams.get('nivel');
-  const nivel = NIVEL_VALUES.includes(nivelParam) ? nivelParam : 'groups';
+  const nivel = NIVEL_VALUES.includes(nivelParam) ? nivelParam : 'species';
 
   // Filtro encadenado al dar clic en una fila: {type: group|genus, id}.
   const filterType = searchParams.get('ft');
@@ -96,7 +99,7 @@ export function SiteAnimalsView() {
   const goTo = ({ tab: nextTab = tab, nivel: nextNivel = nivel, filter: nextFilter = filter, replace = false } = {}) => {
     const next = new URLSearchParams();
     if (nextTab !== 'online') next.set('tab', nextTab);
-    if (nextNivel !== 'groups') next.set('nivel', nextNivel);
+    if (nextNivel !== 'species') next.set('nivel', nextNivel);
     if (nextFilter) {
       next.set('ft', nextFilter.type);
       next.set('fid', String(nextFilter.id));
