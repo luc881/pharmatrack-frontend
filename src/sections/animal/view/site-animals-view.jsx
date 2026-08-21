@@ -268,11 +268,12 @@ export function SiteAnimalsView() {
   }, [morphs]);
 
   // Motivo por el que una fila (especie o morph) no se ve en el sitio, en
-  // orden de precedencia. Si ninguno aplica, la fila se ve (celda vacía) —
-  // incluido el caso en que su propio switch está apagado: eso ya lo dice el
-  // switch, no hace falta repetirlo aquí. ÚNICA fuente de verdad de "¿esto
-  // se ve?" para especies/morphs: la fila 1 (tab) y el switch deshabilitado
-  // la reusan en vez de reimplementarla — divergir de esto ya causó tres bugs.
+  // orden de precedencia. Si ninguno aplica, la celda de Estado queda vacía
+  // — incluido el caso en que su propio switch está apagado: eso ya lo dice
+  // el switch de la columna "En el sitio", no hace falta repetirlo aquí.
+  // Úsala tal cual para pintar esa columna; para la pregunta completa
+  // "¿esta fila se ve en el sitio?" (switch propio incluido) usa
+  // `visibleOnSite` de abajo — divergir de esto ya causó tres bugs.
   //
   // "Sin ejemplares disponibles" NO es un motivo: el catálogo público ahora
   // muestra las especies agotadas (marcadas "Agotado" ahí), en vez de
@@ -285,6 +286,15 @@ export function SiteAnimalsView() {
     if (row.__kind === 'morph' && sp?.show_public === false) return 'Especie oculta';
     return null;
   };
+
+  // "¿Esta fila se ve en el sitio?" — la pregunta completa, no solo el
+  // motivo heredado: statusReason omite a propósito el switch propio de la
+  // fila (así queda bien la columna Estado, que ya lo muestra aparte), así
+  // que aquí se suma. ÚNICA fuente de verdad para el filtro de la pestaña,
+  // en especies y en morphs: ahora que estar agotado ya no esconde nada, el
+  // switch propio es la única razón real por la que una fila no está en el
+  // sitio.
+  const visibleOnSite = (row) => !statusReason(row) && row.show_public !== false;
 
   // Un género no se ve en el sitio si el grupo del que cuelga (a cualquier
   // profundidad) está oculto. Mismo hiddenGroupIds que arriba, ninguna regla nueva.
@@ -486,13 +496,15 @@ export function SiteAnimalsView() {
           }
 
           const speciesRow = { ...sp, _rowId: `s${sp.id}`, __kind: 'species', depth: 0 };
-          const visible = !statusReason(speciesRow);
-          if (tab === 'online' ? !visible : visible) return;
+          const speciesVisible = visibleOnSite(speciesRow);
+          if (tab === 'online' ? !speciesVisible : speciesVisible) return;
 
           rows.push(speciesRow);
-          (morphsBySpecies[sp.id] ?? []).forEach((m) =>
-            rows.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
-          );
+          (morphsBySpecies[sp.id] ?? []).forEach((m) => {
+            const morphRow = { ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id };
+            const morphVisible = visibleOnSite(morphRow);
+            if (tab === 'online' ? morphVisible : !morphVisible) rows.push(morphRow);
+          });
         });
         return rows;
       })(),
