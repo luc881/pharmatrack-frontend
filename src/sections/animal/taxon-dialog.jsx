@@ -15,6 +15,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { handleApiError } from 'src/utils/handle-api-error';
 
+import { uploadToCloudinary } from 'src/lib/cloudinary';
 import {
   createGenus,
   updateGenus,
@@ -31,6 +32,7 @@ import {
 } from 'src/actions/animal';
 
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 
 import { speciesLabel } from './utils';
 
@@ -78,11 +80,29 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
     habitat: base?.habitat ?? '',
     diet: base?.diet ?? '',
     notes: base?.notes ?? '',
+    image: base?.image ?? null,
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [nameError, setNameError] = useState('');
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  // Foto del taxón: tarjeta del catálogo cuando la especie no tiene ejemplares
+  // (la mayoría hoy). PUT parcial: el campo viaja siempre en el payload, pero
+  // solo cambia lo que este diálogo edita.
+  const handlePickImage = async (file) => {
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const url = await uploadToCloudinary(file);
+      setForm((f) => ({ ...f, image: url }));
+    } catch (error) {
+      toast.error(error.message || 'Error al subir la imagen');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   // Un subgrupo siempre puede destacarse; un raíz sólo si está visible
   const canFeature = !!form.parent_id || form.show_public;
@@ -122,8 +142,14 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           habitat: form.habitat || null,
           diet: form.diet || null,
           notes: form.notes || null,
+          image: form.image || null,
         },
-        morphs: { species_id: Number(form.species_id), name: quoteMorph(form.name), description: form.description || null },
+        morphs: {
+          species_id: Number(form.species_id),
+          name: quoteMorph(form.name),
+          description: form.description || null,
+          image: form.image || null,
+        },
       }[tab];
 
       const saved = isEdit
@@ -228,6 +254,58 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           />
         )}
 
+        {(tab === 'species' || tab === 'morphs') && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box
+              sx={{
+                width: 72,
+                height: 72,
+                flexShrink: 0,
+                borderRadius: 1.5,
+                overflow: 'hidden',
+                bgcolor: 'background.neutral',
+                display: 'grid',
+                placeItems: 'center',
+              }}
+            >
+              {form.image ? (
+                <Box component="img" src={form.image} alt="" sx={{ width: 1, height: 1, objectFit: 'cover' }} />
+              ) : (
+                <Iconify icon="solar:gallery-bold" width={28} sx={{ color: 'text.disabled' }} />
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Button
+                component="label"
+                variant="outlined"
+                size="small"
+                disabled={uploadingImage}
+                startIcon={<Iconify icon={uploadingImage ? 'eos-icons:loading' : 'solar:upload-bold'} width={16} />}
+              >
+                {uploadingImage ? 'Subiendo…' : form.image ? 'Reemplazar imagen' : 'Subir imagen'}
+                {/* Input anidado y SIN htmlFor: mismo patrón que site-media-view.jsx,
+                    evita que el selector se dispare dos veces en algunos navegadores. */}
+                <Box
+                  component="input"
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(event) => {
+                    handlePickImage(event.target.files?.[0]);
+                    event.target.value = '';
+                  }}
+                />
+              </Button>
+              {form.image && (
+                <Button color="error" size="small" onClick={() => setForm((f) => ({ ...f, image: null }))}>
+                  Quitar imagen
+                </Button>
+              )}
+            </Box>
+          </Box>
+        )}
+
         <TextField
           label={tab === 'species' ? 'Nombre científico *' : 'Nombre *'}
           value={form.name}
@@ -329,7 +407,12 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
         <Button color="inherit" onClick={onClose}>
           Cancelar
         </Button>
-        <Button variant="contained" loading={saving} disabled={!form.name.trim() || missingParent} onClick={handleSave}>
+        <Button
+          variant="contained"
+          loading={saving}
+          disabled={!form.name.trim() || missingParent || uploadingImage}
+          onClick={handleSave}
+        >
           Guardar
         </Button>
       </DialogActions>

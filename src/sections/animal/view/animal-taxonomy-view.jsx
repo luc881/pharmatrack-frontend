@@ -575,6 +575,13 @@ export function AnimalTaxonomyView() {
                   {row.name}
                 </Box>
 
+                {/* "Nominal" dice QUÉ es la fila (la forma base), siempre presente
+                    tenga morphs o no. Variante outlined para no confundirse con
+                    los Label soft de Stock/Cría de esta misma tabla. */}
+                <Label variant="outlined" color="info" sx={{ flexShrink: 0 }}>
+                  Nominal
+                </Label>
+
                 {count > 0 && (
                   <Box component="span" sx={{ flexShrink: 0, color: 'text.disabled' }}>
                     ({count})

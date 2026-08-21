@@ -365,7 +365,22 @@ export function SiteAnimalsView() {
       minWidth: 220,
       sortable: false,
       renderCell: (params) =>
-        params.row.__kind === 'morph' ? <Box sx={{ pl: 3 }}>└ {params.row.name}</Box> : params.row.name,
+        params.row.__kind === 'morph' ? (
+          <Box sx={{ pl: 3 }}>└ {params.row.name}</Box>
+        ) : (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+            <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {params.row.name}
+            </Box>
+            {/* "Nominal" dice QUÉ es la fila (la forma base), siempre presente.
+                Junto al nombre y con variante outlined para no mezclarse con
+                Agotado / Grupo oculto / Especie oculta de la columna Estado,
+                que dicen CÓMO está. */}
+            <Label variant="outlined" color="info" sx={{ flexShrink: 0 }}>
+              Nominal
+            </Label>
+          </Box>
+        ),
     },
     {
       field: 'root_group',
