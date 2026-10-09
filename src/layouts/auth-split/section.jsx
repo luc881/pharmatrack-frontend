@@ -20,8 +20,8 @@ export function AuthSplitSection({
     <Box
       sx={[
         (theme) => ({
-          // Verdes de la marca; era el rojo de farmacia del proyecto original
-          background: 'linear-gradient(135deg, #2F3520 0%, #4C5432 50%, #6B7548 100%)',
+          // Noche de la marca (BRAND.md: fondos oscuros, sin degradados)
+          background: '#2E2924',
           px: 3,
           pb: 3,
           width: 1,
@@ -43,19 +43,20 @@ export function AuthSplitSection({
     >
       <div>
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-          <svg width="72" height="72" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100" height="100" rx="18" fill="rgba(255,255,255,0.15)" />
-            <rect x="42" y="15" width="16" height="70" rx="4" fill="white" />
-            <rect x="15" y="42" width="70" height="16" rx="4" fill="white" />
-          </svg>
+          <Box
+            component="img"
+            src="/brand/assets/logo/sello-oscuro.svg"
+            alt="Opuntia Den"
+            sx={{ width: 140, height: 140 }}
+          />
         </Box>
 
-        <Typography variant="h3" sx={{ textAlign: 'center', color: 'white', fontWeight: 700 }}>
+        <Typography variant="h3" sx={{ textAlign: 'center', color: '#F4F0E9', fontWeight: 500 }}>
           {title}
         </Typography>
 
         {subtitle && (
-          <Typography sx={{ color: 'rgba(255,255,255,0.75)', textAlign: 'center', mt: 2 }}>
+          <Typography sx={{ color: '#C9C0B2', textAlign: 'center', mt: 2 }}>
             {subtitle}
           </Typography>
         )}

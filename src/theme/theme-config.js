@@ -18,24 +18,25 @@ export const themeConfig = {
   /** **************************************
    * Typography
    *************************************** */
+  // Marca (public/brand/BRAND.md): Inter. El dashboard es una herramienta, así
+  // que los títulos también van en Inter en vez de Playfair.
   fontFamily: {
-    primary: 'Public Sans Variable',
-    secondary: 'Barlow',
+    primary: 'Inter Variable',
+    secondary: 'Inter Variable',
   },
   /** **************************************
    * Palette
    *************************************** */
   palette: {
-    // Verde del cactus del logo, igual que en el sitio público. `light` es el
-    // tono exacto (#919569); `main` va más oscuro para que el texto blanco de
-    // los botones alcance 4.8:1 de contraste.
+    // Tinta de la marca, igual que el primario del sitio público
+    // (public/brand/tokens.css). Papel sobre tinta pasa AA de sobra.
     primary: {
-      lighter: '#EDEFE1',
-      light: '#919569',
-      main: '#6B7548',
-      dark: '#4C5432',
-      darker: '#2F3520',
-      contrastText: '#FFFFFF',
+      lighter: '#EFE8DC',
+      light: '#6E6359',
+      main: '#3A3029',
+      dark: '#2E2924',
+      darker: '#2E2924',
+      contrastText: '#F4F0E9',
     },
     secondary: {
       lighter: '#EFD6FF',
