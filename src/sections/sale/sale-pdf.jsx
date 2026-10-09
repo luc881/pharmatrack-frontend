@@ -202,7 +202,7 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
   const renderHeader = () => (
     <View style={[styles.spaceBetween, styles.mb40]}>
       <View>
-        <Image source="/logo/opuntia-mark.png" style={{ width: 56, height: 50 }} />
+        <Image source="/brand/assets/logo/isotipo-claro.png" style={{ width: 56, height: 56 }} />
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={[styles.h3, styles.mb4]}>Recibo de Venta</Text>

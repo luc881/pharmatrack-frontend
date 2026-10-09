@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opuntia Den · Referencia de marca</title>
+<link rel="icon" href="assets/favicon/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="tokens.css">
+<style>
+  body { margin: 0; background: var(--od-bg); color: var(--od-text); font-family: var(--od-font-body); line-height: var(--od-leading-body); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding-inline: 20px; padding-block: 48px; }
+  header.hero { text-align: center; padding-block: 24px 48px; }
+  header.hero h1 { font-size: var(--od-text-hero); margin: .1em 0 .2em; letter-spacing: var(--od-tracking-hero); }
+  section { padding-block: 40px; border-top: var(--od-rule); }
+  h2 { font-family: var(--od-font-display); font-weight: 400; font-size: var(--od-text-2xl); margin: .3em 0 .6em; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .sw { border-radius: var(--od-radius-md); border: var(--od-rule); overflow: hidden; background: var(--od-surface); }
+  .sw div { height: 84px; }
+  .sw p { margin: 0; padding: 8px 10px; font-size: var(--od-text-sm); }
+  .sw code { color: var(--od-text-muted); font-size: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; }
+  .logo-tile { width: 180px; height: 180px; display: grid; place-items: center; border-radius: var(--od-radius-md); }
+  .logo-tile img { width: 150px; }
+  .dark { background: var(--od-noche); }
+  .ornament { width: 72px; height: 72px; color: var(--od-text); }
+  .type-sample { display: grid; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <img src="assets/logo/sello-claro.svg" alt="Sello Opuntia Den" width="120">
+    <p class="od-label" style="margin-top:20px">Criadero</p>
+    <h1 class="od-display">OPUNTIA</h1>
+    <p class="od-label">Isópodos <span class="od-star"></span> Colémbolos <span class="od-star"></span> Fásmidos</p>
+    <p style="margin-top:28px"><a class="od-btn" href="#">Ver catálogo</a></p>
+  </header>
+
+  <section>
+    <span class="od-kicker od-label"><span class="od-kicker__num">01</span><span class="od-kicker__rule"></span>Color</span>
+    <h2>Paleta</h2>
+    <div class="grid">
+      <div class="sw"><div style="background:var(--od-crema)"></div><p>Crema<br><code>#EAE3D7</code></p></div>
+      <div class="sw"><div style="background:var(--od-papel)"></div><p>Papel<br><code>#F4F0E9</code></p></div>
+      <div class="sw"><div style="background:var(--od-tinta)"></div><p>Tinta<br><code>#3A3029</code></p></div>
+      <div class="sw"><div style="background:var(--od-noche)"></div><p>Noche<br><code>#2E2924</code></p></div>
+      <div class="sw"><div style="background:var(--od-tuna)"></div><p>Tuna · acento<br><code>#A8455C</code></p></div>
+      <div class="sw"><div style="background:var(--od-gris)"></div><p>Gris cálido<br><code>#6E6359</code></p></div>
+      <div class="sw"><div style="background:var(--od-linea)"></div><p>Línea<br><code>#CBBFAE</code></p></div>
+      <div class="sw"><div style="background:var(--od-olivo)"></div><p>Olivo<br><code>#5C6449</code></p></div>
+    </div>
+    <p class="od-label" style="margin-top:28px">Familia de cremas</p>
+    <div class="grid">
+      <div class="sw"><div style="background:var(--od-crema-papel)"></div><p>Papel <code>#F4F0E9</code></p></div>
+      <div class="sw"><div style="background:var(--od-crema-hueso)"></div><p>Hueso <code>#EFE8DC</code></p></div>
+      <div class="sw"><div style="background:var(--od-crema-base)"></div><p>Crema <code>#EAE3D7</code></p></div>
+      <div class="sw"><div style="background:var(--od-crema-lino)"></div><p>Lino <code>#E3D8C6</code></p></div>
+      <div class="sw"><div style="background:var(--od-crema-arena)"></div><p>Arena <code>#D8CBB5</code></p></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="od-kicker od-label"><span class="od-kicker__num">02</span><span class="od-kicker__rule"></span>Tipografía</span>
+    <h2>Playfair Display + Inter</h2>
+    <div class="type-sample">
+      <span class="od-label">Títulos · Playfair Display 400</span>
+      <span class="od-display" style="font-size:var(--od-text-3xl)">Vida en miniatura</span>
+      <span class="od-sci" style="font-size:var(--od-text-xl)">Phyllium gardabagusi <span style="font-style:normal">“Argopuro”</span></span>
+      <span class="od-label" style="margin-top:16px">Texto · Inter 400</span>
+      <p style="max-width:60ch;margin:0">Isópodos, colémbolos, sustratos y bioactivo. Criados con cuidado en la Roma Norte.</p>
+      <span class="od-label" style="margin-top:16px">Etiqueta · Inter 500 espaciado</span>
+      <span class="od-label" style="color:var(--od-text)">Opuntia Den — Ciudad de México</span>
+    </div>
+  </section>
+
+  <section>
+    <span class="od-kicker od-label"><span class="od-kicker__num">03</span><span class="od-kicker__rule"></span>Logo</span>
+    <h2>Sello, isotipo y favicon</h2>
+    <div class="row">
+      <div class="logo-tile" style="background:var(--od-papel)"><img src="assets/logo/sello-claro.svg" alt="Sello claro"></div>
+      <div class="logo-tile dark"><img src="assets/logo/sello-oscuro.svg" alt="Sello oscuro"></div>
+      <div class="logo-tile" style="background:var(--od-papel)"><img src="assets/logo/isotipo-claro.svg" alt="Isotipo claro"></div>
+      <div class="logo-tile dark"><img src="assets/logo/isotipo-oscuro.svg" alt="Isotipo oscuro"></div>
+      <div class="logo-tile" style="background:var(--od-papel)"><img src="assets/favicon/favicon.svg" alt="Favicon" style="width:96px"></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="od-kicker od-label"><span class="od-kicker__num">04</span><span class="od-kicker__rule"></span>Adornos</span>
+    <h2>Lenguaje gráfico</h2>
+    <div class="row">
+      <img class="ornament" src="ornaments/anillo-rayitas.svg" alt="Anillo de rayitas">
+      <img class="ornament" src="ornaments/anillo-puntos.svg" alt="Anillo de puntos">
+      <span class="od-star" style="font-size:40px"></span>
+      <img src="ornaments/divisor-hojas.svg" alt="Divisor con hojas" width="120">
+    </div>
+    <div style="margin-top:24px;max-width:420px"><div class="od-ticks"></div></div>
+  </section>
+
+  <section>
+    <span class="od-kicker od-label"><span class="od-kicker__num">05</span><span class="od-kicker__rule"></span>Componentes</span>
+    <h2>Botones y tarjetas</h2>
+    <div class="row">
+      <a class="od-btn" href="#">Ver catálogo</a>
+      <a class="od-btn od-btn--outline" href="#">@opuntia_den</a>
+      <span class="od-dark" style="padding:20px;border-radius:var(--od-radius-md);background:var(--od-noche)"><a class="od-btn" href="#">Apartar ejemplar</a></span>
+    </div>
+    <div class="grid" style="margin-top:24px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+      <article class="od-card" style="padding:var(--od-space-6)">
+        <div class="od-ticks"></div>
+        <p class="od-label" style="color:var(--od-accent);margin:16px 0 4px">Fásmidos</p>
+        <h3 class="od-sci" style="font-size:var(--od-text-xl);font-weight:400;margin:0">Phyllium gardabagusi</h3>
+        <p style="color:var(--od-text-muted);margin:4px 0 16px">“Argopuro” · Java, Indonesia</p>
+        <div class="od-divider"><span class="od-star"></span></div>
+        <p style="margin:12px 0 0">Fácil · Guayaba · 20–24 °C</p>
+      </article>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

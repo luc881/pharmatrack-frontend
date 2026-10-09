@@ -47,13 +47,13 @@ export function AnimateLogoZoom({ logo, slotProps, sx, ...other }) {
   );
 }
 
-// Escudo del logo (el mismo archivo que usa la barra), en disco crema para
+// Isotipo de la marca (trae su propio disco crema), para
 // que el círculo del loader no lo recorte contra su propio fondo
 function BrandMark({ style }) {
   return (
     <img
       alt=""
-      src={`${CONFIG.assetsDir}/logo/opuntia-favicon.png`}
+      src={`${CONFIG.assetsDir}/brand/assets/logo/isotipo-claro.svg`}
       style={{ objectFit: 'contain', ...style }}
     />
   );

@@ -11,15 +11,15 @@ import { CONFIG } from 'src/global-config';
 import { logoClasses } from './classes';
 
 // ----------------------------------------------------------------------
-// Logo de Opuntia Den. Dos recortes del mismo original, generados con sharp
-// desde el archivo de marca: el lockup completo y sólo el escudo.
+// Logo de Opuntia Den. Archivos de marca en public/brand/ (ver brand/BRAND.md):
+// el sello completo pide 96 px mínimo; debajo de eso va el isotipo.
 // ----------------------------------------------------------------------
 
 const SOURCES = {
-  full: `${CONFIG.assetsDir}/logo/opuntia-logo.png`, // lockup con nombre
-  mark: `${CONFIG.assetsDir}/logo/opuntia-mark.png`, // sólo el escudo
-  badge: `${CONFIG.assetsDir}/logo/opuntia-badge.png`, // escudo cuadrado, para recortar en círculo
-  icon: `${CONFIG.assetsDir}/logo/opuntia-favicon.png`, // círculo con relleno blanco (favicon/loader)
+  full: `${CONFIG.assetsDir}/brand/assets/logo/sello-claro.svg`, // sello circular con texto
+  mark: `${CONFIG.assetsDir}/brand/assets/logo/isotipo-claro.svg`, // nopal en el anillo, sin texto
+  badge: `${CONFIG.assetsDir}/brand/assets/logo/isotipo-claro.svg`,
+  icon: `${CONFIG.assetsDir}/brand/assets/logo/isotipo-claro.svg`, // loaders y espacios chicos
 };
 
 export function Logo({

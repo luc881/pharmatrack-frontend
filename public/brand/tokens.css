@@ -1,0 +1,134 @@
+/* ==========================================================================
+   Opuntia Den — design tokens
+   Fuente de verdad para colores, tipografía, espaciado y adornos.
+   Importar una vez (p. ej. en el layout raíz):  @import "./brand/tokens.css";
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;1,400&display=swap");
+
+:root {
+  /* ---- Color: base ---------------------------------------------------- */
+  --od-crema:   #EAE3D7;  /* fondo principal de la web                      */
+  --od-papel:   #F4F0E9;  /* superficies claras, tarjetas, botones claros   */
+  --od-tinta:   #3A3029;  /* texto principal, líneas, nopal a línea         */
+  --od-noche:   #2E2924;  /* fondos oscuros, bandas, sello oscuro           */
+  --od-tuna:    #A8455C;  /* acento — SOLO como chispa (estrellas, tunas,
+                             kickers). Nunca en bloques grandes            */
+  --od-gris:    #6E6359;  /* texto secundario                               */
+  --od-linea:   #CBBFAE;  /* divisores, bordes finos                        */
+  --od-arena-texto: #C9C0B2; /* texto secundario sobre noche                */
+  --od-punto-oscuro: #6B6158; /* anillo de puntos sobre noche               */
+  --od-kraft:   #C4A47C;  /* empaque (solo impresos)                        */
+  --od-olivo:   #5C6449;  /* banda verde de la web ("Vida en miniatura")    */
+
+  /* ---- Color: familia de cremas (destacados, fondos alternos) --------- */
+  --od-crema-papel: #F4F0E9;
+  --od-crema-hueso: #EFE8DC;
+  --od-crema-base:  #EAE3D7;
+  --od-crema-lino:  #E3D8C6;
+  --od-crema-arena: #D8CBB5;
+
+  /* ---- Roles semánticos (usar estos en componentes) ------------------- */
+  --od-bg:            var(--od-crema);
+  --od-surface:       var(--od-papel);
+  --od-surface-dark:  var(--od-noche);
+  --od-text:          var(--od-tinta);
+  --od-text-muted:    var(--od-gris);
+  --od-text-on-dark:  var(--od-papel);
+  --od-text-muted-on-dark: var(--od-arena-texto);
+  --od-border:        var(--od-linea);
+  --od-accent:        var(--od-tuna);
+  --od-focus:         var(--od-tuna);
+
+  /* ---- Tipografía ----------------------------------------------------- */
+  --od-font-display: "Playfair Display", "Iowan Old Style", Georgia, serif;
+  --od-font-body:    "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Escala (rem, base 16 px) */
+  --od-text-xs:   0.6875rem;  /* 11 px — kickers / etiquetas espaciadas  */
+  --od-text-sm:   0.8125rem;  /* 13 px — notas, captions                 */
+  --od-text-base: 1rem;       /* 16 px — cuerpo                          */
+  --od-text-lg:   1.25rem;    /* 20 px — lead                            */
+  --od-text-xl:   1.75rem;    /* 28 px — h3                              */
+  --od-text-2xl:  2.5rem;     /* 40 px — h2                              */
+  --od-text-3xl:  3.5rem;     /* 56 px — h1                              */
+  --od-text-hero: clamp(3.5rem, 12vw, 9rem); /* "OPUNTIA" del hero       */
+
+  --od-tracking-label: 0.22em;  /* mayúsculas espaciadas tipo "C R I A D E R O" */
+  --od-tracking-hero:  0.02em;
+  --od-leading-tight:  1.08;
+  --od-leading-body:   1.6;
+
+  /* ---- Espaciado / forma --------------------------------------------- */
+  --od-space-1: 0.25rem; --od-space-2: 0.5rem; --od-space-3: 0.75rem;
+  --od-space-4: 1rem;    --od-space-6: 1.5rem; --od-space-8: 2rem;
+  --od-space-12: 3rem;   --od-space-16: 4rem;  --od-space-24: 6rem;
+  --od-radius-sm: 4px;
+  --od-radius-md: 10px;
+  --od-radius-pill: 999px;     /* botones tipo "Ver catálogo" */
+  --od-rule: 1px solid var(--od-border);
+  --od-shadow-flat: 3px 3px 0 rgba(51, 36, 20, 0.10); /* sombra plana, sin blur */
+}
+
+/* Tema oscuro opcional (secciones .od-dark o modo oscuro del sistema) */
+.od-dark {
+  --od-bg: var(--od-noche);
+  --od-surface: #3A3430;
+  --od-text: var(--od-papel);
+  --od-text-muted: var(--od-arena-texto);
+  --od-border: #5A5148;
+}
+
+/* ==========================================================================
+   Utilidades de marca
+   ========================================================================== */
+
+.od-display { font-family: var(--od-font-display); font-weight: 400; line-height: var(--od-leading-tight); color: var(--od-text); text-wrap: balance; }
+.od-display-italic { font-family: var(--od-font-display); font-style: italic; }
+
+/* Etiqueta espaciada en mayúsculas — "CRIADERO", "OPUNTIA DEN — CIUDAD DE MÉXICO" */
+.od-label {
+  font-family: var(--od-font-body); font-weight: 500;
+  font-size: var(--od-text-xs); letter-spacing: var(--od-tracking-label);
+  text-transform: uppercase; color: var(--od-text-muted);
+}
+/* Kicker de sección: número + línea + etiqueta, el número en tuna */
+.od-kicker { display: inline-flex; align-items: center; gap: 0.75rem; }
+.od-kicker__num { color: var(--od-accent); }
+.od-kicker__rule { width: 1.5rem; height: 1px; background: var(--od-border); }
+
+/* Botón píldora (igual que "Ver catálogo" de la web) */
+.od-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .85rem 1.75rem; border-radius: var(--od-radius-pill);
+  font: 500 var(--od-text-base)/1 var(--od-font-body);
+  background: var(--od-surface); color: var(--od-text); border: 1px solid transparent; text-decoration: none;
+  transition: background .15s ease, color .15s ease;
+}
+.od-btn:hover { background: var(--od-text); color: var(--od-surface); }
+.od-dark .od-btn:not(.od-btn--outline) { background: var(--od-papel); color: var(--od-tinta); }
+.od-dark .od-btn:not(.od-btn--outline):hover { background: var(--od-crema); }
+.od-btn--outline { background: transparent; border-color: currentColor; }
+.od-btn:focus-visible { outline: 2px solid var(--od-focus); outline-offset: 3px; }
+
+/* Divisor con hojitas (usa ornaments/divisor-hojas.svg) */
+.od-divider { display: flex; align-items: center; gap: 1rem; color: var(--od-border); }
+.od-divider::before, .od-divider::after { content: ""; flex: 1; height: 1px; background: currentColor; }
+
+/* Borde de rayitas (como el anillo del sello) para cintas y etiquetas */
+.od-ticks {
+  height: 6px;
+  background: repeating-linear-gradient(90deg, var(--od-text) 0 1px, transparent 1px 4px);
+  border-bottom: 1px solid var(--od-text);
+}
+
+/* Destello de 4 puntas en tuna (usa ornaments/destello.svg como máscara) */
+.od-star { display: inline-block; width: .75em; height: .75em; background: var(--od-accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 0 L11.9 8.1 L20 10 L11.9 11.9 L10 20 L8.1 11.9 L0 10 L8.1 8.1 Z'/%3E%3C/svg%3E") center/contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 0 L11.9 8.1 L20 10 L11.9 11.9 L10 20 L8.1 11.9 L0 10 L8.1 8.1 Z'/%3E%3C/svg%3E") center/contain no-repeat; vertical-align: -0.05em; }
+
+/* Tarjeta plana */
+.od-card { background: var(--od-surface); border: var(--od-rule); border-radius: var(--od-radius-md); box-shadow: var(--od-shadow-flat); }
+
+/* Nombres científicos siempre en itálica */
+.od-sci { font-family: var(--od-font-display); font-style: italic; line-height: 1.15; }

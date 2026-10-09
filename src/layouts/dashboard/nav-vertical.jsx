@@ -31,7 +31,7 @@ export function NavVertical({
     <>
       {slots?.topArea ?? (
         <Box sx={{ px: 2.5, pt: 2.5, pb: 1.5, textAlign: 'center' }}>
-          <Logo isSingle={false} sx={{ width: 1, maxWidth: 190, height: 88 }} />
+          <Logo isSingle={false} sx={{ width: 1, maxWidth: 190, height: 96 }} />
           <Typography
             variant="subtitle2"
             sx={{ mt: 0.5, letterSpacing: '0.14em', textTransform: 'uppercase' }}
