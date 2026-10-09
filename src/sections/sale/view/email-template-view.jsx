@@ -132,7 +132,7 @@ export function EmailTemplateView() {
               <TextField
                 label="Color"
                 type="color"
-                value={form.accent_color || '#8C9E6E'}
+                value={form.accent_color || '#A8455C'}
                 onChange={set('accent_color')}
                 sx={{ width: 96, flexShrink: 0 }}
                 helperText="Separadores"
