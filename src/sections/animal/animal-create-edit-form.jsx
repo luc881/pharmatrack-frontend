@@ -408,6 +408,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                           label="Ejemplares por paquete *"
                           value={packageSize}
                           onChange={(e) => setPackageSize(e.target.value)}
+                          // se confundía con la existencia: esto es el tamaño del paquete
+                          helperText="Cuántos animales trae cada paquete (p. ej. 6). Para agotarlo usa «Paquetes disponibles» más abajo."
                           slotProps={{ htmlInput: { min: 2 }, inputLabel: { shrink: true } }}
                         />
                       )}
@@ -539,7 +541,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
             {isBulk && (
               <Field.Text
                 name="stock"
-                label="Cantidad disponible"
+                label={saleFormat === 'package' ? 'Paquetes disponibles' : saleFormat === 'colony' ? 'Cepas disponibles' : 'Cantidad disponible'}
                 type="number"
                 helperText={
                   isEdit
