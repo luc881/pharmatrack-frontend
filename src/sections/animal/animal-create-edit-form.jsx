@@ -64,7 +64,8 @@ const schema = zod.object({
   legal_doc: zod.string().optional(),
   legal_doc_url: zod.string().optional(),
   // Unidades idénticas (solo especies en cepa/paquete)
-  stock: zod.number({ coerce: true }).min(1, 'Mínimo 1').optional(),
+  // 0 = ya no hay (agotado); el backend lo marca como vendido y el sitio dice "Agotado"
+  stock: zod.number({ coerce: true }).int('Solo números enteros').min(0, 'No puede ser negativo').optional(),
 });
 
 // ----------------------------------------------------------------------
@@ -235,6 +236,11 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       toast.error('Indica cuántos ejemplares trae el paquete (mínimo 2)');
       return;
     }
+    // 0 solo tiene sentido al editar (agotar); un alta nueva necesita existencias
+    if (!isEdit && isBulk && Number(data.stock) < 1) {
+      setError('stock', { message: 'Para dar de alta necesitas al menos 1' });
+      return;
+    }
     try {
       // El formato/escala son de la especie: se guardan aparte y afectan a todos
       // sus ejemplares. Va primero para que el backend valide bien el stock.
@@ -275,7 +281,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         // si se omite el código, el backend genera uno "AN-XXXXXXXX"
         ...(data.code ? { code: data.code } : {}),
         // solo las cepas/paquetes manejan stock; individuales quedan en 1
-        ...(isBulk ? { stock: Number(data.stock) || 1 } : {}),
+        // (antes `|| 1` convertía un 0 en 1 y no había forma de agotar a mano)
+        ...(isBulk ? { stock: Number.isFinite(Number(data.stock)) ? Number(data.stock) : 1 } : {}),
         // "sold" solo lo asigna el flujo de venta — nunca se manda desde aquí
         ...(isEdit && !isSold ? { status: data.status } : {}),
       };
@@ -534,8 +541,12 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 name="stock"
                 label="Cantidad disponible"
                 type="number"
-                helperText="Unidades idénticas de esta cepa/paquete; se descuentan al vender"
-                slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: 1 } }}
+                helperText={
+                  isEdit
+                    ? 'Se descuentan al vender. Pon 0 si ya no tienes: se marca como agotado en el sitio.'
+                    : 'Unidades idénticas de esta cepa/paquete; se descuentan al vender'
+                }
+                slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: isEdit ? 0 : 1 } }}
               />
             )}
 
