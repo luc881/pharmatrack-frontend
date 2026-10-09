@@ -5,3 +5,4 @@ export * from './animal-create-view';
 export * from './animal-details-view';
 export * from './species-detail-view';
 export * from './animal-taxonomy-view';
+export * from './inventory-sheet-view';
