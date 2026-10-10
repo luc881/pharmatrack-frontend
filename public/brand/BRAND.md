@@ -6,7 +6,7 @@
 
 ## 1. Esencia
 
-- **Qué es:** criadero de invertebrados y bioactivo en Col. Roma Norte, CDMX. Vende isópodos, colémbolos y fásmidos (por ejemplo *Phyllium gardabagusi* “Argopuro”).
+- **Qué es:** criadero de invertebrados y bioactivo en la Ciudad de México. Vende isópodos, colémbolos y fásmidos (por ejemplo *Phyllium gardabagusi* “Argopuro”).
 - **Nombre:** “Opuntia Den”. *Opuntia* es el género del nopal; *den* es madriguera.
 - **Estética:** editorial, cálida, hecha a mano, como una lámina botánica antigua. Fondo crema, tinta café, serif elegante y mucho aire.
 - **Lema de la web:** “Vida en miniatura”.
@@ -113,7 +113,7 @@ Para las reglas de UI:
 - Web: `opuntiaden.com`
 - Instagram: `@opuntia_den` → https://www.instagram.com/opuntia_den/
 - Teléfono: `56 2157 8388`
-- Zona: Col. Roma Norte, Ciudad de México
+- Zona: Ciudad de México
 
 ## 9. Integración rápida (checklist para el agente)
 
