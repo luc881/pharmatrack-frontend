@@ -87,6 +87,7 @@ const AnimalSheetPage   = lazy(() => import('src/pages/dashboard/animal/sheet'))
 const ArticleListPage   = lazy(() => import('src/pages/dashboard/article/list'));
 const OrderListPage     = lazy(() => import('src/pages/dashboard/order/list'));
 const SiteMediaPage     = lazy(() => import('src/pages/dashboard/site/media'));
+const SiteLinksPage     = lazy(() => import('src/pages/dashboard/site/links'));
 const ArticleCreatePage = lazy(() => import('src/pages/dashboard/article/new'));
 const ArticleEditPage   = lazy(() => import('src/pages/dashboard/article/edit'));
 
@@ -362,6 +363,7 @@ export const dashboardRoutes = [
         path: 'site',
         children: [
           { path: 'media',    element: guard(P.siteUpdate, <SiteMediaPage />) },
+          { path: 'links',    element: guard(P.siteUpdate, <SiteLinksPage />) },
           // La visibilidad en el sitio ahora se maneja junto a cada cosa:
           // productos en su lista y animales en Taxonomía → Especies. Las rutas
           // viejas redirigen ahí ya filtradas, para no romper enlaces guardados.
