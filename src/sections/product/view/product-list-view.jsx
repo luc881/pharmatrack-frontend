@@ -2,7 +2,11 @@ import { useSearchParams } from 'react-router';
 import { useRef, useMemo, useState, useCallback } from 'react';
 import { useBoolean, useLocalStorage } from 'minimal-shared/hooks';
 
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
+import Tabs from '@mui/material/Tabs';
+import Stack from '@mui/material/Stack';
+import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import { useTheme } from '@mui/material/styles';
 import { DataGrid, gridClasses } from '@mui/x-data-grid';
@@ -11,8 +15,15 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { deleteProduct, useGetProducts, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
+import {
+  deleteProduct,
+  useGetProducts,
+  toggleProductOnline,
+  useGetProductBrands,
+  useGetProductCategories,
+} from 'src/actions/product';
 
+import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
@@ -35,6 +46,14 @@ import {
 
 // Igual que en Taxonomía: lo que el usuario elija en "Columnas" se recuerda
 // entre recargas; lo guardado se mezcla encima de estos valores por defecto.
+// Visibilidad en el sitio (?web=). Antes era una pantalla aparte (Sitio web →
+// Productos); ahora el switch vive en la lista, junto al resto del producto.
+const WEB_TABS = [
+  { value: '', label: 'Todos' },
+  { value: 'true', label: 'En el sitio' },
+  { value: 'false', label: 'Fuera del sitio' },
+];
+
 const COLUMNS_STORAGE_KEY = 'product-list-columns';
 const HIDE_COLUMNS = { price_cost: false, created_at: false };
 const HIDE_COLUMNS_TOGGLABLE = ['actions'];
@@ -75,6 +94,7 @@ export function ProductListView() {
   const appliedBrandId  = searchParams.get('brand') ? Number(searchParams.get('brand')) : null;
   const appliedCatId    = searchParams.get('category') ? Number(searchParams.get('category')) : null;
   const appliedStatus   = searchParams.get('status') ?? '';   // '' | 'true' | 'false'
+  const appliedWeb      = ['true', 'false'].includes(searchParams.get('web')) ? searchParams.get('web') : '';
 
   const setFilter = useCallback((key, value) => {
     setSearchParams((prev) => {
@@ -104,6 +124,7 @@ export function ProductListView() {
     brandId: appliedBrandId,
     categoryId: appliedCatId,
     isActive,
+    showOnline: appliedWeb === '' ? null : appliedWeb === 'true',
     ordering: toOrdering(sortModel),
     // los animales viven en su propia sección; sus gemelos POS no van aquí
     excludeAnimalTwins: true,
@@ -140,7 +161,32 @@ export function ProductListView() {
     setPaginationModel((p) => ({ ...p, page: 0 }));
   }, []);
 
-  const columns = useGetColumns({ onDeleteRow: handleDeleteRow, brandsMap, categoriesMap, canUpdate, canDelete });
+  // Alterna "en el sitio" sin salir de la lista
+  const [togglingId, setTogglingId] = useState(null);
+  const handleToggleOnline = useCallback(
+    async (row) => {
+      setTogglingId(row.id);
+      try {
+        await toggleProductOnline(row.id);
+        await productsMutate();
+      } catch (error) {
+        toast.error(error?.message || 'No se pudo actualizar');
+      } finally {
+        setTogglingId(null);
+      }
+    },
+    [productsMutate]
+  );
+
+  const columns = useGetColumns({
+    onDeleteRow: handleDeleteRow,
+    brandsMap,
+    categoriesMap,
+    canUpdate,
+    canDelete,
+    togglingId,
+    onToggleOnline: handleToggleOnline,
+  });
 
   const deleteCount = rowToDelete ? 1 : selectedRows.ids.size;
 
@@ -178,6 +224,16 @@ export function ProductListView() {
             flexDirection: { md: 'column' },
           }}
         >
+          <Tabs
+            value={appliedWeb}
+            onChange={(_, v) => setFilter('web', v)}
+            sx={{ px: 2.5, boxShadow: (t) => `inset 0 -2px 0 0 ${t.vars.palette.divider}` }}
+          >
+            {WEB_TABS.map((t) => (
+              <Tab key={t.value} value={t.value} label={t.label} />
+            ))}
+          </Tabs>
+
           <DataGrid
             {...toolbarOptions.settings}
             checkboxSelection
@@ -284,7 +340,7 @@ export function ProductListView() {
 
 // ----------------------------------------------------------------------
 
-const useGetColumns = ({ onDeleteRow, brandsMap, categoriesMap, canUpdate, canDelete }) => {
+const useGetColumns = ({ onDeleteRow, brandsMap, categoriesMap, canUpdate, canDelete, togglingId, onToggleOnline }) => {
   const theme = useTheme();
 
   return useMemo(
@@ -336,6 +392,32 @@ const useGetColumns = ({ onDeleteRow, brandsMap, categoriesMap, canUpdate, canDe
         renderCell: (params) => <RenderCellStatus params={params} />,
       },
       {
+        field: 'show_online',
+        headerName: 'En el sitio',
+        width: 190,
+        sortable: false,
+        renderCell: (params) => {
+          const { row } = params;
+          // Prendido pero inactivo: el sitio no lo muestra. Se avisa aquí mismo.
+          const notVisible = row.show_online && !row.is_active;
+          return (
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Switch
+                size="small"
+                checked={!!row.show_online}
+                disabled={!canUpdate || togglingId === row.id}
+                onChange={() => onToggleOnline(row)}
+              />
+              {notVisible && (
+                <Label variant="soft" color="warning">
+                  Inactivo: no se ve
+                </Label>
+              )}
+            </Stack>
+          );
+        },
+      },
+      {
         field: 'created_at',
         headerName: 'Creado',
         width: 120,
@@ -363,6 +445,6 @@ const useGetColumns = ({ onDeleteRow, brandsMap, categoriesMap, canUpdate, canDe
         ],
       },
     ],
-    [onDeleteRow, brandsMap, categoriesMap, canUpdate, canDelete, theme.vars.palette.error.main]
+    [onDeleteRow, brandsMap, categoriesMap, canUpdate, canDelete, togglingId, onToggleOnline, theme.vars.palette.error.main]
   );
 };

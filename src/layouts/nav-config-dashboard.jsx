@@ -106,9 +106,9 @@ export const navData = [
     items: [
       {
         title: 'Sitio web',
-        path: paths.dashboard.site.animals,
+        path: paths.dashboard.article.root,
         icon: ICONS.file,
-        allowedRoles: ['settings.update', 'products.update', 'articles.read', 'species.update'],
+        allowedRoles: ['settings.update', 'articles.read'],
         isActive: inSection('sitio'),
       },
     ],

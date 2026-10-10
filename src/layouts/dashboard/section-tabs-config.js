@@ -66,8 +66,6 @@ export const SECTIONS = [
   {
     key: 'sitio',
     tabs: [
-      { label: 'Animales visibles', path: D.site.animals, allowedRoles: ['species.update'] },
-      { label: 'Productos visibles', path: D.site.products, allowedRoles: ['products.update'] },
       { label: 'Artículos', path: D.article.root, allowedRoles: ['articles.read'] },
       { label: 'Fotos del sitio', path: D.site.media, allowedRoles: ['settings.update'] },
     ],

@@ -11,10 +11,13 @@ import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import ToggleButton from '@mui/material/ToggleButton';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { Toolbar, DataGrid, gridClasses, useGridApiRef } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
@@ -136,6 +139,10 @@ const TABS = [
 // Valores admitidos en la URL (?tab= y ?ft=): cualquier otra cosa se ignora,
 // así una URL manipulada cae en el estado por defecto en vez de romper la vista.
 const TAB_VALUES = ['groups', 'genera', 'species'];
+// Filtro "¿se ve en el sitio?" de la pestaña Especies (?web=online|offline).
+// Antes vivía en una pantalla aparte (Sitio web → Animales); ahora la
+// visibilidad se maneja aquí mismo, junto al resto de la especie.
+const WEB_VALUES = ['online', 'offline'];
 const FILTER_TYPES = ['group', 'genus', 'species'];
 
 // Columnas ocultas de entrada. Se vuelven a mostrar desde el botón "Columnas"
@@ -174,9 +181,13 @@ export function AnimalTaxonomyView() {
 
   // Escribe pestaña + filtro en la URL. Por defecto empuja una entrada de
   // historial, así "atrás" también deshace el último drill-down.
-  const goTo = (tab, nextFilter, { replace = false } = {}) => {
+  const webParam = searchParams.get('web');
+  const webFilter = WEB_VALUES.includes(webParam) ? webParam : 'all';
+
+  const goTo = (tab, nextFilter, { replace = false, web = webFilter } = {}) => {
     const next = new URLSearchParams();
     if (tab && tab !== 'groups') next.set('tab', tab);
+    if (web !== 'all') next.set('web', web);
     if (nextFilter) {
       next.set('ft', nextFilter.type);
       next.set('fid', String(nextFilter.id));
@@ -228,6 +239,26 @@ export function AnimalTaxonomyView() {
   // Todos los morphs: ahora cuelgan de su especie en la misma tabla.
   const { morphs, morphsLoading, morphsMutate } = useAllMorphs();
 
+  // Alterna show_public de una especie o morph sin abrir el diálogo.
+  // Optimista sobre la lista paginada ({ data, total }) que devuelven los hooks.
+  const handleWebFlag = async (row, value) => {
+    const isMorph = row.__kind === 'morph';
+    const write = isMorph ? updateMorph : updateSpecies;
+    const mutate = isMorph ? morphsMutate : speciesMutate;
+    mutate(
+      (current) =>
+        current && { ...current, data: current.data.map((it) => (it.id === row.id ? { ...it, show_public: value } : it)) },
+      { revalidate: false }
+    );
+    try {
+      await write(row.id, { show_public: value });
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo guardar');
+    } finally {
+      await mutate();
+    }
+  };
+
   // "Cultivos" dentro de la pestaña Especies: unidades disponibles derivadas del
   // inventario más el estado de stock/cría por especie. Mismo cálculo que la
   // vista Cultivos, reutilizando sus helpers.
@@ -271,6 +302,25 @@ export function AnimalTaxonomyView() {
   const speciesById = Object.fromEntries(allSpecies.map((s) => [s.id, s]));
   const generaById = Object.fromEntries(genera.map((g) => [g.id, g]));
 
+  // ¿Se ve en el sitio? Mismas reglas que el backend del catálogo público:
+  // un grupo oculto esconde TODO su subárbol (se recorren ancestros, no solo
+  // el grupo inmediato), y un morph de una especie oculta tampoco se ve.
+  const groupsById = Object.fromEntries(groupsFlat.map((g) => [g.id, g]));
+  const hiddenGroupIds = new Set(
+    groupsFlat
+      .filter((g) => g.show_public === false || g.ancestors.some((id) => groupsById[id]?.show_public === false))
+      .map((g) => g.id)
+  );
+  // Motivo heredado (no su propio switch) por el que la fila no se ve
+  const webReason = (row) => {
+    const sp = row.__kind === 'morph' ? speciesById[row.__speciesId] : row;
+    const groupId = generaById[sp?.genus_id]?.group?.id ?? sp?.genus?.group?.id;
+    if (groupId != null && hiddenGroupIds.has(groupId)) return 'Grupo oculto';
+    if (row.__kind === 'morph' && sp?.show_public === false) return 'Especie oculta';
+    return null;
+  };
+  const visibleOnSite = (row) => !webReason(row) && row.show_public !== false;
+
   // Morphs agrupados por especie: alimenta el contador del acordeón y las filas
   const morphsBySpecies = useMemo(() => {
     const map = {};
@@ -295,14 +345,16 @@ export function AnimalTaxonomyView() {
     const rows = [];
     allSpecies.forEach((sp) => {
       rows.push({ ...sp, _rowId: `s${sp.id}`, __kind: 'species', depth: 0 });
-      if (expanded.has(sp.id)) {
+      // Con el filtro de sitio activo se incluyen todos los morphs para poder
+      // filtrarlos (si no, un morph oculto de una especie visible no aparecería)
+      if (expanded.has(sp.id) || webFilter !== 'all') {
         (morphsBySpecies[sp.id] ?? []).forEach((m) =>
           rows.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
         );
       }
     });
     return rows;
-  }, [allSpecies, morphsBySpecies, expanded]);
+  }, [allSpecies, morphsBySpecies, expanded, webFilter]);
 
   // Etiqueta del chip del filtro: se deriva de los datos ya cargados, la URL
   // solo guarda tipo + id (así el enlace no arrastra texto ni se desincroniza
@@ -345,6 +397,7 @@ export function AnimalTaxonomyView() {
       // Los morphs siguen a su especie: se filtra por la especie en ambos casos.
       const sp = row.__kind === 'morph' ? speciesById[row.__speciesId] : row;
       if (!sp) return false;
+      if (webFilter !== 'all' && visibleOnSite(row) !== (webFilter === 'online')) return false;
       if (!filter) return true;
       if (filter.type === 'group') return groupIdSet.has(generaById[sp.genus_id]?.group?.id);
       if (filter.type === 'genus') return sp.genus_id === filter.id;
@@ -550,14 +603,29 @@ export function AnimalTaxonomyView() {
           sortable: false,
           renderCell: (params) => {
             const { row } = params;
-            if (row.__kind === 'morph') return <Box sx={{ pl: 3 }}>└ {row.name}</Box>;
+            if (row.__kind === 'morph') {
+              // Con el filtro de sitio el morph puede salir sin su especie arriba:
+              // se dice de cuál es para no dejarlo huérfano.
+              const parent = webFilter !== 'all' ? speciesById[row.__speciesId]?.name : null;
+              return (
+                <Box sx={{ pl: 3 }}>
+                  └ {row.name}
+                  {parent && (
+                    <Box component="span" sx={{ ml: 1, color: 'text.disabled', fontStyle: 'italic' }}>
+                      {parent}
+                    </Box>
+                  )}
+                </Box>
+              );
+            }
 
             const count = morphsBySpecies[row.id]?.length ?? 0;
             const open = expanded.has(row.id);
 
             return (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-                {count > 0 ? (
+                {/* Con filtro de sitio los morphs ya salen todos: la flecha no aplica */}
+                {count > 0 && webFilter === 'all' ? (
                   <IconButton
                     size="small"
                     onClick={() => toggleExpanded(row.id)}
@@ -592,6 +660,38 @@ export function AnimalTaxonomyView() {
           },
         },
         { field: 'common_name', headerName: 'Nombre común / morph', flex: 1, minWidth: 180, sortable: false, valueGetter: (_, row) => (row.__kind === 'morph' ? row.description ?? '—' : row.common_name ?? '—') },
+        {
+          field: 'show_public',
+          headerName: 'En el sitio',
+          width: 130,
+          sortable: false,
+          align: 'center',
+          headerAlign: 'center',
+          renderCell: (params) => {
+            const { row } = params;
+            const kind = row.__kind === 'morph' ? 'morphs' : 'species';
+            const reason = webReason(row);
+            const control = (
+              <Switch
+                size="small"
+                checked={row.show_public !== false}
+                disabled={!canDo(kind, 'update') || !!reason}
+                onChange={(e) => handleWebFlag(row, e.target.checked)}
+              />
+            );
+            // Oculto por herencia: el switch propio no basta, se dice por qué
+            return reason ? (
+              <Tooltip title={`${reason}: se esconde aunque esté prendido`}>
+                <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                  <span>{control}</span>
+                  <Label variant="soft" color="default">{reason}</Label>
+                </Stack>
+              </Tooltip>
+            ) : (
+              control
+            );
+          },
+        },
         // Columnas de "Cultivos": aplican a especies y morphs (cría independiente)
         {
           field: 'units',
@@ -708,6 +808,20 @@ export function AnimalTaxonomyView() {
 
                     {filter && (
                       <Chip color="primary" variant="soft" label={filterLabel()} onDelete={() => goTo(tabValue, null)} />
+                    )}
+
+                    {tabValue === 'species' && (
+                      <ToggleButtonGroup
+                        exclusive
+                        size="small"
+                        value={webFilter}
+                        onChange={(_, v) => v && goTo(tabValue, filter, { web: v })}
+                        aria-label="Visibilidad en el sitio"
+                      >
+                        <ToggleButton value="all">Todas</ToggleButton>
+                        <ToggleButton value="online">En el sitio</ToggleButton>
+                        <ToggleButton value="offline">Fuera del sitio</ToggleButton>
+                      </ToggleButtonGroup>
                     )}
 
                     <ToolbarRightPanel>

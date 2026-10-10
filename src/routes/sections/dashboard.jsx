@@ -1,5 +1,7 @@
-import { Outlet } from 'react-router';
 import { lazy, Suspense } from 'react';
+import { Outlet, Navigate } from 'react-router';
+
+import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/global-config';
 import { DashboardLayout } from 'src/layouts/dashboard';
@@ -85,8 +87,6 @@ const AnimalSheetPage   = lazy(() => import('src/pages/dashboard/animal/sheet'))
 const ArticleListPage   = lazy(() => import('src/pages/dashboard/article/list'));
 const OrderListPage     = lazy(() => import('src/pages/dashboard/order/list'));
 const SiteMediaPage     = lazy(() => import('src/pages/dashboard/site/media'));
-const SiteProductsPage  = lazy(() => import('src/pages/dashboard/site/products'));
-const SiteAnimalsPage   = lazy(() => import('src/pages/dashboard/site/animals'));
 const ArticleCreatePage = lazy(() => import('src/pages/dashboard/article/new'));
 const ArticleEditPage   = lazy(() => import('src/pages/dashboard/article/edit'));
 
@@ -362,13 +362,11 @@ export const dashboardRoutes = [
         path: 'site',
         children: [
           { path: 'media',    element: guard(P.siteUpdate, <SiteMediaPage />) },
-          // productsUpdate, no Read: la pantalla existe para prender/apagar el
-          // switch de cada producto, y ese PATCH exige products.update. Con solo
-          // lectura se entraria a una pagina donde todo da 403.
-          { path: 'products', element: guard(P.productsUpdate, <SiteProductsPage />) },
-          // speciesUpdate, no una lectura: la pantalla existe para mover
-          // switches de especies/morphs/grupos, no solo para verlos.
-          { path: 'animals',  element: guard(P.speciesUpdate, <SiteAnimalsPage />) },
+          // La visibilidad en el sitio ahora se maneja junto a cada cosa:
+          // productos en su lista y animales en Taxonomía → Especies. Las rutas
+          // viejas redirigen ahí ya filtradas, para no romper enlaces guardados.
+          { path: 'products', element: <Navigate to={`${paths.dashboard.product.root}?web=true`} replace /> },
+          { path: 'animals',  element: <Navigate to={`${paths.dashboard.animal.taxonomy}?tab=species&web=online`} replace /> },
         ],
       },
 

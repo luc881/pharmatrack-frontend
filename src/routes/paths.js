@@ -105,8 +105,6 @@ export const paths = {
     },
     site: {
       media: `${ROOTS.DASHBOARD}/site/media`,
-      products: `${ROOTS.DASHBOARD}/site/products`,
-      animals: `${ROOTS.DASHBOARD}/site/animals`,
     },
     article: {
       root: `${ROOTS.DASHBOARD}/article`,
