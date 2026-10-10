@@ -112,7 +112,7 @@ Para las reglas de UI:
 
 - Web: `opuntiaden.com`
 - Instagram: `@opuntia_den` → https://www.instagram.com/opuntia_den/
-- Teléfono: `56 2157 8388`
+- Teléfono (WhatsApp): `55 6229 2037` — Ventas Opuntia
 - Zona: Ciudad de México
 
 ## 9. Integración rápida (checklist para el agente)
