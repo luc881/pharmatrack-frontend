@@ -18,6 +18,7 @@ import { NavHorizontal } from './nav-horizontal';
 import { _account } from '../nav-config-account';
 import { Searchbar } from '../components/searchbar';
 import { MenuButton } from '../components/menu-button';
+import { SECTION_SEARCH } from './section-tabs-config';
 import { HeaderClock } from '../components/header-clock';
 import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
@@ -118,7 +119,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
       rightArea: (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 } }}>
           {/** @slot Searchbar */}
-          <Searchbar data={navData} />
+          <Searchbar data={[...navData, SECTION_SEARCH]} />
 
           {/** @slot Current time (Mexico City) */}
           <HeaderClock />

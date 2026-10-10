@@ -4,6 +4,8 @@ import { CONFIG } from 'src/global-config';
 
 import { SvgColor } from 'src/components/svg-color';
 
+import { findSection } from './dashboard/section-tabs-config';
+
 // ----------------------------------------------------------------------
 
 const icon = (name) => <SvgColor src={`${CONFIG.assetsDir}/assets/icons/navbar/${name}.svg`} />;
@@ -56,6 +58,11 @@ const ICONS = {
  * - `disabled`: An optional boolean to disable the item.
  * - `deepMatch`: An optional boolean to indicate if the item should match subpaths.
  */
+// El item del menú queda activo en cualquier pestaña de su área. `except`
+// evita doble resaltado (en /sale/new ya brilla "Nueva venta").
+const inSection = (key, except = []) => (pathname) =>
+  !except.includes(pathname) && findSection(pathname)?.section.key === key;
+
 export const navData = [
   /**
    * General
@@ -67,153 +74,56 @@ export const navData = [
       { title: 'Estadísticas', path: paths.dashboard.general.analytics, icon: ICONS.analytics },
     ],
   },
-
   /**
-   * Sistema — usuarios, roles, sucursales y sensor
+   * Una entrada por área. Las páginas de cada área se recorren con pestañas
+   * arriba del contenido (layouts/dashboard/section-tabs-config.js); los
+   * "Nuevo …" viven como botón dentro de cada lista.
    */
+  {
+    subheader: 'Vender',
+    items: [
+      { title: 'Nueva venta', path: paths.dashboard.sale.new,  icon: ICONS.ecommerce, allowedRoles: ['sales.create'] },
+      { title: 'Ventas',      path: paths.dashboard.sale.root, icon: ICONS.invoice, isActive: inSection('ventas', [paths.dashboard.sale.new]) },
+      { title: 'Pedidos web', path: paths.dashboard.order.root, icon: ICONS.order, allowedRoles: ['orders.read'] },
+    ],
+  },
+  {
+    subheader: 'Inventario',
+    items: [
+      { title: 'Animales',  path: paths.dashboard.animal.root,   icon: ICONS.tour,    isActive: inSection('animales') },
+      { title: 'Productos', path: paths.dashboard.product.root,  icon: ICONS.product, isActive: inSection('productos') },
+      {
+        title: 'Compras',
+        path: paths.dashboard.purchase.root,
+        icon: ICONS.banking,
+        allowedRoles: ['purchases.read', 'suppliers.read'],
+        isActive: inSection('compras'),
+      },
+    ],
+  },
+  {
+    subheader: 'Sitio web',
+    items: [
+      {
+        title: 'Sitio web',
+        path: paths.dashboard.site.animals,
+        icon: ICONS.file,
+        allowedRoles: ['settings.update', 'products.update', 'articles.read', 'species.update'],
+        isActive: inSection('sitio'),
+      },
+    ],
+  },
   {
     subheader: 'Sistema',
     items: [
       {
-        title: 'Usuarios',
+        title: 'Ajustes',
         path: paths.dashboard.user.list,
         icon: ICONS.user,
-        allowedRoles: ['users.read'],
-        children: [
-          { title: 'Lista',      path: paths.dashboard.user.list,    allowedRoles: ['users.read'] },
-          { title: 'Nuevo',      path: paths.dashboard.user.new,     allowedRoles: ['users.create'] },
-          { title: 'Mi cuenta',  path: paths.dashboard.user.account, deepMatch: true },
-        ],
-      },
-      {
-        title: 'Roles',
-        path: paths.dashboard.role.root,
-        icon: ICONS.lock,
-        allowedRoles: ['roles.read'],
-        children: [
-          { title: 'Lista', path: paths.dashboard.role.root, allowedRoles: ['roles.read'] },
-          { title: 'Nuevo', path: paths.dashboard.role.new,  allowedRoles: ['roles.create'] },
-        ],
-      },
-      {
-        title: 'Sucursales',
-        path: paths.dashboard.branch.root,
-        icon: ICONS.banking,
-        allowedRoles: ['branches.read'],
-        children: [
-          { title: 'Lista', path: paths.dashboard.branch.root, allowedRoles: ['branches.read'] },
-          { title: 'Nueva', path: paths.dashboard.branch.new,  allowedRoles: ['branches.create'] },
-        ],
+        allowedRoles: ['users.read', 'roles.read', 'branches.read'],
+        isActive: inSection('ajustes'),
       },
       { title: 'Sensor ambiental', path: paths.dashboard.sensor, icon: ICONS.analytics, allowedRoles: ['branches.read'] },
-    ],
-  },
-
-  /**
-   * Punto de venta — productos, ventas y calendario
-   */
-  {
-    subheader: 'Punto de venta',
-    items: [
-      {
-        title: 'Productos',
-        path: paths.dashboard.product.root,
-        icon: ICONS.product,
-        children: [
-          { title: 'Lista',              path: paths.dashboard.product.root },
-          { title: 'Nuevo',              path: paths.dashboard.product.new,          allowedRoles: ['products.create'] },
-          { title: 'Categorías',         path: paths.dashboard.productCategory.root },
-          { title: 'Marcas',             path: paths.dashboard.productBrand.root },
-          { title: 'Lotes y Stock',      path: paths.dashboard.productBatch.root },
-          { title: 'Fórmulas genéricas',  path: paths.dashboard.productMaster.root },
-          { title: 'Sustancias',         path: paths.dashboard.ingredient.root },
-          { title: 'Paquetes',           path: paths.dashboard.bundle.root },
-        ],
-      },
-      {
-        title: 'Animales',
-        path: paths.dashboard.animal.root,
-        icon: ICONS.tour,
-        children: [
-          { title: 'Lista',     path: paths.dashboard.animal.root },
-          { title: 'Nuevo',     path: paths.dashboard.animal.new, allowedRoles: ['animals.create'] },
-          { title: 'Taxonomía', path: paths.dashboard.animal.taxonomy },
-          { title: 'Hoja de inventario', path: paths.dashboard.animal.sheet },
-        ],
-      },
-      {
-        title: 'Sitio web',
-        path: paths.dashboard.site.media,
-        icon: ICONS.file,
-        // allowedRoles es un OR: el grupo aparece si puedes usar AL MENOS una de
-        // sus pantallas, y cada hija se filtra con el permiso que de verdad
-        // necesita. Sin esto, quien administra el catalogo pero no los ajustes
-        // no veria el enlace a Productos aunque la ruta si lo deje entrar.
-        allowedRoles: ['settings.update', 'products.update', 'articles.read', 'species.update'],
-        children: [
-          { title: 'Media',      path: paths.dashboard.site.media,    allowedRoles: ['settings.update'] },
-          { title: 'Productos',  path: paths.dashboard.site.products, allowedRoles: ['products.update'] },
-          { title: 'Artículos',  path: paths.dashboard.article.root,  allowedRoles: ['articles.read'] },
-          { title: 'Nuevo artículo', path: paths.dashboard.article.new, allowedRoles: ['articles.create'] },
-          { title: 'Animales',   path: paths.dashboard.site.animals,  allowedRoles: ['species.update'] },
-        ],
-      },
-      {
-        title: 'Pedidos',
-        path: paths.dashboard.order.root,
-        icon: ICONS.order,
-        allowedRoles: ['orders.read'],
-      },
-      {
-        title: 'Ventas',
-        path: paths.dashboard.sale.root,
-        icon: ICONS.ecommerce,
-        children: [
-          { title: 'Lista', path: paths.dashboard.sale.root },
-          { title: 'Nueva', path: paths.dashboard.sale.new, allowedRoles: ['sales.create'] },
-          { title: 'Corte de caja', path: paths.dashboard.sale.summary },
-          { title: 'Plantilla del ticket', path: paths.dashboard.sale.emailTemplate },
-        ],
-      },
-      { title: 'Calendario', path: paths.dashboard.calendar, icon: ICONS.calendar },
-    ],
-  },
-
-  /**
-   * Operaciones — devoluciones, proveedores y compras
-   */
-  {
-    subheader: 'Operaciones',
-    items: [
-      {
-        title: 'Devoluciones',
-        path: paths.dashboard.refundProduct.root,
-        icon: ICONS.label,
-        children: [
-          { title: 'Lista', path: paths.dashboard.refundProduct.root },
-          { title: 'Nueva', path: paths.dashboard.refundProduct.new, allowedRoles: ['refundproducts.create'] },
-        ],
-      },
-      {
-        title: 'Proveedores',
-        path: paths.dashboard.supplier.root,
-        icon: ICONS.order,
-        allowedRoles: ['suppliers.read'],
-        children: [
-          { title: 'Lista', path: paths.dashboard.supplier.root, allowedRoles: ['suppliers.read'] },
-          { title: 'Nuevo', path: paths.dashboard.supplier.new,  allowedRoles: ['suppliers.create'] },
-        ],
-      },
-      {
-        title: 'Compras',
-        path: paths.dashboard.purchase.root,
-        icon: ICONS.invoice,
-        allowedRoles: ['purchases.read'],
-        children: [
-          { title: 'Lista', path: paths.dashboard.purchase.root, allowedRoles: ['purchases.read'] },
-          { title: 'Nueva', path: paths.dashboard.purchase.new,  allowedRoles: ['purchases.create'] },
-        ],
-      },
     ],
   },
 ];

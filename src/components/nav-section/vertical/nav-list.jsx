@@ -18,8 +18,12 @@ export function NavList({ data, depth, render, slotProps, checkPermissions, enab
     isActiveLink(pathname, child.path, true)
   );
 
+  // `data.isActive(pathname)` permite que un item cubra rutas fuera de su
+  // propio path (las pestañas de un área del dashboard)
   const isActive =
-    isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children) || hasActiveChild;
+    isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children) ||
+    hasActiveChild ||
+    !!data.isActive?.(pathname);
 
   const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
 

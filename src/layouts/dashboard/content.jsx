@@ -6,6 +6,7 @@ import Container from '@mui/material/Container';
 import { useSettingsContext } from 'src/components/settings';
 
 import { layoutClasses } from '../core';
+import { SectionTabs } from './section-tabs';
 
 // ----------------------------------------------------------------------
 
@@ -51,6 +52,8 @@ export function DashboardContent({
       ]}
       {...other}
     >
+      {/* Pestañas del área (Ventas, Animales…): ver section-tabs-config.js */}
+      <SectionTabs />
       {children}
     </Container>
   );

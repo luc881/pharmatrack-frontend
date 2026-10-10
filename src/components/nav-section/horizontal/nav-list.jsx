@@ -26,7 +26,8 @@ export function NavList({
 
   const pathname = usePathname();
 
-  const isActive = isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
+  const isActive =
+    isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children) || !!data.isActive?.(pathname);
 
   const { open, onOpen, onClose, anchorEl, elementRef: navItemRef } = usePopoverHover();
 

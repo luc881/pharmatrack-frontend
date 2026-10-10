@@ -119,7 +119,10 @@ export function ProductCreateEditForm({ currentProduct }) {
   const openDetails = useBoolean(true);
   const openProperties = useBoolean(true);
   const openPricing = useBoolean(true);
-  const openIngredients = useBoolean(true);
+  // Heredado de la farmacia: cerrado salvo que el producto ya use esos datos
+  const openIngredients = useBoolean(
+    !!(currentProduct?.ingredients?.length || currentProduct?.product_master)
+  );
 
   const { categories, categoriesLoading, categoriesMutate } = useGetProductCategories();
   const { brands, brandsLoading, brandsMutate } = useGetProductBrands();
@@ -432,25 +435,6 @@ export function ProductCreateEditForm({ currentProduct }) {
               loading={brandsLoading}
             />
 
-            <Autocomplete
-              options={allProductMasters}
-              value={selectedProductMaster}
-              getOptionLabel={(o) => o?.name ?? ''}
-              isOptionEqualToValue={(o, v) => o?.id === v?.id}
-              onChange={(_, val) => setSelectedProductMaster(val)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Fórmula genérica (DCI/INN)"
-                  helperText="Nombre genérico del medicamento, puede ser una combinación. Ej: Amoxicilina / Ácido Clavulánico"
-                  size="medium"
-                />
-              )}
-              renderOption={(props, option) => (
-                <li {...props} key={option.id}>{option.name}</li>
-              )}
-            />
-
             <Field.Autocomplete
               name="unit_name"
               label="Unidad de venta"
@@ -624,36 +608,7 @@ export function ProductCreateEditForm({ currentProduct }) {
                     <InputAdornment position="start" sx={{ mr: 0.75 }}>
                       <Box component="span" sx={{ color: 'text.disabled' }}>
                         $
-            
-            <Field.Text
-              name="compare_at_price"
-              label="Precio anterior (oferta)"
-              placeholder="0.00"
-              type="number"
-              helperText="Se muestra tachado en la tienda; vacío = sin oferta"
-              slotProps={{
-                inputLabel: { shrink: true },
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start" sx={{ mr: 0.75 }}>
-                      <Box component="span" sx={{ color: 'text.disabled' }}>
-                        $
                       </Box>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-
-            <Field.Text
-              name="max_discount"
-              label="Descuento máximo (%)"
-              placeholder="0"
-              type="number"
-              helperText="Tope de descuento por línea en el POS; vacío = sin tope"
-              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: 0, max: 100 } }}
-            />
-          </Box>
                     </InputAdornment>
                   ),
                 },
@@ -697,8 +652,8 @@ export function ProductCreateEditForm({ currentProduct }) {
   const renderIngredients = () => (
     <Card>
       <CardHeader
-        title="Composición"
-        subheader="Sustancias individuales con su concentración (amount + unidad)"
+        title="Avanzado (farmacia)"
+        subheader="Fórmula genérica y composición. No hace falta para animales ni insumos."
         action={renderCollapseButton(openIngredients.value, openIngredients.onToggle)}
         sx={{ mb: 3 }}
       />
@@ -706,6 +661,25 @@ export function ProductCreateEditForm({ currentProduct }) {
       <Collapse in={openIngredients.value}>
         <Divider />
         <Stack spacing={2} sx={{ p: 3 }}>
+          <Autocomplete
+            options={allProductMasters}
+            value={selectedProductMaster}
+            getOptionLabel={(o) => o?.name ?? ''}
+            isOptionEqualToValue={(o, v) => o?.id === v?.id}
+            onChange={(_, val) => setSelectedProductMaster(val)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Fórmula genérica (DCI/INN)"
+                helperText="Nombre genérico del medicamento, puede ser una combinación. Ej: Amoxicilina / Ácido Clavulánico"
+                size="medium"
+              />
+            )}
+            renderOption={(props, option) => (
+              <li {...props} key={option.id}>{option.name}</li>
+            )}
+          />
+
           {ingredientRows.length === 0 && (
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               Sin ingredientes activos registrados.
