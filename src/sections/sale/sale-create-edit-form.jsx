@@ -133,7 +133,7 @@ function useReservedAnimalProductIds() {
   const [ids, setIds] = useState(() => new Set());
   useEffect(() => {
     axiosInstance
-      .get(endpoints.animal.list, { params: { page: 1, page_size: 100, status: 'reserved' } })
+      .get(endpoints.animal.list, { params: { page: 1, page_size: 500, status: 'reserved' } })
       .then((r) => setIds(new Set((r.data?.data ?? []).map((a) => Number(a.product_id)))))
       .catch(() => {});
   }, []);

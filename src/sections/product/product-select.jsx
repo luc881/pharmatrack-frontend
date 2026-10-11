@@ -150,7 +150,15 @@ function ProductQuickCreateDialog({ open, onClose, onCreated }) {
 // ----------------------------------------------------------------------
 
 // Buscador de productos con «+ Producto nuevo» a la vista; el creado queda elegido.
-export function ProductSelect({ name, label = 'Producto *', size, disabled, sx }) {
+// creatable=false donde solo cabe un producto que ya existe (devoluciones)
+export function ProductSelect({
+  name,
+  label = 'Producto *',
+  size,
+  disabled,
+  creatable = true,
+  sx,
+}) {
   const { control, setValue } = useFormContext();
   const products = useAllProducts();
   const addToAllProducts = useAddToAllProducts();
@@ -183,7 +191,9 @@ export function ProductSelect({ name, label = 'Producto *', size, disabled, sx }
             isOptionEqualToValue={(a, b) => a.id === b.id}
             // key por id: hay títulos duplicados en el catálogo
             getOptionKey={(p) => p.id}
-            noOptionsText="No está en la lista: usa «Producto nuevo»"
+            noOptionsText={
+              creatable ? 'No está en la lista: usa «Producto nuevo»' : 'Sin resultados'
+            }
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -196,7 +206,7 @@ export function ProductSelect({ name, label = 'Producto *', size, disabled, sx }
           />
         )}
       />
-      {!disabled && (
+      {creatable && !disabled && (
         <Button
           variant="outlined"
           startIcon={<Iconify icon="eva:plus-fill" />}

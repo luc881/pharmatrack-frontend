@@ -333,7 +333,7 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
   const [uploading, setUploading] = useState(false);
 
   const { morphs } = useAllMorphs(form.species_id);
-  const { animals } = useGetAnimals({ pageSize: 100, speciesId: form.species_id || undefined });
+  const { animals } = useGetAnimals({ pageSize: 500, speciesId: form.species_id || undefined });
   // Solo se puede descontar de ejemplares/cepas con existencia de esta especie
   const stockAnimals = animals.filter((a) => (a.stock ?? 0) > 0 || a.id === form.animal_id);
 

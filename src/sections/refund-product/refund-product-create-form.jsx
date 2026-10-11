@@ -6,7 +6,6 @@ import { useForm, FormProvider } from 'react-hook-form';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
-import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
@@ -16,7 +15,7 @@ import { createRefundProduct } from 'src/actions/refund-product';
 import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
 
-import { useAllProducts } from '../product-batch/use-all-products';
+import { ProductSelect } from '../product/product-select';
 
 // ----------------------------------------------------------------------
 
@@ -34,7 +33,6 @@ const schema = zod.object({
 
 export function RefundProductCreateForm() {
   const navigate = useNavigate();
-  const products = useAllProducts();
 
   const methods = useForm({
     resolver: zodResolver(schema),
@@ -73,14 +71,11 @@ export function RefundProductCreateForm() {
           </Typography>
 
           <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
-            <Field.Select name="product_id" label="Producto *" sx={{ gridColumn: { sm: 'span 2' } }}>
-              <MenuItem value="">Seleccionar producto</MenuItem>
-              {products.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.title}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            <ProductSelect
+              name="product_id"
+              creatable={false}
+              sx={{ gridColumn: { sm: 'span 2' } }}
+            />
 
             <Field.Text
               name="quantity"

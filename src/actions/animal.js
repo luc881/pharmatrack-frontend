@@ -11,9 +11,9 @@ const swrOptions = {
   revalidateOnReconnect: false,
 };
 
-// ponytail: catálogos completos con page_size=100 (mismo patrón que useAllIngredients);
-// paginar cuando la taxonomía pase de 100 registros
-const ALL = { page: 1, page_size: 100 };
+// ponytail: catálogos completos en una página de 500 (el tope de la API);
+// paginar cuando la taxonomía pase de 500 registros
+const ALL = { page: 1, page_size: 500 };
 
 // ----------------------------------------------------------------------
 

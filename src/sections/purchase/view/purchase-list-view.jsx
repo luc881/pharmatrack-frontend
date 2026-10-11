@@ -56,7 +56,7 @@ export function PurchaseListView() {
     pageSize: paginationModel.pageSize,
   });
 
-  const { suppliers } = useGetSuppliers({ pageSize: 100 });
+  const { suppliers } = useGetSuppliers({ pageSize: 500 });
   const supplierMap = useMemo(
     () => Object.fromEntries(suppliers.map((s) => [s.id, s.name])),
     [suppliers]

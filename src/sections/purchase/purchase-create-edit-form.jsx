@@ -75,7 +75,7 @@ const buildSchema = (isEdit) => zod.object({
 export function PurchaseCreateEditForm({ currentPurchase, currentDetails = [] }) {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const { suppliers, suppliersLoading, suppliersMutate } = useGetSuppliers({ pageSize: 100 });
+  const { suppliers, suppliersLoading, suppliersMutate } = useGetSuppliers({ pageSize: 500 });
 
   const handleCreateSupplier = async (name) => {
     const created = await createSupplier({ name, is_active: true });
