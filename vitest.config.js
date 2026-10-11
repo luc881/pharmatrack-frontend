@@ -13,6 +13,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
+    // Las pruebas de formularios MUI completos pasan de 5 s con toda la suite en paralelo
+    testTimeout: 15000,
     env: {
       VITE_SERVER_URL: 'https://api.opuntiaden.com',
     },

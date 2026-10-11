@@ -1,16 +1,14 @@
-import { useState, useEffect } from 'react';
+import useSWR, { useSWRConfig } from 'swr';
 
 import axiosInstance, { endpoints } from 'src/lib/axios';
 
 // ----------------------------------------------------------------------
 
 const PAGE_SIZE = 100;
-
-let _cache = [];
-let _loaded = false;
+const KEY = 'products:all';
+const EMPTY = [];
 
 async function loadAll() {
-  if (_loaded) return _cache;
   const first = await axiosInstance
     .get(endpoints.product.list, { params: { page: 1, page_size: PAGE_SIZE } })
     .then((r) => r.data);
@@ -26,17 +24,21 @@ async function loadAll() {
     );
     items = [...items, ...pages.flat()];
   }
-  _cache = items;
-  _loaded = true;
   return items;
 }
 
+// Se carga una vez por sesión y la comparten todos los selectores de producto
 export function useAllProducts() {
-  const [products, setProducts] = useState(_cache);
-  useEffect(() => {
-    if (!_loaded) {
-      loadAll().then(setProducts);
-    }
-  }, []);
-  return products;
+  const { data } = useSWR(KEY, loadAll, {
+    revalidateIfStale: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+  return data ?? EMPTY;
+}
+
+// Un producto creado desde «+ Producto nuevo» aparece en todos los selectores sin recargar
+export function useAddToAllProducts() {
+  const { mutate } = useSWRConfig();
+  return (product) => mutate(KEY, (list = []) => [...list, product], { revalidate: false });
 }

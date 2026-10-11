@@ -718,9 +718,13 @@ function SaleItem({ index, products, productIdsWithStock, reservedProductIds, on
   const tracksBatches = product?.tracks_batches !== false;
   const totalStock = batches.reduce((s, b) => s + Number(b.quantity), 0);
 
-  // While the stock index is loading show all products; once ready filter to only those with stock.
+  // Se listan todos: los que tienen stock primero y los demás marcados «Sin stock», para
+  // poder elegirlos y agregarles un lote aquí mismo en vez de que desaparezcan.
+  // Venta libre (sin lotes) no lleva stock.
+  const noStock = (p) =>
+    !!productIdsWithStock && p.tracks_batches !== false && !productIdsWithStock.has(p.id);
   const autocompleteOptions = productIdsWithStock
-    ? products.filter((p) => productIdsWithStock.has(p.id))
+    ? [...products].sort((a, b) => noStock(a) - noStock(b))
     : products;
 
   const loadBatches = useCallback(async (pid) => {
@@ -794,7 +798,7 @@ function SaleItem({ index, products, productIdsWithStock, reservedProductIds, on
                     setValue(`items[${index}].product_id`, newValue.id, { shouldValidate: true });
                   }
                 }}
-                noOptionsText={productIdsWithStock ? 'Sin productos con stock' : 'Sin resultados'}
+                noOptionsText="Sin resultados"
                 getOptionDisabled={(opt) => reservedProductIds.has(opt.id)}
                 renderOption={(props, option) => {
                   // key por id: MUI mete el título como key dentro de props y hay títulos duplicados
@@ -803,6 +807,9 @@ function SaleItem({ index, products, productIdsWithStock, reservedProductIds, on
                   return (
                     <li key={option.id} {...optionProps}>
                       {option.title}
+                      {noStock(option) && (
+                        <Chip size="small" variant="soft" label="Sin stock" sx={{ ml: 1 }} />
+                      )}
                       {reservedProductIds.has(option.id) && (
                         <Chip size="small" variant="soft" color="warning" label="Reservado" sx={{ ml: 1 }} />
                       )}
@@ -810,7 +817,7 @@ function SaleItem({ index, products, productIdsWithStock, reservedProductIds, on
                   );
                 }}
                 renderInput={(params) => (
-                  <TextField {...params} label="Producto con stock *" error={!!error} helperText={error?.message} />
+                  <TextField {...params} label="Producto *" error={!!error} helperText={error?.message} />
                 )}
               />
             )}
@@ -855,15 +862,19 @@ function SaleItem({ index, products, productIdsWithStock, reservedProductIds, on
               />
             ) : (
               <Alert severity="warning" sx={{ mt: 0.5, py: 0, fontSize: '0.75rem' }}>
-                Sin stock disponible.{' '}
-                {tracksBatches ? 'Crea un lote antes de vender.' : 'Agrega stock antes de vender.'}
+                Sin stock: toca «Crear lote» para poder venderlo.
               </Alert>
             )
           )}
 
           {productId && !batchesError && (
             <Box sx={{ display: 'flex', mt: 0.5 }}>
-              <Button size="small" startIcon={<Iconify icon="mingcute:add-line" />} onClick={() => setOpenAddBatch(true)}>
+              <Button
+                size="small"
+                variant={batches.length === 0 ? 'contained' : 'text'}
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                onClick={() => setOpenAddBatch(true)}
+              >
                 {batches.length === 0
                   ? (tracksBatches ? 'Crear lote' : 'Agregar stock')
                   : (tracksBatches ? 'Agregar lote' : 'Actualizar stock')}

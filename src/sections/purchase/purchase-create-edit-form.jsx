@@ -1,6 +1,5 @@
 import { z as zod } from 'zod';
 import { useNavigate } from 'react-router';
-import { useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider, useFieldArray, useFormContext } from 'react-hook-form';
 
@@ -9,13 +8,11 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
-import axiosInstance, { endpoints } from 'src/lib/axios';
 import { createSupplier, useGetSuppliers } from 'src/actions/supplier';
 import {
   createPurchase,
@@ -30,47 +27,8 @@ import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { ProductSelect } from '../product/product-select';
 import { InlineCreatableSelect } from '../product/inline-creatable-select';
-
-// ----------------------------------------------------------------------
-
-const PAGE_SIZE = 100;
-
-// Module-level cache so products are loaded only once per session
-let _productsCache = [];
-let _productsLoaded = false;
-
-async function loadAllProducts() {
-  if (_productsLoaded) return _productsCache;
-  const first = await axiosInstance
-    .get(endpoints.product.list, { params: { page: 1, page_size: PAGE_SIZE } })
-    .then((r) => r.data);
-  let items = first.data;
-  if (first.total > PAGE_SIZE) {
-    const remaining = Math.ceil(first.total / PAGE_SIZE) - 1;
-    const pages = await Promise.all(
-      Array.from({ length: remaining }, (_, i) =>
-        axiosInstance
-          .get(endpoints.product.list, { params: { page: i + 2, page_size: PAGE_SIZE } })
-          .then((r) => r.data.data)
-      )
-    );
-    items = [...items, ...pages.flat()];
-  }
-  _productsCache = items;
-  _productsLoaded = true;
-  return items;
-}
-
-function useAllProducts() {
-  const [products, setProducts] = useState(_productsCache);
-  useEffect(() => {
-    if (!_productsLoaded) {
-      loadAllProducts().then(setProducts);
-    }
-  }, []);
-  return products;
-}
 
 // ----------------------------------------------------------------------
 
@@ -304,7 +262,6 @@ function PurchaseItems() {
 
 function PurchaseItem({ index, onRemove }) {
   const { watch } = useFormContext();
-  const products = useAllProducts();
 
   const quantity = watch(`items[${index}].quantity`);
   const unitPrice = watch(`items[${index}].unit_price`);
@@ -316,17 +273,11 @@ function PurchaseItem({ index, onRemove }) {
         sx={{
           gap: 2,
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '2fr 1fr 1fr 1fr 1fr' },
+          gridTemplateColumns: { xs: '1fr', md: '3fr 1fr 1fr 1fr 1fr' },
           alignItems: 'start',
         }}
       >
-        <Field.Select name={`items[${index}].product_id`} label="Producto *" size="small">
-          {products.map((p) => (
-            <MenuItem key={p.id} value={p.id}>
-              {p.title}
-            </MenuItem>
-          ))}
-        </Field.Select>
+        <ProductSelect name={`items.${index}.product_id`} size="small" />
 
         <Field.Text
           name={`items[${index}].quantity`}

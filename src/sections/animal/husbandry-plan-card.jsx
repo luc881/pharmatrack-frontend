@@ -39,9 +39,12 @@ const MONTH = [
   ['deaths', 'Bajas'],
 ];
 
-function PlanDialog({ species, open, onClose, onSaved }) {
+export function PlanDialog({ species, open, onClose, onSaved }) {
+  // Plan nuevo: arranca con un renglón de comida listo para llenar
   const [rows, setRows] = useState(() =>
-    (species.husbandry_plan ?? []).map((p) => ({ ...p, every_days: String(p.every_days) }))
+    species.husbandry_plan?.length
+      ? species.husbandry_plan.map((p) => ({ ...p, every_days: String(p.every_days) }))
+      : [{ kind: 'food', name: '', every_days: '3' }]
   );
   const [saving, setSaving] = useState(false);
 

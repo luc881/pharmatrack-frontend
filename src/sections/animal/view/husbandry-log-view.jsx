@@ -34,7 +34,6 @@ import TablePagination from '@mui/material/TablePagination';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -60,6 +59,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { PlanDialog } from '../husbandry-plan-card';
 import { speciesLabel, flattenGroupTree } from '../utils';
 import {
   FOODS,
@@ -73,8 +73,8 @@ import {
 } from '../husbandry';
 
 // ----------------------------------------------------------------------
-// Bitácora del plan de manejo. Arriba, las especies con plan (se edita en la
-// ficha de cada especie) con lo que les toca; «Hecho» lo registra de un toque
+// Bitácora del plan de manejo. Arriba, las especies con plan (se crea o edita
+// aquí o en su ficha) con lo que les toca; «Hecho» lo registra de un toque
 // y tocar la especie abre el formulario. Ahí solo se pregunta «¿Comió?»; lo
 // demás (cantidades, terrario, bajas, notas, fotos) queda en «Más detalles».
 // Si se anotan piezas o gramos la API marca «Comió» sola (salvo «No comió»).
@@ -196,8 +196,8 @@ function HowItWorks() {
       </Typography>
       <Box component="ol" sx={{ m: 0, pl: 2.5, typography: 'body2' }}>
         <li>
-          En la ficha de cada especie (Taxonomía → especie) llena su <b>plan de manejo</b>: qué
-          come, qué suplemento y cada cuántos días.
+          En «Todas», toca <b>Agregar plan</b> en la especie: qué come, qué suplemento y cada
+          cuántos días.
         </li>
         <li>
           Esa especie aparece aquí con lo que le toca. Cuando ya lo hiciste, toca <b>Hecho</b>.
@@ -213,7 +213,7 @@ function HowItWorks() {
 
 // ----------------------------------------------------------------------
 
-function SpeciesRow({ sp, status, canEdit, onOpen, onQuick }) {
+function SpeciesRow({ sp, status, canEdit, onOpen, onQuick, onPlan }) {
   const [busy, setBusy] = useState(null);
   // Con estado del servidor (especies en cultivo) se ven fechas; si no, solo el plan
   const plan = status?.plan ?? (sp.husbandry_plan ?? []).map((p) => ({ ...p, days_overdue: null }));
@@ -256,16 +256,21 @@ function SpeciesRow({ sp, status, canEdit, onOpen, onQuick }) {
 
       <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
         {!plan.length && (
-          <Typography variant="body2" color="text.secondary">
-            Sin plan.{' '}
-            <Box
-              component={RouterLink}
-              href={paths.dashboard.animal.species(sp.id)}
-              sx={{ color: 'primary.main' }}
-            >
-              Agregar plan
-            </Box>
-          </Typography>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Typography variant="body2" color="text.secondary">
+              Sin plan
+            </Typography>
+            {canEdit && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                onClick={() => onPlan(sp)}
+              >
+                Agregar plan
+              </Button>
+            )}
+          </Stack>
         )}
         {plan.map((p) => {
           const tag = p.days_overdue == null ? null : dueLabel(p.days_overdue);
@@ -768,7 +773,7 @@ export function HusbandryLogView() {
   const [searchParams] = useSearchParams();
   const initialSpecies = Number(searchParams.get('species')) || null;
 
-  const { species, speciesLoading } = useAllSpecies();
+  const { species, speciesLoading, speciesMutate } = useAllSpecies();
   const { genera } = useAllGenera();
   const { groupTree } = useAnimalGroupTree();
   const groupsFlat = flattenGroupTree(groupTree);
@@ -777,6 +782,7 @@ export function HusbandryLogView() {
   const [form, setForm] = useState(EMPTY);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [planFor, setPlanFor] = useState(null);
   const [saving, setSaving] = useState(false);
 
   // Lista de especies: con plan por defecto; «Todas» para anotar en cualquiera
@@ -941,22 +947,16 @@ export function HusbandryLogView() {
         {scope === 'plan' && noPlans ? (
           <EmptyContent
             title="Todavía ninguna especie tiene plan de manejo"
-            description="Abre la ficha de la especie en Taxonomía y llena «Plan de manejo» (qué come y cada cuántos días). Después aparece aquí con lo que le toca."
+            description="Toca «Ver especies» y, en la que quieras, «Agregar plan» (qué come y cada cuántos días). Después aparece aquí con lo que le toca."
             action={
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 3 }}>
-                <Button
-                  variant="contained"
-                  component={RouterLink}
-                  href={paths.dashboard.animal.taxonomy}
-                >
-                  Ir a Taxonomía
-                </Button>
-                {canEdit && (
-                  <Button variant="outlined" onClick={() => setScope('all')}>
-                    Anotar sin plan
-                  </Button>
-                )}
-              </Stack>
+              <Button
+                variant="contained"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                onClick={() => setScope('all')}
+                sx={{ mt: 3 }}
+              >
+                Ver especies
+              </Button>
             }
             sx={{ py: 6 }}
           />
@@ -1020,6 +1020,7 @@ export function HusbandryLogView() {
                   canEdit={canEdit}
                   onOpen={openFor}
                   onQuick={handleQuick}
+                  onPlan={setPlanFor}
                 />
               ))}
             </Stack>
@@ -1040,6 +1041,18 @@ export function HusbandryLogView() {
         onClose={close}
         onSave={handleSave}
       />
+
+      {planFor && (
+        <PlanDialog
+          open
+          species={planFor}
+          onClose={() => setPlanFor(null)}
+          onSaved={() => {
+            speciesMutate();
+            planStatusMutate();
+          }}
+        />
+      )}
 
       <Card>
         <CardHeader

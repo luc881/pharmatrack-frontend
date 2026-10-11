@@ -45,8 +45,13 @@ function renderView() {
   );
 }
 
-function mockApi({ species = [SPECIES], status = [], animals = [], onSave }) {
+function mockApi({ species = [SPECIES], status = [], animals = [], onSave, onPlan }) {
   server.use(
+    http.put(`${API}/species/7`, async ({ request }) => {
+      const body = await request.json();
+      onPlan?.(body);
+      return HttpResponse.json({ ...SPECIES, ...body });
+    }),
     http.get(`${API}/species`, () => HttpResponse.json(page(species))),
     http.get(`${API}/genera`, () => HttpResponse.json(page([]))),
     http.get(`${API}/animal-groups/tree`, () => HttpResponse.json([])),
@@ -69,7 +74,7 @@ describe('HusbandryLogView', () => {
     renderView();
 
     expect(await screen.findByText(/ninguna especie tiene plan/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /anotar sin plan/i }));
+    fireEvent.click(screen.getByRole('button', { name: /ver especies/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Anotar' }));
     fireEvent.click(await screen.findByRole('button', { name: /sí comió/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
@@ -90,6 +95,23 @@ describe('HusbandryLogView', () => {
       photos: [],
     });
     expect(saved.log_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('«Agregar plan» abre el plan ahí mismo, sin ir a la ficha', async () => {
+    let plan = null;
+    mockApi({ onPlan: (b) => (plan = b) });
+    renderView();
+
+    fireEvent.click(await screen.findByRole('button', { name: /ver especies/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Agregar plan' }));
+    // ya trae un renglón de comida para llenar
+    fireEvent.change(await screen.findByRole('combobox', { name: 'Qué' }), {
+      target: { value: 'Zarzamora' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /guardar plan/i }));
+
+    await waitFor(() => expect(plan).not.toBeNull());
+    expect(plan).toEqual({ husbandry_plan: [{ kind: 'food', name: 'Zarzamora', every_days: 3 }] });
   });
 
   it('no guarda una entrada vacía', async () => {
