@@ -29,6 +29,7 @@ export const SECTIONS = [
     tabs: [
       { label: 'Ejemplares', path: D.animal.root },
       { label: 'Hoja de inventario', path: D.animal.sheet },
+      { label: 'Bitácora de manejo', path: D.animal.log },
       { label: 'Taxonomía y cultivos', path: D.animal.taxonomy, match: [`${D.animal.root}/species`] },
     ],
   },

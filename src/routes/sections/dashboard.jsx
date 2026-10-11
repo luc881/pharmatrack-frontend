@@ -83,6 +83,7 @@ const AnimalEditPage     = lazy(() => import('src/pages/dashboard/animal/edit'))
 const AnimalTaxonomyPage = lazy(() => import('src/pages/dashboard/animal/taxonomy'));
 const AnimalSpeciesPage = lazy(() => import('src/pages/dashboard/animal/species'));
 const AnimalSheetPage   = lazy(() => import('src/pages/dashboard/animal/sheet'));
+const AnimalLogPage     = lazy(() => import('src/pages/dashboard/animal/log'));
 
 const ArticleListPage   = lazy(() => import('src/pages/dashboard/article/list'));
 const OrderListPage     = lazy(() => import('src/pages/dashboard/order/list'));
@@ -342,6 +343,7 @@ export const dashboardRoutes = [
           { path: 'list',       element: <AnimalListPage /> },
           { path: 'taxonomy',   element: <AnimalTaxonomyPage /> },
           { path: 'sheet',      element: <AnimalSheetPage /> },
+          { path: 'log',        element: <AnimalLogPage /> },
           { path: 'species/:id', element: <AnimalSpeciesPage /> },
           { path: 'new',        element: guard(P.animalsCreate, <AnimalCreatePage />) },
           { path: ':id',        element: <AnimalDetailsPage /> },

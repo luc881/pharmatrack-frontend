@@ -231,6 +231,12 @@ export const endpoints = {
     update: (id) => `/api/v1/animals/${id}`,
     delete: (id) => `/api/v1/animals/${id}`,
   },
+  husbandryLog: {
+    list: '/api/v1/husbandry-logs',
+    create: '/api/v1/husbandry-logs',
+    update: (id) => `/api/v1/husbandry-logs/${id}`,
+    delete: (id) => `/api/v1/husbandry-logs/${id}`,
+  },
   bundle: {
     items: (id) => `/api/v1/products/${id}/bundle-items`,
   },

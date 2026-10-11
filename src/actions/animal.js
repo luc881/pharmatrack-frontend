@@ -126,3 +126,25 @@ export const deleteMorph = (id) => axiosInstance.delete(endpoints.morph.delete(i
 export const createAnimal = (data) => axiosInstance.post(endpoints.animal.create, data).then((r) => r.data);
 export const updateAnimal = (id, data) => axiosInstance.put(endpoints.animal.update(id), data).then((r) => r.data);
 export const deleteAnimal = (id) => axiosInstance.delete(endpoints.animal.delete(id)).then((r) => r.data);
+
+// ----------------------------------------------------------------------
+// Bitácora del plan de manejo
+
+export function useGetHusbandryLogs({ page = 1, pageSize = 50, speciesId, dateFrom, dateTo } = {}) {
+  const params = {
+    page,
+    page_size: pageSize,
+    ...(speciesId ? { species_id: speciesId } : {}),
+    ...(dateFrom ? { date_from: dateFrom } : {}),
+    ...(dateTo ? { date_to: dateTo } : {}),
+  };
+  const { data, isLoading, mutate } = useSWR([endpoints.husbandryLog.list, { params }], fetcher, swrOptions);
+  return useMemo(
+    () => ({ logs: data?.data ?? [], logsTotal: data?.total ?? 0, logsLoading: isLoading, logsMutate: mutate }),
+    [data, isLoading, mutate]
+  );
+}
+
+export const createHusbandryLog = (data) => axiosInstance.post(endpoints.husbandryLog.create, data).then((r) => r.data);
+export const updateHusbandryLog = (id, data) => axiosInstance.put(endpoints.husbandryLog.update(id), data).then((r) => r.data);
+export const deleteHusbandryLog = (id) => axiosInstance.delete(endpoints.husbandryLog.delete(id)).then((r) => r.data);
