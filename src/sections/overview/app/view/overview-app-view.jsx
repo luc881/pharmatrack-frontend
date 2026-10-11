@@ -19,6 +19,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { TodayCard } from '../today-card';
 import { AppWelcome } from '../app-welcome';
 import { SensorWidget } from '../sensor-widget';
 import { DashboardRecentSales } from '../dashboard-recent-sales';
@@ -80,6 +81,8 @@ function QuickActions({ permissions }) {
 
   const allActions = [
     { title: 'Nueva venta',      description: 'Registrar venta',              icon: 'solar:cart-plus-bold-duotone',                   color: 'primary',   href: paths.dashboard.sale.new,           permission: null },
+    { title: 'Entregas',         description: 'Pendientes y cambios',         icon: 'solar:truck-bold-duotone',                       color: 'info',      href: paths.dashboard.delivery.root,      permission: 'sales.read' },
+    { title: 'Bitácora',         description: 'Alimentación y manejo',        icon: 'solar:notebook-bold-duotone',                    color: 'success',   href: paths.dashboard.animal.log,         permission: 'animals.read' },
     { title: 'Ver ventas',       description: 'Historial de ventas',          icon: 'solar:bill-list-bold-duotone',                   color: 'info',      href: paths.dashboard.sale.root,          permission: null },
     { title: 'Ver productos',    description: 'Catálogo de productos',        icon: 'solar:pills-bold-duotone',                       color: 'success',   href: paths.dashboard.product.root,       permission: null },
     { title: 'Ver lotes',        description: 'Stock y fechas de vencimiento',icon: 'solar:box-bold-duotone',                         color: 'warning',   href: paths.dashboard.productBatch.root,  permission: null },
@@ -174,7 +177,7 @@ export function OverviewAppView() {
         <Grid size={{ xs: 12, md: 8 }}>
           <AppWelcome
             title={`Bienvenido de vuelta 👋\n${user?.sub ?? user?.email ?? ''}`}
-            description="Aquí tienes un resumen del estado actual de la farmacia."
+            description="Aquí tienes un resumen de lo que pasa hoy en el criadero."
             img={<SeoIllustration hideBackground />}
             action={
               <Button
@@ -237,6 +240,11 @@ export function OverviewAppView() {
             color="error"
             loading={isLoading}
           />
+        </Grid>
+
+        {/* Hoy: entregas y plan de manejo, lo primero que se revisa en el día */}
+        <Grid size={{ xs: 12 }} sx={{ order: { xs: -1, md: 0 } }}>
+          <TodayCard permissions={user?.permissions ?? []} />
         </Grid>
 
         {/* Acciones rápidas + Sensor (misma fila en desktop) */}

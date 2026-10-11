@@ -46,8 +46,10 @@ import {
   createDelivery,
   deleteDelivery,
   updateDelivery,
+  restoreDelivery,
   useGetDeliveries,
   setDeliveryStatus,
+  changeDeliveryStatus,
 } from 'src/actions/delivery';
 
 import { Label } from 'src/components/label';
@@ -240,7 +242,7 @@ function ItemRows({ title, items, onChange, animals, addLabel }) {
               label="Cant."
               value={it.quantity}
               onChange={(e) => setItem(i, { quantity: e.target.value })}
-              slotProps={{ htmlInput: { min: 1 } }}
+              slotProps={{ htmlInput: { min: 1, inputMode: 'numeric' } }}
               sx={{ width: 80 }}
             />
             <IconButton
@@ -294,7 +296,13 @@ function DeliveryDialog({ current, places, onClose, onSaved }) {
   };
 
   return (
-    <Dialog open onClose={onClose} fullWidth maxWidth="md" fullScreen={fullScreen}>
+    <Dialog
+      open
+      onClose={(_, reason) => reason !== 'backdropClick' && onClose()}
+      fullWidth
+      maxWidth="md"
+      fullScreen={fullScreen}
+    >
       <DialogTitle>{current ? 'Editar entrega' : 'Nueva entrega'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2.5} sx={{ pt: 1 }}>
@@ -323,6 +331,7 @@ function DeliveryDialog({ current, places, onClose, onSaved }) {
                 fullWidth
                 label="WhatsApp o Instagram"
                 value={form.buyer_contact}
+                slotProps={{ htmlInput: { autoCapitalize: 'none' } }}
                 onChange={set('buyer_contact')}
               />
             </Grid>
@@ -388,7 +397,7 @@ function DeliveryDialog({ current, places, onClose, onSaved }) {
                 value={form.amount}
                 onChange={set('amount')}
                 slotProps={{
-                  htmlInput: { min: 0, step: 1 },
+                  htmlInput: { min: 0, step: 1, inputMode: 'decimal' },
                   input: { startAdornment: <InputAdornment position="start">$</InputAdornment> },
                 }}
               />
@@ -427,7 +436,7 @@ function DeliveryDialog({ current, places, onClose, onSaved }) {
                 label="Venta del POS #"
                 value={form.sale_id}
                 onChange={set('sale_id')}
-                slotProps={{ htmlInput: { min: 1 } }}
+                slotProps={{ htmlInput: { min: 1, inputMode: 'numeric' } }}
               />
             </Grid>
           </Grid>
@@ -618,9 +627,30 @@ export function DeliveryListView() {
 
   const changeStatus = async (d, status) => {
     try {
-      await setDeliveryStatus(d.id, status);
-      toast.success(status === 'delivered' ? `Entregada a ${d.buyer_name}` : 'Entrega cancelada');
+      // Al entregar algo sin pagar, lo normal es que paguen ahí mismo: se
+      // pregunta una vez y se guarda junto (si no, queda "Por cobrar").
+      const collect =
+        status === 'delivered' &&
+        !d.paid &&
+        Number(d.amount) > 0 &&
+        window.confirm(`¿${d.buyer_name} ya te pagó ${fCurrency(d.amount)}?`);
+      await changeDeliveryStatus(d, status, { paid: collect });
       refresh();
+      // Deshacer: un toque de más en el Metro no debe costar buscar la entrega
+      toast.success(status === 'delivered' ? `Entregada a ${d.buyer_name}` : 'Entrega cancelada', {
+        action: {
+          label: 'Deshacer',
+          onClick: async () => {
+            try {
+              if (collect) await restoreDelivery(d);
+              else await setDeliveryStatus(d.id, d.status);
+              refresh();
+            } catch (error) {
+              toast.error(error?.message || 'No se pudo deshacer');
+            }
+          },
+        },
+      });
     } catch (error) {
       toast.error(error?.message || 'No se pudo actualizar');
     }

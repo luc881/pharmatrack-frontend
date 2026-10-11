@@ -108,7 +108,7 @@ describe('HusbandryLogView', () => {
     // solo lo que toca (o está atrasado); lo de dentro de 8 días no aparece
     expect(await screen.findByText('Atrasado 2 d')).toBeInTheDocument();
     expect(screen.queryByText(/Zarzamora/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Registrar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Con detalles' }));
     expect(await screen.findByDisplayValue('Calcio')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Bajas'), { target: { value: '2' } });
@@ -118,5 +118,36 @@ describe('HusbandryLogView', () => {
 
     await waitFor(() => expect(saved).not.toBeNull());
     expect(saved).toMatchObject({ species_id: 7, supplement: 'Calcio', fed: false, deaths: 2, animal_id: 55 });
+  });
+
+  it('«Hecho» registra el renglón del plan de un toque', async () => {
+    let saved = null;
+    const status = [
+      {
+        species_id: 7,
+        species_name: 'Phyllium gardabagusi',
+        common_name: 'Hoja',
+        last_fed: null,
+        month: {},
+        plan: [{ kind: 'food', name: 'Zarzamora', every_days: 2, last_done: null, next_due: '2026-10-10', days_overdue: 0 }],
+      },
+    ];
+    server.use(
+      http.get(`${API}/species`, () => HttpResponse.json(page([SPECIES]))),
+      http.get(`${API}/morphs`, () => HttpResponse.json(page([]))),
+      http.get(`${API}/husbandry-logs`, () => HttpResponse.json(page([]))),
+      http.get(`${API}/husbandry-logs/status`, () => HttpResponse.json(status)),
+      http.get(`${API}/animals`, () => HttpResponse.json(page([]))),
+      http.post(`${API}/husbandry-logs`, async ({ request }) => {
+        saved = await request.json();
+        return HttpResponse.json({ id: 3, ...saved }, { status: 201 });
+      })
+    );
+    renderView();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Hecho' }));
+
+    await waitFor(() => expect(saved).not.toBeNull());
+    expect(saved).toMatchObject({ species_id: 7, fed: true, food_type: 'Zarzamora', supplement: null });
   });
 });

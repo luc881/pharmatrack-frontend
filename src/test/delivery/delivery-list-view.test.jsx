@@ -105,6 +105,7 @@ describe('DeliveryListView', () => {
   });
 
   it('«Entregada» cambia el estado de la pendiente', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false); // todavía no paga
     let body = null;
     server.use(
       ...baseHandlers([PENDING]),
@@ -120,6 +121,25 @@ describe('DeliveryListView', () => {
     fireEvent.click(screen.getByRole('button', { name: /^entregada$/i }));
 
     await waitFor(() => expect(body).toEqual({ status: 'delivered' }));
+  });
+
+  it('«Entregada» sin pagar pregunta y, si ya pagó, guarda entregada y pagada juntas', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    let body = null;
+    server.use(
+      ...baseHandlers([PENDING]),
+      http.put(`${API}/deliveries/9`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ ...PENDING, ...body });
+      })
+    );
+    renderView();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^entregada$/i }));
+
+    await waitFor(() => expect(body).not.toBeNull());
+    expect(body).toMatchObject({ status: 'delivered', paid: true, buyer_name: 'Ana', amount: 350 });
+    expect(body).not.toHaveProperty('id');
   });
 
   it('arma el enlace de WhatsApp solo con números de 10 dígitos', () => {

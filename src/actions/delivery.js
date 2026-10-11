@@ -61,3 +61,46 @@ export function useDeliverySummary({ dateFrom, dateTo } = {}) {
     [data, isLoading, mutate]
   );
 }
+
+// Campos que acepta el PUT completo (la respuesta trae además id, fechas, etc.)
+const BODY_KEYS = [
+  'kind',
+  'status',
+  'buyer_name',
+  'buyer_contact',
+  'scheduled_date',
+  'scheduled_time',
+  'place',
+  'items_given',
+  'items_received',
+  'amount',
+  'paid',
+  'payment_method',
+  'sale_id',
+  'order_id',
+  'notes',
+];
+
+const bodyOf = (d) => Object.fromEntries(BODY_KEYS.map((k) => [k, d[k] ?? null]));
+
+// Cambiar estado; con `paid` también la marca pagada (un solo guardado).
+// ponytail: el PUT completo reusa la entrega tal como llegó; si alguien la
+// editó en otro lado mientras tanto, gana esta versión.
+export const changeDeliveryStatus = (d, status, { paid } = {}) =>
+  paid
+    ? updateDelivery(d.id, {
+        ...bodyOf(d),
+        items_given: d.items_given ?? [],
+        items_received: d.items_received ?? [],
+        paid: true,
+        status,
+      })
+    : setDeliveryStatus(d.id, status);
+
+// Deshace changeDeliveryStatus regresando la entrega a como estaba
+export const restoreDelivery = (d) =>
+  updateDelivery(d.id, {
+    ...bodyOf(d),
+    items_given: d.items_given ?? [],
+    items_received: d.items_received ?? [],
+  });

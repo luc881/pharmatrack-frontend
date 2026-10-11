@@ -91,6 +91,15 @@ export function SiteLinksView() {
 
   const dirty = draft && linkPages && JSON.stringify(draft) !== JSON.stringify(linkPages);
 
+  // Avisar antes de cerrar o recargar con cambios sin guardar
+  // ponytail: solo cierre/recarga del navegador; navegar dentro del dashboard no avisa
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const warn = (e) => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
   const handleSave = async () => {
     const error = firstError(draft);
     if (error) {

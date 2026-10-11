@@ -127,7 +127,8 @@ const speciesShort = (row) => row.common_name || row.species_name;
 
 // ----------------------------------------------------------------------
 
-function PlanDueCard({ rows, canEdit, onRegister }) {
+function PlanDueCard({ rows, canEdit, onRegister, onQuick }) {
+  const [busy, setBusy] = useState(null);
   const due = rows.flatMap((r) =>
     r.plan.filter((p) => p.days_overdue >= 0).map((p) => ({ ...p, row: r }))
   );
@@ -183,15 +184,124 @@ function PlanDueCard({ rows, canEdit, onRegister }) {
                 </Typography>
                 <Label color={tag.color}>{tag.label}</Label>
                 {canEdit && (
-                  <Button size="small" variant="outlined" onClick={() => onRegister(p)}>
-                    Registrar
-                  </Button>
+                  <Stack direction="row" spacing={1}>
+                    {/* Un toque: guarda "hecho hoy" sin abrir el formulario */}
+                    <Button
+                      size="small"
+                      variant="contained"
+                      loading={busy === p}
+                      startIcon={<Iconify icon="solar:check-circle-bold" />}
+                      onClick={async () => {
+                        setBusy(p);
+                        await onQuick(p);
+                        setBusy(null);
+                      }}
+                    >
+                      Hecho
+                    </Button>
+                    <Button size="small" variant="outlined" onClick={() => onRegister(p)}>
+                      Con detalles
+                    </Button>
+                  </Stack>
                 )}
               </Stack>
             );
           })}
         </Stack>
       </Box>
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function LogCard({ log, canEdit, selected, onEdit, onDelete }) {
+  const food = log.food_type || (log.fed ? 'Comió' : null);
+  return (
+    <Card variant="outlined" sx={{ p: 2, ...(selected && { borderColor: 'primary.main' }) }}>
+      <Stack direction="row" alignItems="flex-start" spacing={1}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary">
+            {fDate(log.log_date)}
+            {log.user_name ? ` · ${log.user_name}` : ''}
+          </Typography>
+          <Typography variant="subtitle2" sx={{ fontStyle: 'italic' }}>
+            {log.species_name}
+            {log.morph_name && (
+              <Box component="span" sx={{ fontStyle: 'normal', color: 'text.secondary' }}>
+                {' '}
+                · {log.morph_name}
+              </Box>
+            )}
+          </Typography>
+        </Box>
+        {canEdit && (
+          <>
+            <IconButton aria-label="Editar" onClick={onEdit}>
+              <Iconify icon="solar:pen-bold" />
+            </IconButton>
+            <IconButton aria-label="Borrar" color="error" onClick={onDelete}>
+              <Iconify icon="solar:trash-bin-trash-bold" />
+            </IconButton>
+          </>
+        )}
+      </Stack>
+
+      <Stack direction="row" flexWrap="wrap" gap={0.75} alignItems="center" sx={{ mt: 1 }}>
+        {food && (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {log.fed && (
+              <Iconify icon="solar:check-circle-bold" width={18} sx={{ color: 'success.main' }} />
+            )}
+            <Typography variant="body2">
+              {food}
+              {amount(log) ? ` · ${amount(log)}` : ''}
+            </Typography>
+          </Stack>
+        )}
+        {log.appetite && (
+          <Label color={APPETITE[log.appetite]?.color}>{APPETITE[log.appetite]?.label}</Label>
+        )}
+        {log.supplement && (
+          <Label variant="soft" color="secondary">
+            + {log.supplement}
+          </Label>
+        )}
+        {(log.activities ?? []).map((a) => (
+          <Label key={a} variant="soft" color={a === 'deaths' ? 'error' : 'default'}>
+            {a === 'deaths'
+              ? `${log.deaths ?? ''} ${log.deaths === 1 ? 'baja' : 'bajas'}`
+              : (ACTIVITIES[a] ?? a)}
+          </Label>
+        ))}
+      </Stack>
+
+      {(log.feeding_notes || log.notes) && (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, whiteSpace: 'pre-line' }}>
+          {[log.feeding_notes, log.notes].filter(Boolean).join('\n')}
+        </Typography>
+      )}
+
+      {log.photos?.length > 0 && (
+        <Stack direction="row" spacing={0.5} sx={{ mt: 1 }}>
+          {log.photos.map((url) => (
+            <Box key={url} component="a" href={url} target="_blank" rel="noopener noreferrer">
+              <Box
+                component="img"
+                src={url}
+                alt="Foto de la entrada"
+                sx={{
+                  width: 56,
+                  height: 56,
+                  objectFit: 'cover',
+                  borderRadius: 0.75,
+                  display: 'block',
+                }}
+              />
+            </Box>
+          ))}
+        </Stack>
+      )}
     </Card>
   );
 }
@@ -289,15 +399,29 @@ export function HusbandryLogView() {
     }
   };
 
-  // "Registrar" desde lo que toca: llena el formulario con la especie y el renglón
+  const fromPlan = (p) => ({
+    ...EMPTY,
+    species_id: p.row.species_id,
+    log_date: today(),
+    ...(p.kind === 'food' ? { fed: true, food_type: p.name } : { supplement: p.name }),
+  });
+
+  // "Hecho": registra el renglón del plan como hecho hoy, sin formulario
+  const handleQuick = async (p) => {
+    try {
+      await createHusbandryLog(toPayload(fromPlan(p)));
+      toast.success(`${p.name}: registrado`);
+      logsMutate();
+      planStatusMutate();
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo guardar');
+    }
+  };
+
+  // "Con detalles": llena el formulario con la especie y el renglón
   const handleRegister = (p) => {
     setEditingId(null);
-    setForm({
-      ...EMPTY,
-      species_id: p.row.species_id,
-      log_date: today(),
-      ...(p.kind === 'food' ? { fed: true, food_type: p.name } : { supplement: p.name }),
-    });
+    setForm(fromPlan(p));
     window.scrollTo({
       top: document.getElementById('log-form')?.offsetTop ?? 0,
       behavior: 'smooth',
@@ -328,7 +452,12 @@ export function HusbandryLogView() {
         sx={{ mb: 3 }}
       />
 
-      <PlanDueCard rows={planStatus} canEdit={canEdit} onRegister={handleRegister} />
+      <PlanDueCard
+        rows={planStatus}
+        canEdit={canEdit}
+        onRegister={handleRegister}
+        onQuick={handleQuick}
+      />
 
       {canEdit && (
         <Card id="log-form" sx={{ mb: 3 }}>
@@ -414,7 +543,7 @@ export function HusbandryLogView() {
                   label="Piezas"
                   value={form.pieces}
                   onChange={set('pieces')}
-                  slotProps={{ htmlInput: { min: 0, step: 1 } }}
+                  slotProps={{ htmlInput: { min: 0, step: 1, inputMode: 'numeric' } }}
                 />
               </Grid>
               <Grid size={{ xs: 6, md: 3 }}>
@@ -424,7 +553,7 @@ export function HusbandryLogView() {
                   label="Gramos"
                   value={form.grams}
                   onChange={set('grams')}
-                  slotProps={{ htmlInput: { min: 0, step: 0.1 } }}
+                  slotProps={{ htmlInput: { min: 0, step: 0.1, inputMode: 'decimal' } }}
                 />
               </Grid>
             </Grid>
@@ -505,7 +634,7 @@ export function HusbandryLogView() {
                   label="Bajas"
                   value={form.deaths}
                   onChange={set('deaths')}
-                  slotProps={{ htmlInput: { min: 0, step: 1 } }}
+                  slotProps={{ htmlInput: { min: 0, step: 1, inputMode: 'numeric' } }}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 8, md: 9 }}>
@@ -628,7 +757,21 @@ export function HusbandryLogView() {
           sx={{ flexWrap: 'wrap', gap: 2 }}
         />
 
-        <TableContainer sx={{ mt: 2 }}>
+        {/* Celular: tarjetas en vez de la tabla ancha */}
+        <Stack spacing={1.5} sx={{ display: { md: 'none' }, p: 2 }}>
+          {logs.map((log) => (
+            <LogCard
+              key={log.id}
+              log={log}
+              canEdit={canEdit}
+              selected={editingId === log.id}
+              onEdit={() => handleEdit(log)}
+              onDelete={() => handleDelete(log)}
+            />
+          ))}
+        </Stack>
+
+        <TableContainer sx={{ mt: 2, display: { xs: 'none', md: 'block' } }}>
           <Scrollbar>
             <Table size="small" sx={{ minWidth: 960 }}>
               <TableHead>
