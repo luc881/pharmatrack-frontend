@@ -17,12 +17,12 @@ vi.mock('src/components/snackbar', () => ({ toast: { error: vi.fn(), success: vi
 
 const API = 'https://api.opuntiaden.com/api/v1';
 
-const pick = async (label, text) => {
-  const input = screen.getByRole('combobox', { name: label });
-  input.focus();
-  fireEvent.mouseDown(input);
-  fireEvent.change(input, { target: { value: text } });
-  fireEvent.click(await screen.findByText(new RegExp(`Crear .*«${text}»`)));
+// Botón explícito «+ Género nuevo» / «+ Grupo nuevo» y escribir el nombre
+const createNew = (button, text) => {
+  fireEvent.click(screen.getByRole('button', { name: button }));
+  fireEvent.change(screen.getByLabelText(`Nombre del ${button.toLowerCase()} *`), {
+    target: { value: text },
+  });
 };
 
 function renderDialog(props = {}) {
@@ -63,29 +63,17 @@ describe('TaxonDialog', () => {
       })
     );
     const onSaved = vi.fn();
-    const Wrapper = createWrapper();
-    render(
-      <ThemeProvider theme={createTheme({ cssVariables: true })}>
-        <Wrapper>
-          <TaxonDialog
-            tab="species"
-            singular="especie"
-            genera={[]}
-            allSpecies={[]}
-            groupsFlat={[]}
-            onClose={() => {}}
-            onSaved={onSaved}
-          />
-        </Wrapper>
-      </ThemeProvider>
-    );
+    renderDialog({ onSaved });
 
-    await pick(/^género/i, 'Phyllium');
-    await pick(/grupo de phyllium/i, 'Fásmidos');
+    createNew('Género nuevo', 'Phyllium');
+    // el grupo aparece en cuanto el género es nuevo, y es obligatorio
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+    createNew('Grupo nuevo', 'Fásmidos');
     fireEvent.change(screen.getByLabelText(/especie \(nombre científico\)/i), {
       target: { value: 'Phyllium gardabagusi' },
     });
-    expect(screen.getByText('Quedará como: Phyllium gardabagusi')).toBeInTheDocument();
+    expect(screen.getByText('Al guardar quedará así:')).toBeInTheDocument();
+    expect(screen.getAllByText('nuevo')).toHaveLength(3);
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
@@ -98,8 +86,19 @@ describe('TaxonDialog', () => {
     renderDialog({ tab: 'genera', singular: 'género' });
     fireEvent.change(screen.getByLabelText(/^nombre/i), { target: { value: 'Phyllium' } });
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
-    await pick(/^grupo/i, 'Fásmidos');
+    createNew('Grupo nuevo', 'Fásmidos');
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled();
+  });
+
+  it('no deja crear un género que ya existe; hay que elegirlo de la lista', () => {
+    renderDialog({ genera: [{ id: 5, name: 'Cubaris', group: { id: 3, name: 'Isópodos' } }] });
+    createNew('Género nuevo', 'cubaris');
+    fireEvent.change(screen.getByLabelText(/especie \(nombre científico\)/i), { target: { value: 'murina' } });
+    expect(screen.getByText('Ya existe: elígelo de la lista')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+    // «Elegir existente» regresa a la lista
+    fireEvent.click(screen.getByRole('button', { name: 'Elegir existente' }));
+    expect(screen.getByRole('combobox', { name: /^género/i })).toBeInTheDocument();
   });
 
   it('un género viejo sin grupo pide el grupo y se lo asigna al guardar', async () => {

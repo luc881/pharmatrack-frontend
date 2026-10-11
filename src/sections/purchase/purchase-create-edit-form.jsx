@@ -213,6 +213,7 @@ export function PurchaseCreateEditForm({ currentPurchase, currentDetails = [] })
               <InlineCreatableSelect
                 name="supplier_id"
                 label="Proveedor *"
+                newLabel="Proveedor nuevo"
                 options={suppliers}
                 onCreate={handleCreateSupplier}
                 loading={suppliersLoading}

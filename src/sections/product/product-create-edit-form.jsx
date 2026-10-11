@@ -422,6 +422,7 @@ export function ProductCreateEditForm({ currentProduct }) {
             <InlineCreatableSelect
               name="product_category_id"
               label="Categoría *"
+              newLabel="Categoría nueva"
               options={categories}
               onCreate={handleCreateCategory}
               loading={categoriesLoading}
@@ -430,6 +431,7 @@ export function ProductCreateEditForm({ currentProduct }) {
             <InlineCreatableSelect
               name="brand_id"
               label="Marca"
+              newLabel="Marca nueva"
               options={brands}
               onCreate={handleCreateBrand}
               loading={brandsLoading}

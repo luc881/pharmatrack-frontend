@@ -9,7 +9,6 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
@@ -67,6 +66,9 @@ const schema = zod.object({
   // 0 = ya no hay (agotado); el backend lo marca como vendido y el sitio dice "Agotado"
   stock: zod.number({ coerce: true }).int('Solo números enteros').min(0, 'No puede ser negativo').optional(),
 });
+
+// «+ Género nuevo» etc. a la vista junto a su selector (no un icono escondido)
+const NEW_BUTTON_SX = { height: 56, flexShrink: 0 };
 
 // ----------------------------------------------------------------------
 
@@ -327,11 +329,14 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 renderInput={(params) => <TextField {...params} label="Género *" />}
               />
               {canCreate('genera') && (
-                <Tooltip title="Nuevo género">
-                  <IconButton onClick={() => setQuickCreate({ tab: 'genera' })} sx={{ mt: 1 }}>
-                    <Iconify icon="mingcute:add-line" />
-                  </IconButton>
-                </Tooltip>
+                <Button
+                  variant="outlined"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                  onClick={() => setQuickCreate({ tab: 'genera' })}
+                  sx={NEW_BUTTON_SX}
+                >
+                  Género nuevo
+                </Button>
               )}
             </Box>
 
@@ -352,16 +357,21 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                   <TextField
                     {...params}
                     label="Especie *"
-                    helperText={genusId ? '' : 'Selecciona primero un género'}
+                    helperText={
+                      genusId ? '' : 'Elige primero el género, o usa «Especie nueva» para crear todo junto'
+                    }
                   />
                 )}
               />
               {canCreate('species') && (
-                <Tooltip title="Nueva especie">
-                  <IconButton onClick={() => setQuickCreate({ tab: 'species' })} sx={{ mt: 1 }}>
-                    <Iconify icon="mingcute:add-line" />
-                  </IconButton>
-                </Tooltip>
+                <Button
+                  variant="outlined"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                  onClick={() => setQuickCreate({ tab: 'species' })}
+                  sx={NEW_BUTTON_SX}
+                >
+                  Especie nueva
+                </Button>
               )}
             </Box>
 
@@ -514,17 +524,15 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 )}
               />
               {canCreate('morphs') && (
-                <Tooltip title="Nuevo morph">
-                  <span>
-                    <IconButton
-                      disabled={!speciesId}
-                      onClick={() => setQuickCreate({ tab: 'morphs' })}
-                      sx={{ mt: 1 }}
-                    >
-                      <Iconify icon="mingcute:add-line" />
-                    </IconButton>
-                  </span>
-                </Tooltip>
+                <Button
+                  variant="outlined"
+                  disabled={!speciesId}
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                  onClick={() => setQuickCreate({ tab: 'morphs' })}
+                  sx={NEW_BUTTON_SX}
+                >
+                  Morph nuevo
+                </Button>
               )}
             </Box>
 
