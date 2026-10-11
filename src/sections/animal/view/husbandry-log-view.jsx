@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
@@ -26,14 +28,18 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
 
+import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   useAllMorphs,
   useAllSpecies,
+  useGetAnimals,
   createHusbandryLog,
   deleteHusbandryLog,
   updateHusbandryLog,
+  useHusbandryStatus,
   useGetHusbandryLogs,
 } from 'src/actions/animal';
 
@@ -47,44 +53,24 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { speciesLabel } from '../utils';
+import {
+  FOODS,
+  fDate,
+  APPETITE,
+  dueLabel,
+  PLAN_KIND,
+  ACTIVITIES,
+  SUPPLEMENTS,
+  planOptions,
+} from '../husbandry';
 
 // ----------------------------------------------------------------------
 // Bitácora del plan de manejo: qué comió cada especie (o morph), cuánto, cómo
-// lo tomó y qué más se hizo en el terrario. Todo es opcional salvo especie y
-// fecha: la palomita "Comió" sola basta para el registro rápido. Si se anotan
+// lo tomó, suplementos, bajas y qué más se hizo en el terrario. Todo es
+// opcional salvo especie y fecha: la palomita "Comió" sola basta. Si se anotan
 // piezas o gramos la API marca "Comió" sola (salvo apetito "No comió").
+// Arriba, lo que toca hoy según el plan de cada especie (se edita en su ficha).
 // ----------------------------------------------------------------------
-
-export const APPETITE = {
-  good: { label: 'Bien', color: 'success' },
-  regular: { label: 'Regular', color: 'info' },
-  poor: { label: 'Poco', color: 'warning' },
-  refused: { label: 'No comió', color: 'error' },
-};
-
-export const ACTIVITIES = {
-  misted: 'Rociado',
-  cleaned: 'Limpieza',
-  substrate: 'Cambio de sustrato',
-  molt: 'Muda',
-  eggs: 'Puesta / ootecas',
-  births: 'Nacimientos',
-  deaths: 'Bajas',
-};
-
-// Sugerencias; se puede escribir cualquier otro alimento
-const FOODS = [
-  'Grillos',
-  'Cucarachas dubia',
-  'Tenebrios',
-  'Gusano de seda',
-  'Papilla',
-  'Fruta',
-  'Verdura',
-  'Hojas',
-  'Hojarasca',
-  'Croqueta',
-];
 
 const today = () => {
   const d = new Date();
@@ -101,15 +87,17 @@ const EMPTY = {
   grams: '',
   appetite: '',
   feeding_notes: '',
+  supplement: '',
+  deaths: '',
+  animal_id: '',
   activities: [],
   notes: '',
+  photos: [],
 };
 
-const fromLog = (log) => ({
-  ...EMPTY,
-  ...Object.fromEntries(Object.entries(log).map(([k, v]) => [k, v ?? EMPTY[k] ?? ''])),
-  species_id: log.species_id,
-});
+const fromLog = (log) => Object.fromEntries(Object.keys(EMPTY).map((k) => [k, log[k] ?? EMPTY[k]]));
+
+const num = (v) => (v === '' || v == null ? null : Number(v));
 
 // Vacíos → null: la API valida tipos y no quiere cadenas vacías
 const toPayload = (f) => ({
@@ -118,12 +106,16 @@ const toPayload = (f) => ({
   log_date: f.log_date,
   fed: f.fed,
   food_type: f.food_type.trim() || null,
-  pieces: f.pieces === '' ? null : Number(f.pieces),
-  grams: f.grams === '' ? null : Number(f.grams),
+  pieces: num(f.pieces),
+  grams: num(f.grams),
   appetite: f.appetite || null,
   feeding_notes: f.feeding_notes.trim() || null,
-  activities: f.activities,
+  supplement: f.supplement.trim() || null,
+  deaths: num(f.deaths) || null,
+  animal_id: num(f.deaths) ? f.animal_id || null : null,
+  activities: f.activities.filter((a) => a !== 'deaths'),
   notes: f.notes.trim() || null,
+  photos: f.photos,
 });
 
 const amount = (log) =>
@@ -131,12 +123,78 @@ const amount = (log) =>
     .filter(Boolean)
     .join(' · ');
 
-const fDate = (d) =>
-  new Date(`${d}T12:00:00`).toLocaleDateString('es-MX', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  });
+const speciesShort = (row) => row.common_name || row.species_name;
+
+// ----------------------------------------------------------------------
+
+function PlanDueCard({ rows, canEdit, onRegister }) {
+  const due = rows.flatMap((r) =>
+    r.plan.filter((p) => p.days_overdue >= 0).map((p) => ({ ...p, row: r }))
+  );
+  due.sort((a, b) => b.days_overdue - a.days_overdue);
+
+  return (
+    <Card sx={{ mb: 3 }}>
+      <CardHeader
+        title="Toca hoy según el plan"
+        subheader={
+          rows.length
+            ? `${rows.length} especie${rows.length === 1 ? '' : 's'} con plan. El plan se edita en la ficha de cada especie.`
+            : 'Ninguna especie tiene plan todavía: agrégalo desde su ficha (Taxonomía → especie → Plan de manejo).'
+        }
+      />
+      <Box sx={{ p: 3, pt: 2 }}>
+        {rows.length > 0 && !due.length && (
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ color: 'success.main' }}>
+            <Iconify icon="solar:check-circle-bold" />
+            <Typography variant="body2">Todo al día.</Typography>
+          </Stack>
+        )}
+        <Stack divider={<Divider flexItem />} spacing={1.25}>
+          {due.map((p) => {
+            const tag = dueLabel(p.days_overdue);
+            return (
+              <Stack
+                key={`${p.row.species_id}-${p.kind}-${p.name}`}
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={{ xs: 0.75, sm: 2 }}
+                alignItems={{ sm: 'center' }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Link
+                    component={RouterLink}
+                    href={paths.dashboard.animal.species(p.row.species_id)}
+                    color="inherit"
+                    variant="subtitle2"
+                  >
+                    {speciesShort(p.row)}
+                  </Link>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                    <Label variant="soft" color={PLAN_KIND[p.kind]?.color}>
+                      {PLAN_KIND[p.kind]?.label}
+                    </Label>
+                    <Typography variant="body2">
+                      {p.name} · cada {p.every_days} d
+                    </Typography>
+                  </Stack>
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ minWidth: 120 }}>
+                  {p.last_done ? `Última: ${fDate(p.last_done)}` : 'Sin registro'}
+                </Typography>
+                <Label color={tag.color}>{tag.label}</Label>
+                {canEdit && (
+                  <Button size="small" variant="outlined" onClick={() => onRegister(p)}>
+                    Registrar
+                  </Button>
+                )}
+              </Stack>
+            );
+          })}
+        </Stack>
+      </Box>
+    </Card>
+  );
+}
 
 // ----------------------------------------------------------------------
 
@@ -144,22 +202,39 @@ export function HusbandryLogView() {
   const { user } = useAuthContext();
   const canEdit = user?.permissions?.includes('animals.update');
 
+  const [searchParams] = useSearchParams();
+  const initialSpecies = Number(searchParams.get('species')) || null;
+
   const { species } = useAllSpecies();
 
-  const [form, setForm] = useState(() => ({ ...EMPTY, log_date: today() }));
+  const [form, setForm] = useState(() => ({
+    ...EMPTY,
+    species_id: initialSpecies,
+    log_date: today(),
+  }));
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const [filterSpecies, setFilterSpecies] = useState(null);
+  const [filterId, setFilterId] = useState(initialSpecies);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
   const { morphs } = useAllMorphs(form.species_id);
+  const { animals } = useGetAnimals({ pageSize: 100, speciesId: form.species_id || undefined });
+  const { planStatus, planStatusMutate } = useHusbandryStatus();
   const { logs, logsTotal, logsLoading, logsMutate } = useGetHusbandryLogs({
     page: page + 1,
     pageSize: rowsPerPage,
-    speciesId: filterSpecies?.id,
+    speciesId: filterId,
   });
+
+  const selectedSpecies = species.find((s) => s.id === form.species_id) ?? null;
+  const filterSpecies = species.find((s) => s.id === filterId) ?? null;
+  // Solo se puede descontar de ejemplares/cepas con existencia de esta especie
+  const stockAnimals = form.species_id
+    ? animals.filter((a) => (a.stock ?? 0) > 0 || a.id === form.animal_id)
+    : [];
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -177,6 +252,7 @@ export function HusbandryLogView() {
   const handleSave = async () => {
     if (!form.species_id) return toast.error('Elige la especie');
     if (!form.log_date) return toast.error('Pon la fecha');
+    if (uploading) return toast.error('Espera a que terminen de subir las fotos');
     setSaving(true);
     try {
       if (editingId) await updateHusbandryLog(editingId, toPayload(form));
@@ -184,6 +260,7 @@ export function HusbandryLogView() {
       toast.success(editingId ? 'Entrada actualizada' : 'Entrada guardada');
       reset();
       logsMutate();
+      planStatusMutate();
     } catch (error) {
       toast.error(error?.message || 'No se pudo guardar');
     } finally {
@@ -206,12 +283,38 @@ export function HusbandryLogView() {
       await deleteHusbandryLog(log.id);
       if (editingId === log.id) reset();
       logsMutate();
+      planStatusMutate();
     } catch (error) {
       toast.error(error?.message || 'No se pudo borrar');
     }
   };
 
-  const selectedSpecies = species.find((s) => s.id === form.species_id) ?? null;
+  // "Registrar" desde lo que toca: llena el formulario con la especie y el renglón
+  const handleRegister = (p) => {
+    setEditingId(null);
+    setForm({
+      ...EMPTY,
+      species_id: p.row.species_id,
+      log_date: today(),
+      ...(p.kind === 'food' ? { fed: true, food_type: p.name } : { supplement: p.name }),
+    });
+    window.scrollTo({
+      top: document.getElementById('log-form')?.offsetTop ?? 0,
+      behavior: 'smooth',
+    });
+  };
+
+  const addPhotos = async (files) => {
+    setUploading(true);
+    try {
+      const urls = await Promise.all([...files].map((f) => uploadToCloudinary(f)));
+      setForm((f) => ({ ...f, photos: [...f.photos, ...urls] }));
+    } catch {
+      toast.error('Error al subir las fotos');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <DashboardContent>
@@ -225,8 +328,10 @@ export function HusbandryLogView() {
         sx={{ mb: 3 }}
       />
 
+      <PlanDueCard rows={planStatus} canEdit={canEdit} onRegister={handleRegister} />
+
       {canEdit && (
-        <Card sx={{ mb: 3 }}>
+        <Card id="log-form" sx={{ mb: 3 }}>
           <CardHeader
             title={editingId ? 'Editar entrada' : 'Nueva entrada'}
             subheader="Basta con la palomita «Comió»; lo demás es opcional."
@@ -238,7 +343,12 @@ export function HusbandryLogView() {
                   options={species}
                   value={selectedSpecies}
                   onChange={(_, s) =>
-                    setForm((f) => ({ ...f, species_id: s?.id ?? null, morph_id: '' }))
+                    setForm((f) => ({
+                      ...f,
+                      species_id: s?.id ?? null,
+                      morph_id: '',
+                      animal_id: '',
+                    }))
                   }
                   getOptionLabel={speciesLabel}
                   isOptionEqualToValue={(a, b) => a.id === b.id}
@@ -291,7 +401,7 @@ export function HusbandryLogView() {
               <Grid size={{ xs: 12, md: 4 }}>
                 <Autocomplete
                   freeSolo
-                  options={FOODS}
+                  options={planOptions(selectedSpecies, 'food', FOODS)}
                   inputValue={form.food_type}
                   onInputChange={(_, v) => setForm((f) => ({ ...f, food_type: v }))}
                   renderInput={(params) => <TextField {...params} label="Tipo de alimento" />}
@@ -347,29 +457,83 @@ export function HusbandryLogView() {
               onChange={set('feeding_notes')}
             />
 
+            <Autocomplete
+              freeSolo
+              options={planOptions(selectedSpecies, 'supplement', SUPPLEMENTS)}
+              inputValue={form.supplement}
+              onInputChange={(_, v) => setForm((f) => ({ ...f, supplement: v }))}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Suplemento (opcional)"
+                  helperText="Ej. calcio espolvoreado en la papilla"
+                />
+              )}
+            />
+
             <Divider>Terrario</Divider>
 
             <Stack direction="row" flexWrap="wrap" gap={1}>
-              {Object.entries(ACTIVITIES).map(([value, label]) => {
-                const on = form.activities.includes(value);
-                return (
-                  <Chip
-                    key={value}
-                    label={label}
-                    color={on ? 'primary' : 'default'}
-                    variant={on ? 'filled' : 'outlined'}
-                    onClick={() =>
-                      setForm((f) => ({
-                        ...f,
-                        activities: on
-                          ? f.activities.filter((a) => a !== value)
-                          : [...f.activities, value],
-                      }))
-                    }
-                  />
-                );
-              })}
+              {Object.entries(ACTIVITIES)
+                .filter(([value]) => value !== 'deaths')
+                .map(([value, label]) => {
+                  const on = form.activities.includes(value);
+                  return (
+                    <Chip
+                      key={value}
+                      label={label}
+                      color={on ? 'primary' : 'default'}
+                      variant={on ? 'filled' : 'outlined'}
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          activities: on
+                            ? f.activities.filter((a) => a !== value)
+                            : [...f.activities, value],
+                        }))
+                      }
+                    />
+                  );
+                })}
             </Stack>
+
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, sm: 4, md: 3 }}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Bajas"
+                  value={form.deaths}
+                  onChange={set('deaths')}
+                  slotProps={{ htmlInput: { min: 0, step: 1 } }}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 8, md: 9 }}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Descontar del inventario"
+                  value={form.animal_id}
+                  onChange={set('animal_id')}
+                  disabled={!num(form.deaths)}
+                  helperText={
+                    editingId && form.animal_id
+                      ? 'Al guardar se regresa lo descontado antes y se descuenta lo nuevo.'
+                      : 'Opcional: elige el ejemplar o cepa de donde salen las bajas.'
+                  }
+                >
+                  <MenuItem value="">No descontar</MenuItem>
+                  {stockAnimals.map((a) => (
+                    <MenuItem key={a.id} value={a.id}>
+                      {a.code}
+                      {a.morphs?.length
+                        ? ` · ${a.morphs.map((m) => m.name).join(', ')}`
+                        : ''} — {a.stock ?? 0} en inventario
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            </Grid>
 
             <TextField
               multiline
@@ -378,6 +542,51 @@ export function HusbandryLogView() {
               value={form.notes}
               onChange={set('notes')}
             />
+
+            <Box>
+              {form.photos.length > 0 && (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1.5 }}>
+                  {form.photos.map((url, i) => (
+                    <Box key={url} sx={{ position: 'relative' }}>
+                      <Box
+                        component="img"
+                        src={url}
+                        alt=""
+                        sx={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 1 }}
+                      />
+                      <IconButton
+                        size="small"
+                        aria-label="Quitar foto"
+                        onClick={() =>
+                          setForm((f) => ({ ...f, photos: f.photos.filter((_, j) => j !== i) }))
+                        }
+                        sx={{ position: 'absolute', top: 2, right: 2, bgcolor: 'background.paper' }}
+                      >
+                        <Iconify icon="mingcute:close-line" width={14} />
+                      </IconButton>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+              <Button
+                component="label"
+                variant="outlined"
+                loading={uploading}
+                startIcon={<Iconify icon="solar:camera-add-bold" />}
+              >
+                Agregar fotos
+                <input
+                  hidden
+                  multiple
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files?.length) addPhotos(e.target.files);
+                    e.target.value = '';
+                  }}
+                />
+              </Button>
+            </Box>
 
             <Stack direction="row" spacing={1.5} justifyContent="flex-end">
               {editingId && (
@@ -407,7 +616,7 @@ export function HusbandryLogView() {
               options={species}
               value={filterSpecies}
               onChange={(_, s) => {
-                setFilterSpecies(s);
+                setFilterId(s?.id ?? null);
                 setPage(0);
               }}
               getOptionLabel={speciesLabel}
@@ -421,7 +630,7 @@ export function HusbandryLogView() {
 
         <TableContainer sx={{ mt: 2 }}>
           <Scrollbar>
-            <Table size="small" sx={{ minWidth: 900 }}>
+            <Table size="small" sx={{ minWidth: 960 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Fecha</TableCell>
@@ -471,9 +680,14 @@ export function HusbandryLogView() {
                         <span>{log.food_type || (log.fed ? 'Comió' : '—')}</span>
                       </Stack>
                       {amount(log) && (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="caption" component="div" color="text.secondary">
                           {amount(log)}
                         </Typography>
+                      )}
+                      {log.supplement && (
+                        <Label variant="soft" color="secondary" sx={{ mt: 0.5 }}>
+                          + {log.supplement}
+                        </Label>
                       )}
                     </TableCell>
                     <TableCell>
@@ -485,11 +699,18 @@ export function HusbandryLogView() {
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" flexWrap="wrap" gap={0.5}>
-                        {(log.activities ?? []).map((a) => (
-                          <Label key={a} variant="soft">
-                            {ACTIVITIES[a] ?? a}
-                          </Label>
-                        ))}
+                        {(log.activities ?? []).map((a) =>
+                          a === 'deaths' ? (
+                            <Label key={a} variant="soft" color="error">
+                              {log.deaths ?? ''} {log.deaths === 1 ? 'baja' : 'bajas'}
+                              {log.stock_deducted ? ` (${log.animal_code})` : ''}
+                            </Label>
+                          ) : (
+                            <Label key={a} variant="soft">
+                              {ACTIVITIES[a] ?? a}
+                            </Label>
+                          )
+                        )}
                       </Stack>
                     </TableCell>
                     <TableCell sx={{ maxWidth: 320, whiteSpace: 'pre-line' }}>
@@ -502,6 +723,32 @@ export function HusbandryLogView() {
                         >
                           {log.notes}
                         </Typography>
+                      )}
+                      {log.photos?.length > 0 && (
+                        <Stack direction="row" spacing={0.5} sx={{ mt: 1 }}>
+                          {log.photos.map((url) => (
+                            <Box
+                              key={url}
+                              component="a"
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Box
+                                component="img"
+                                src={url}
+                                alt="Foto de la entrada"
+                                sx={{
+                                  width: 48,
+                                  height: 48,
+                                  objectFit: 'cover',
+                                  borderRadius: 0.75,
+                                  display: 'block',
+                                }}
+                              />
+                            </Box>
+                          ))}
+                        </Stack>
                       )}
                     </TableCell>
                     {canEdit && (

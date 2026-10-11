@@ -148,3 +148,13 @@ export function useGetHusbandryLogs({ page = 1, pageSize = 50, speciesId, dateFr
 export const createHusbandryLog = (data) => axiosInstance.post(endpoints.husbandryLog.create, data).then((r) => r.data);
 export const updateHusbandryLog = (id, data) => axiosInstance.put(endpoints.husbandryLog.update(id), data).then((r) => r.data);
 export const deleteHusbandryLog = (id) => axiosInstance.delete(endpoints.husbandryLog.delete(id)).then((r) => r.data);
+
+// Qué toca según el plan (una fila por especie) y conteos del mes
+export function useHusbandryStatus(speciesId) {
+  const url = [endpoints.husbandryLog.status, { params: speciesId ? { species_id: speciesId } : {} }];
+  const { data, isLoading, mutate } = useSWR(url, fetcher, swrOptions);
+  return useMemo(
+    () => ({ planStatus: data ?? [], planStatusLoading: isLoading, planStatusMutate: mutate }),
+    [data, isLoading, mutate]
+  );
+}

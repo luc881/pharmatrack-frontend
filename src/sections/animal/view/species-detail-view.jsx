@@ -47,6 +47,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { TaxonDialog } from '../taxon-dialog';
 import { AnimalRow } from './animal-list-view';
+import { HusbandryPlanCard } from '../husbandry-plan-card';
 import { saleFormatLabel, flattenGroupTree } from '../utils';
 import {
   STOCK,
@@ -267,7 +268,10 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                   </Label>
                 )}
               </Box>
-              <Typography variant="body2" sx={{ fontStyle: 'italic', color: 'text.secondary', mt: -1 }}>
+              <Typography
+                variant="body2"
+                sx={{ fontStyle: 'italic', color: 'text.secondary', mt: -1 }}
+              >
                 {scientific}
               </Typography>
 
@@ -296,10 +300,21 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
             {/* Cultivo — privado */}
             <Card sx={{ p: 3, border: (t) => `dashed 1px ${t.vars.palette.divider}` }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
-                <Iconify icon="solar:lock-keyhole-bold" width={16} sx={{ color: 'text.disabled' }} />
+                <Iconify
+                  icon="solar:lock-keyhole-bold"
+                  width={16}
+                  sx={{ color: 'text.disabled' }}
+                />
                 <Typography variant="subtitle2">Cultivo (privado)</Typography>
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75, alignItems: 'center' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  py: 0.75,
+                  alignItems: 'center',
+                }}
+              >
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   Estado de cría
                 </Typography>
@@ -307,7 +322,14 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                   {husbandry.label}
                 </Label>
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 0.75, alignItems: 'center' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  py: 0.75,
+                  alignItems: 'center',
+                }}
+              >
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                   Disponibles
                 </Typography>
@@ -339,6 +361,8 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                 </Button>
               )}
             </Card>
+
+            <HusbandryPlanCard species={species} canEdit={canUpdateSpecies} onSaved={onMutate} />
           </Stack>
         </Grid>
 
@@ -386,7 +410,9 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
         {/* Morphs — variantes de esta especie, con su cultivo independiente */}
         <Grid size={{ xs: 12 }}>
           <Card sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}
+            >
               <Box>
                 <Typography variant="h6">Morphs</Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
@@ -398,7 +424,9 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                 <Button
                   variant="contained"
                   startIcon={<Iconify icon="mingcute:add-line" />}
-                  onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: species.id } })}
+                  onClick={() =>
+                    setDialog({ tab: 'morphs', current: null, initial: { species_id: species.id } })
+                  }
                 >
                   Añadir morph
                 </Button>
@@ -428,12 +456,16 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                   <TableBody>
                     {morphs.map((morph) => {
                       const mUnits = unitsByMorph[morph.id] ?? 0;
-                      const mStock = STOCK[stockStateOf(mUnits, morph.low_stock_threshold ?? DEFAULT_LOW_STOCK)];
-                      const mHus = HUSBANDRY[morph.husbandry_status ?? 'active'] ?? HUSBANDRY.active;
+                      const mStock =
+                        STOCK[stockStateOf(mUnits, morph.low_stock_threshold ?? DEFAULT_LOW_STOCK)];
+                      const mHus =
+                        HUSBANDRY[morph.husbandry_status ?? 'active'] ?? HUSBANDRY.active;
                       return (
                         <TableRow key={morph.id} hover>
                           <TableCell sx={{ fontWeight: 500 }}>{morph.name}</TableCell>
-                          <TableCell sx={{ color: 'text.secondary' }}>{morph.description || '—'}</TableCell>
+                          <TableCell sx={{ color: 'text.secondary' }}>
+                            {morph.description || '—'}
+                          </TableCell>
                           <TableCell align="right">{mUnits}</TableCell>
                           <TableCell>
                             <Label variant="soft" color={mStock.color}>
@@ -470,7 +502,8 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                                   label: 'Eliminar',
                                   icon: 'solar:trash-bin-trash-bold',
                                   color: 'error.main',
-                                  onClick: () => setToDelete({ kind: 'morph', id: morph.id, name: morph.name }),
+                                  onClick: () =>
+                                    setToDelete({ kind: 'morph', id: morph.id, name: morph.name }),
                                 },
                               ].filter(Boolean)}
                             />
@@ -488,7 +521,9 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
         {/* Abajo — Ejemplares (inventario de esta especie) */}
         <Grid size={{ xs: 12 }}>
           <Card sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Box
+              sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}
+            >
               <Box>
                 <Typography variant="h6">Ejemplares</Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
@@ -601,7 +636,17 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
 
 // ----------------------------------------------------------------------
 
-const CARE_FIELDS = ['origin', 'temperature', 'humidity', 'adult_size', 'difficulty', 'rarity', 'habitat', 'diet', 'notes'];
+const CARE_FIELDS = [
+  'origin',
+  'temperature',
+  'humidity',
+  'adult_size',
+  'difficulty',
+  'rarity',
+  'habitat',
+  'diet',
+  'notes',
+];
 const hasCareSheet = (sp) => CARE_FIELDS.some((f) => sp[f]);
 
 // Menú "⋮" con acciones etiquetadas: un solo icono en la fila y el texto de
@@ -667,7 +712,12 @@ function FactTile({ label, value }) {
     <Box sx={{ p: 1.5, height: '100%', borderRadius: 1.5, bgcolor: 'background.neutral' }}>
       <Typography
         variant="caption"
-        sx={{ display: 'block', color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.5 }}
+        sx={{
+          display: 'block',
+          color: 'text.secondary',
+          textTransform: 'uppercase',
+          letterSpacing: 0.5,
+        }}
       >
         {label}
       </Typography>
@@ -683,13 +733,13 @@ function CareColumn({ label, value }) {
   if (!value) return null;
   return (
     <Grid size={{ xs: 12, md: 4 }}>
-      <Typography
-        variant="overline"
-        sx={{ display: 'block', mb: 1, color: 'text.secondary' }}
-      >
+      <Typography variant="overline" sx={{ display: 'block', mb: 1, color: 'text.secondary' }}>
         {label}
       </Typography>
-      <Typography variant="body2" sx={{ whiteSpace: 'pre-line', lineHeight: 1.7, color: 'text.secondary' }}>
+      <Typography
+        variant="body2"
+        sx={{ whiteSpace: 'pre-line', lineHeight: 1.7, color: 'text.secondary' }}
+      >
         {value}
       </Typography>
     </Grid>

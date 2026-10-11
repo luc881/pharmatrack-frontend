@@ -43,6 +43,8 @@ describe('HusbandryLogView', () => {
       http.get(`${API}/species`, () => HttpResponse.json(page([SPECIES]))),
       http.get(`${API}/morphs`, () => HttpResponse.json(page([]))),
       http.get(`${API}/husbandry-logs`, () => HttpResponse.json(page([]))),
+      http.get(`${API}/husbandry-logs/status`, () => HttpResponse.json([])),
+      http.get(`${API}/animals`, () => HttpResponse.json(page([]))),
       http.post(`${API}/husbandry-logs`, async ({ request }) => {
         saved = await request.json();
         return HttpResponse.json({ id: 1, ...saved }, { status: 201 });
@@ -66,7 +68,55 @@ describe('HusbandryLogView', () => {
       grams: null,
       appetite: null,
       activities: [],
+      supplement: null,
+      deaths: null,
+      animal_id: null,
+      photos: [],
     });
     expect(saved.log_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('«Registrar» desde el plan llena el formulario y las bajas descuentan del ejemplar', async () => {
+    let saved = null;
+    const status = [
+      {
+        species_id: 7,
+        species_name: 'Phyllium gardabagusi',
+        common_name: 'Hoja',
+        last_fed: null,
+        month: {},
+        plan: [
+          { kind: 'supplement', name: 'Calcio', every_days: 7, last_done: null, next_due: '2026-10-10', days_overdue: 2 },
+          { kind: 'food', name: 'Zarzamora', every_days: 2, last_done: null, next_due: '2026-10-20', days_overdue: -8 },
+        ],
+      },
+    ];
+    const cepa = { id: 55, code: 'AN-55', stock: 10, morphs: [] };
+    server.use(
+      http.get(`${API}/species`, () => HttpResponse.json(page([SPECIES]))),
+      http.get(`${API}/morphs`, () => HttpResponse.json(page([]))),
+      http.get(`${API}/husbandry-logs`, () => HttpResponse.json(page([]))),
+      http.get(`${API}/husbandry-logs/status`, () => HttpResponse.json(status)),
+      http.get(`${API}/animals`, () => HttpResponse.json(page([cepa]))),
+      http.post(`${API}/husbandry-logs`, async ({ request }) => {
+        saved = await request.json();
+        return HttpResponse.json({ id: 2, ...saved }, { status: 201 });
+      })
+    );
+    renderView();
+
+    // solo lo que toca (o está atrasado); lo de dentro de 8 días no aparece
+    expect(await screen.findByText('Atrasado 2 d')).toBeInTheDocument();
+    expect(screen.queryByText(/Zarzamora/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar' }));
+    expect(await screen.findByDisplayValue('Calcio')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Bajas'), { target: { value: '2' } });
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: /descontar del inventario/i }));
+    fireEvent.click(await screen.findByText(/AN-55/));
+    fireEvent.click(screen.getByRole('button', { name: /guardar entrada/i }));
+
+    await waitFor(() => expect(saved).not.toBeNull());
+    expect(saved).toMatchObject({ species_id: 7, supplement: 'Calcio', fed: false, deaths: 2, animal_id: 55 });
   });
 });
