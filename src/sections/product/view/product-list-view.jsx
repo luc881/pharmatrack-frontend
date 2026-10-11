@@ -26,9 +26,9 @@ import {
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/custom-data-grid';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -277,8 +277,15 @@ export function ProductListView() {
                       )
                     }
                   />
+                ) : selectedBrand || selectedCategory || appliedStatus ? (
+                  <EmptyContent title="Sin productos con esos filtros" />
                 ) : (
-                  <EmptyContent />
+                  <EmptyList
+                    title="Todavía no hay productos"
+                    description="Lo que vendes: alimento, sustratos, accesorios… Los animales se dan de alta en Animales."
+                    newLabel="Nuevo producto"
+                    href={canCreate ? paths.dashboard.product.new : null}
+                  />
                 )
               ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,

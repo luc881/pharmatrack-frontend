@@ -38,9 +38,9 @@ import {
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import {
   ToolbarContainer,
   ToolbarRightPanel,
@@ -819,7 +819,18 @@ export function AnimalTaxonomyView() {
             pageSizeOptions={[25, 50, 100]}
             initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              noRowsOverlay: () => (
+                <EmptyList
+                  title={`Aquí no hay ${tabConfig.label.toLowerCase()} todavía`}
+                  description="Grupo → género → especie → morph. Desde «Nueva especie» puedes crear también su género y su grupo."
+                  newLabel={`Nuevo ${tabConfig.singular}`}
+                  onNew={
+                    can('create')
+                      ? () => setDialog({ tab: tabValue, current: null, initial: initialFromFilter() })
+                      : null
+                  }
+                />
+              ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               // Todo en una línea: búsqueda + filtro activo + botones del grid
               toolbar: () => (

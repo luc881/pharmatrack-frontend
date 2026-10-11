@@ -16,9 +16,9 @@ import { deleteRefundProduct, useGetRefundProducts } from 'src/actions/refund-pr
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
@@ -178,7 +178,14 @@ export function RefundProductListView() {
             initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              noRowsOverlay: () => (
+                <EmptyList
+                  title="Todavía no hay devoluciones"
+                  description="Productos que un cliente te regresó, con el motivo."
+                  newLabel="Nueva devolución"
+                  href={canCreate ? paths.dashboard.refundProduct.new : null}
+                />
+              ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               toolbar: () => (
                 <Toolbar>

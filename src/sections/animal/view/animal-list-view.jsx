@@ -35,9 +35,9 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -329,8 +329,16 @@ export function AnimalListView() {
                 description={animalsError.message}
                 sx={{ py: 10 }}
               />
+            ) : groupFilter || genusFilter || speciesFilter || statusFilter ? (
+              <EmptyContent title="Sin animales con esos filtros" sx={{ py: 10 }} />
             ) : (
-              <EmptyContent sx={{ py: 10 }} />
+              <EmptyList
+                title="Todavía no hay animales"
+                description="Cada ejemplar (o lote de crías) que tienes para vender o en cría, con su especie, morph y precio."
+                newLabel="Nuevo animal"
+                href={canCreate ? paths.dashboard.animal.new : null}
+                sx={{ py: 10 }}
+              />
             )
           ) : (
             <Scrollbar>

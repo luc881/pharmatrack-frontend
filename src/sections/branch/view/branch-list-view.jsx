@@ -17,9 +17,9 @@ import { deleteBranch, restoreBranch, useGetBranches } from 'src/actions/branch'
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
@@ -181,7 +181,14 @@ export function BranchListView() {
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             getRowClassName={(params) => (params.row.deleted_at ? 'row--deleted' : '')}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              noRowsOverlay: () => (
+                <EmptyList
+                  title="Todavía no hay sucursales"
+                  description="Los lugares donde vendes o guardas inventario."
+                  newLabel="Nueva sucursal"
+                  href={canCreate ? paths.dashboard.branch.new : null}
+                />
+              ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               toolbar: () => (
                 <Toolbar>

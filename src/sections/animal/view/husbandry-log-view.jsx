@@ -5,7 +5,6 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
-import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
@@ -54,7 +53,9 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
+import { HowItWorks } from 'src/components/how-it-works';
 import { EmptyContent } from 'src/components/empty-content';
+import { useAsk } from 'src/components/custom-dialog/use-ask';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -156,60 +157,6 @@ const fold = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 const scientific = (sp) => [sp.genus?.name, sp.name].filter(Boolean).join(' ');
 
 // ----------------------------------------------------------------------
-
-function HowItWorks() {
-  const [hidden, setHidden] = useState(() => {
-    try {
-      return localStorage.getItem(HELP_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
-  const toggle = (v) => {
-    setHidden(v);
-    try {
-      localStorage.setItem(HELP_KEY, v ? '1' : '0');
-    } catch {
-      // sin almacenamiento: solo dura esta visita
-    }
-  };
-
-  if (hidden) {
-    return (
-      <Button
-        size="small"
-        color="inherit"
-        startIcon={<Iconify icon="solar:question-circle-bold" />}
-        onClick={() => toggle(false)}
-        sx={{ mb: 2 }}
-      >
-        ¿Cómo funciona la bitácora?
-      </Button>
-    );
-  }
-
-  return (
-    <Alert severity="info" onClose={() => toggle(true)} sx={{ mb: 3 }}>
-      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-        La bitácora es el diario de cuidados: qué comió cada especie, sus suplementos y lo que pasa
-        en el terrario.
-      </Typography>
-      <Box component="ol" sx={{ m: 0, pl: 2.5, typography: 'body2' }}>
-        <li>
-          En «Todas», toca <b>Agregar plan</b> en la especie: qué come, qué suplemento y cada
-          cuántos días.
-        </li>
-        <li>
-          Esa especie aparece aquí con lo que le toca. Cuando ya lo hiciste, toca <b>Hecho</b>.
-        </li>
-        <li>
-          Para anotar más (cuánto comió, una muda, una baja, una foto) toca la especie. Todo es
-          opcional.
-        </li>
-      </Box>
-    </Alert>
-  );
-}
 
 // ----------------------------------------------------------------------
 
@@ -769,6 +716,7 @@ function LogCard({ log, canEdit, selected, onEdit, onDelete }) {
 export function HusbandryLogView() {
   const { user } = useAuthContext();
   const canEdit = user?.permissions?.includes('animals.update');
+  const [ask, askDialog] = useAsk();
 
   const [searchParams] = useSearchParams();
   const initialSpecies = Number(searchParams.get('species')) || null;
@@ -872,8 +820,12 @@ export function HusbandryLogView() {
   };
 
   const handleDelete = async (log) => {
-    // ponytail: confirm nativo; ConfirmDialog si se vuelve molesto
-    if (!window.confirm(`¿Borrar la entrada del ${fDate(log.log_date)}?`)) return;
+    const ok = await ask({
+      title: `¿Borrar la entrada del ${fDate(log.log_date)}?`,
+      content: 'Si descontó bajas del inventario, se regresan.',
+      options: [{ label: 'Borrar', value: true, color: 'error' }],
+    });
+    if (!ok) return;
     try {
       await deleteHusbandryLog(log.id);
       logsMutate();
@@ -916,7 +868,21 @@ export function HusbandryLogView() {
         sx={{ mb: 3 }}
       />
 
-      <HowItWorks />
+      <HowItWorks
+        storageKey={HELP_KEY}
+        question="¿Cómo funciona la bitácora?"
+        summary="La bitácora es el diario de cuidados: qué comió cada especie, sus suplementos y lo que pasa en el terrario."
+        steps={[
+          <>
+            En «Todas», toca <b>Agregar plan</b> en la especie: qué come, qué suplemento y cada
+            cuántos días.
+          </>,
+          <>
+            Esa especie aparece aquí con lo que le toca. Cuando ya lo hiciste, toca <b>Hecho</b>.
+          </>,
+          'Para anotar más (cuánto comió, una muda, una baja, una foto) toca la especie. Todo es opcional.',
+        ]}
+      />
 
       <Card sx={{ mb: 3 }}>
         <CardHeader
@@ -1251,6 +1217,7 @@ export function HusbandryLogView() {
           labelRowsPerPage="Por página"
         />
       </Card>
+      {askDialog}
     </DashboardContent>
   );
 }

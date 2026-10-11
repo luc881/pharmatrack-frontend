@@ -16,6 +16,7 @@ import { deleteProduct, useGetProducts } from 'src/actions/product';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { HowItWorks } from 'src/components/how-it-works';
 import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -122,6 +123,20 @@ export function BundleListView() {
             )
           }
           sx={{ mb: { xs: 3, md: 5 } }}
+        />
+
+        <HowItWorks
+          storageKey="bundle-help-hidden"
+          question="¿Cómo funcionan los paquetes?"
+          summary="Un paquete es un kit con precio propio, por ejemplo un gecko + cueva + sustrato."
+          steps={[
+            <>
+              Toca <b>Nuevo paquete</b>, ponle nombre y precio, y agrega sus componentes: cualquier
+              producto o animal del catálogo, con su cantidad.
+            </>,
+            'No tiene stock propio: al venderlo en el POS se descuenta cada componente.',
+            'Si activas «Mostrar en el sitio público», aparece en el catálogo de la tienda.',
+          ]}
         />
 
         <Card

@@ -10,15 +10,15 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { fCurrency } from 'src/utils/format-number';
-
 import { useHusbandryStatus } from 'src/actions/animal';
 import { useGetDeliveries, changeDeliveryStatus } from 'src/actions/delivery';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { useAsk } from 'src/components/custom-dialog/use-ask';
 
+import { askPaid } from 'src/sections/delivery/ask-paid';
 import { dueLabel, PLAN_KIND } from 'src/sections/animal/husbandry';
 
 // ----------------------------------------------------------------------
@@ -38,12 +38,12 @@ function Deliveries({ canEdit }) {
     pageSize: 50,
   });
 
+  const [ask, askDialog] = useAsk();
+
   const markDelivered = async (d) => {
     try {
-      const paid =
-        !d.paid &&
-        Number(d.amount) > 0 &&
-        window.confirm(`¿${d.buyer_name} ya te pagó ${fCurrency(d.amount)}?`);
+      const paid = await askPaid(ask, d);
+      if (paid === null) return;
       await changeDeliveryStatus(d, 'delivered', { paid });
       toast.success(`Entregada a ${d.buyer_name}`);
       deliveriesMutate();
@@ -86,6 +86,7 @@ function Deliveries({ canEdit }) {
           </Stack>
         ))}
       </Stack>
+      {askDialog}
     </Box>
   );
 }

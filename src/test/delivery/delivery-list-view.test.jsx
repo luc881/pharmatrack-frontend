@@ -104,8 +104,7 @@ describe('DeliveryListView', () => {
     });
   });
 
-  it('«Entregada» cambia el estado de la pendiente', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false); // todavía no paga
+  it('«Entregada» pregunta si ya pagó; «No, por cobrar» solo cambia el estado', async () => {
     let body = null;
     server.use(
       ...baseHandlers([PENDING]),
@@ -119,12 +118,31 @@ describe('DeliveryListView', () => {
     expect(await screen.findByText('Ana')).toBeInTheDocument();
     expect(screen.getByText('Hoy')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^entregada$/i }));
+    expect(await screen.findByRole('dialog', { name: /ya te pagó/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'No, por cobrar' }));
 
     await waitFor(() => expect(body).toEqual({ status: 'delivered' }));
   });
 
+  it('«Cancelar» en la pregunta del pago no entrega nada', async () => {
+    const put = vi.fn();
+    server.use(
+      ...baseHandlers([PENDING]),
+      http.put(`${API}/deliveries/9/status`, () => {
+        put();
+        return HttpResponse.json(PENDING);
+      })
+    );
+    renderView();
+
+    fireEvent.click(await screen.findByRole('button', { name: /^entregada$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(put).not.toHaveBeenCalled();
+  });
+
   it('«Entregada» sin pagar pregunta y, si ya pagó, guarda entregada y pagada juntas', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     let body = null;
     server.use(
       ...baseHandlers([PENDING]),
@@ -136,6 +154,7 @@ describe('DeliveryListView', () => {
     renderView();
 
     fireEvent.click(await screen.findByRole('button', { name: /^entregada$/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sí, ya pagó' }));
 
     await waitFor(() => expect(body).not.toBeNull());
     expect(body).toMatchObject({ status: 'delivered', paid: true, buyer_name: 'Ana', amount: 350 });

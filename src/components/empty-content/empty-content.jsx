@@ -15,7 +15,7 @@ export function EmptyContent({
   filled,
   slotProps,
   description,
-  title = 'No data',
+  title = 'Sin datos',
   ...other
 }) {
   return (

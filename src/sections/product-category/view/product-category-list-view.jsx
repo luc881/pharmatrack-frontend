@@ -15,9 +15,9 @@ import { deleteProductCategory, useGetAllProductCategories } from 'src/actions/p
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
@@ -160,7 +160,14 @@ export function ProductCategoryListView() {
             initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              noRowsOverlay: () => (
+                <EmptyList
+                  title="Todavía no hay categorías"
+                  description="Agrupan los productos (alimento, sustratos, accesorios…). También se crean desde el producto con «Categoría nueva»."
+                  newLabel="Nueva categoría"
+                  href={canCreate ? paths.dashboard.productCategory.new : null}
+                />
+              ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               toolbar: () => (
                 <Toolbar>

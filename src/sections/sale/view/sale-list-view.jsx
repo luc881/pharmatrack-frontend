@@ -24,9 +24,9 @@ import { deleteSale, useGetSales } from 'src/actions/sale';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
@@ -249,7 +249,17 @@ export function SaleListView() {
             pageSizeOptions={[10, 25, 50]}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              noRowsOverlay: () =>
+                filters.status || filters.dateFrom || filters.dateTo ? (
+                  <EmptyContent title="Sin ventas con esos filtros" />
+                ) : (
+                  <EmptyList
+                    title="Todavía no hay ventas"
+                    description="Cada cobro del punto de venta queda aquí."
+                    newLabel="Nueva venta"
+                    href={canCreate ? paths.dashboard.sale.new : null}
+                  />
+                ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               toolbar: () => (
                 <Toolbar>

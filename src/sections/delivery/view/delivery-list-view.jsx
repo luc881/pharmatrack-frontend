@@ -56,11 +56,14 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
+import { HowItWorks } from 'src/components/how-it-works';
 import { EmptyContent } from 'src/components/empty-content';
+import { useAsk } from 'src/components/custom-dialog/use-ask';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { askPaid } from '../ask-paid';
 import { DeliveryTotals } from '../delivery-totals';
 
 // ----------------------------------------------------------------------
@@ -596,6 +599,7 @@ export function DeliveryListView() {
   const { user } = useAuthContext();
   const canEdit = user?.permissions?.includes('sales.create');
   const canDelete = user?.permissions?.includes('sales.update');
+  const [ask, askDialog] = useAsk();
 
   const [dialog, setDialog] = useState(null); // { current } | null
 
@@ -627,13 +631,8 @@ export function DeliveryListView() {
 
   const changeStatus = async (d, status) => {
     try {
-      // Al entregar algo sin pagar, lo normal es que paguen ahí mismo: se
-      // pregunta una vez y se guarda junto (si no, queda "Por cobrar").
-      const collect =
-        status === 'delivered' &&
-        !d.paid &&
-        Number(d.amount) > 0 &&
-        window.confirm(`¿${d.buyer_name} ya te pagó ${fCurrency(d.amount)}?`);
+      const collect = status === 'delivered' ? await askPaid(ask, d) : false;
+      if (collect === null) return;
       await changeDeliveryStatus(d, status, { paid: collect });
       refresh();
       // Deshacer: un toque de más en el Metro no debe costar buscar la entrega
@@ -657,7 +656,12 @@ export function DeliveryListView() {
   };
 
   const handleDelete = async (d) => {
-    if (!window.confirm(`¿Borrar la entrega de ${d.buyer_name}?`)) return;
+    const ok = await ask({
+      title: `¿Borrar la entrega de ${d.buyer_name}?`,
+      content: 'Se borra para siempre. Si solo no se hizo, mejor márcala como cancelada.',
+      options: [{ label: 'Borrar', value: true, color: 'error' }],
+    });
+    if (!ok) return;
     try {
       await deleteDelivery(d.id);
       refresh();
@@ -689,6 +693,24 @@ export function DeliveryListView() {
           )
         }
         sx={{ mb: 3 }}
+      />
+
+      <HowItWorks
+        storageKey="delivery-help-hidden"
+        question="¿Cómo funcionan las entregas?"
+        summary="Entregas es tu agenda de entregas en persona y de cambios: quién, qué, cuándo, dónde y si ya pagó."
+        steps={[
+          <>
+            Toca <b>Nueva entrega</b>: elige <b>Venta</b> o <b>Cambio</b>, el comprador, la fecha
+            y lo que entregas (y en un cambio, lo que te dan).
+          </>,
+          'Arriba salen las pendientes agrupadas por día; las atrasadas van primero.',
+          <>
+            Cuando la entregues, toca <b>Entregada</b>. Si no estaba pagada te pregunta si ya te
+            pagó, y se puede deshacer.
+          </>,
+          'Es solo registro: no descuenta inventario. Para eso cobra la venta en el POS y anota su número aquí.',
+        ]}
       />
 
       <DeliveryTotals />
@@ -887,6 +909,7 @@ export function DeliveryListView() {
           onSaved={refresh}
         />
       )}
+      {askDialog}
     </DashboardContent>
   );
 }

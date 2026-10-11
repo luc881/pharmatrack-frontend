@@ -19,9 +19,9 @@ import { deleteProductBatch, useGetProductBatches } from 'src/actions/product-ba
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
@@ -284,7 +284,12 @@ export function ProductBatchListView() {
                 ) : quickSearch ? (
                   <EmptyContent title={`Sin resultados para "${quickSearch}"`} action={addProductAction} />
                 ) : (
-                  <EmptyContent />
+                  <EmptyList
+                    title="Todavía no hay stock registrado"
+                    description="Cada lote es una entrada de un producto con su cantidad (y su vencimiento si lo tiene). Lo que vende el POS sale de aquí."
+                    newLabel="Registrar lote"
+                    href={canCreate ? paths.dashboard.productBatch.new : null}
+                  />
                 ),
               noResultsOverlay: () =>
                 quickSearch && !skuMatch ? (

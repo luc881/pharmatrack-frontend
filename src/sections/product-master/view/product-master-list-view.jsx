@@ -15,9 +15,9 @@ import { deleteProductMaster, useGetProductMasters } from 'src/actions/product-m
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
@@ -164,7 +164,14 @@ export function ProductMasterListView() {
             pageSizeOptions={[25, 50, 100]}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              noRowsOverlay: () => (
+                <EmptyList
+                  title="Todavía no hay principios activos"
+                  description="Agrupan productos con el mismo principio activo. Venía de la farmacia y es opcional."
+                  newLabel="Nuevo principio activo"
+                  href={canCreate ? paths.dashboard.productMaster.new : null}
+                />
+              ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               toolbar: () => (
                 <Toolbar>

@@ -15,9 +15,9 @@ import { deleteProductBrand, useGetAllProductBrands } from 'src/actions/product-
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
@@ -158,7 +158,14 @@ export function ProductBrandListView() {
             initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              noRowsOverlay: () => (
+                <EmptyList
+                  title="Todavía no hay marcas"
+                  description="La marca de cada producto. También se crean desde el producto con «Marca nueva»."
+                  newLabel="Nueva marca"
+                  href={canCreate ? paths.dashboard.productBrand.new : null}
+                />
+              ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               toolbar: () => (
                 <Toolbar>

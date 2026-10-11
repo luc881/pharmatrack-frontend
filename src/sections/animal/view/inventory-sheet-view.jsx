@@ -27,6 +27,7 @@ import { updateAnimal, useGetAnimals, useAllSpecies } from 'src/actions/animal';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Scrollbar } from 'src/components/scrollbar';
+import { HowItWorks } from 'src/components/how-it-works';
 import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
@@ -294,6 +295,17 @@ export function InventorySheetView() {
           { name: 'Hoja de inventario' },
         ]}
         sx={{ mb: 3 }}
+      />
+
+      <HowItWorks
+        storageKey="inventory-sheet-help-hidden"
+        question="¿Cómo funciona la hoja de inventario?"
+        summary="Es el Excel de la convención, pero con tu inventario real: cada fila es un animal o cepa."
+        steps={[
+          'Cambiar precio o cantidad en una celda lo guarda en el animal (se ve en el sitio y en el POS).',
+          '«Descuento» solo calcula el precio con descuento para verlo o imprimirlo; no cambia los precios guardados.',
+          'Vendidos e ingreso salen de las ventas completadas del POS entre las fechas que elijas.',
+        ]}
       />
 
       {/* Controles: descuento (solo vista) y rango de ventas */}

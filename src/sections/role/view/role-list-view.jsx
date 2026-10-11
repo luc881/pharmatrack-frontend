@@ -16,9 +16,9 @@ import { deleteRole, useGetRoles } from 'src/actions/role';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import {
   ToolbarContainer,
   ToolbarLeftPanel,
@@ -153,7 +153,14 @@ export function RoleListView() {
             initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
             onRowSelectionModelChange={(m) => setSelectedRows(m)}
             slots={{
-              noRowsOverlay: () => <EmptyContent />,
+              noRowsOverlay: () => (
+                <EmptyList
+                  title="Todavía no hay roles"
+                  description="Qué puede ver y hacer cada usuario del dashboard."
+                  newLabel="Nuevo rol"
+                  href={canCreate ? paths.dashboard.role.new : null}
+                />
+              ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               toolbar: () => (
                 <Toolbar>
