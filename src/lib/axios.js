@@ -231,6 +231,13 @@ export const endpoints = {
     update: (id) => `/api/v1/animals/${id}`,
     delete: (id) => `/api/v1/animals/${id}`,
   },
+  delivery: {
+    list: '/api/v1/deliveries',
+    create: '/api/v1/deliveries',
+    update: (id) => `/api/v1/deliveries/${id}`,
+    status: (id) => `/api/v1/deliveries/${id}/status`,
+    delete: (id) => `/api/v1/deliveries/${id}`,
+  },
   husbandryLog: {
     list: '/api/v1/husbandry-logs',
     status: '/api/v1/husbandry-logs/status',

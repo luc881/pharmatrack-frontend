@@ -20,6 +20,7 @@ export const SECTIONS = [
     key: 'ventas',
     tabs: [
       { label: 'Historial', path: D.sale.root },
+      { label: 'Entregas', path: D.delivery.root, allowedRoles: ['sales.read'] },
       { label: 'Corte de caja', path: D.sale.summary },
       { label: 'Devoluciones', path: D.refundProduct.root },
     ],
