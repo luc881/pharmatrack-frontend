@@ -177,11 +177,17 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
     (g) => !current || (g.id !== current.id && !g.ancestors.includes(current.id))
   );
 
-  const missingParent =
-    (tab === 'species' && !form.genus_id && !newGenus) || (tab === 'morphs' && !form.species_id);
-
   const selectedGenus = genera.find((g) => g.id === Number(form.genus_id));
   const genusName = newGenus ?? selectedGenus?.name ?? '';
+  const hasGroup = !!form.group_id || !!newGroup;
+  // Estricto: grupo → género → especie. Un género nuevo, o uno viejo que se
+  // quedó sin grupo, pide su grupo aquí mismo.
+  const genusNeedsGroup = !!newGenus || (!!selectedGenus && !selectedGenus.group);
+
+  const missingParent =
+    (tab === 'species' && ((!form.genus_id && !newGenus) || (genusNeedsGroup && !hasGroup))) ||
+    (tab === 'genera' && !hasGroup) ||
+    (tab === 'morphs' && !form.species_id);
 
   // "Phyllium gardabagusi" en el campo de especie → solo "gardabagusi"
   const speciesName = () => {
@@ -202,7 +208,14 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
   };
 
   const ensureGenus = async () => {
-    if (!newGenus) return Number(form.genus_id);
+    if (!newGenus) {
+      // género viejo sin grupo: se le asigna el elegido
+      if (genusNeedsGroup) {
+        await updateGenus(selectedGenus.id, { group_id: await ensureGroup() });
+        await refreshTaxa();
+      }
+      return Number(form.genus_id);
+    }
     const genus = await createGenus({ name: newGenus, group_id: await ensureGroup() });
     setNewGenus(null);
     setForm((f) => ({ ...f, genus_id: genus.id }));
@@ -340,28 +353,35 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
               helperText={
                 newGenus
                   ? 'Se crea junto con la especie.'
-                  : selectedGenus
-                    ? `Grupo: ${selectedGenus.group?.name ?? 'sin grupo'}`
-                    : 'Escribe para buscarlo. Si no existe, elige «Crear género».'
+                  : selectedGenus?.group
+                    ? `Grupo: ${selectedGenus.group.name}`
+                    : selectedGenus
+                      ? 'Este género no tiene grupo: elígelo abajo.'
+                      : 'Escribe para buscarlo. Si no existe, elige «Crear género».'
               }
               onPick={(g) => {
                 setNewGenus(null);
-                setForm((f) => ({ ...f, genus_id: g?.id ?? '' }));
+                setNewGroup(null);
+                setForm((f) => ({ ...f, genus_id: g?.id ?? '', group_id: '' }));
               }}
               onCreate={(name) => {
                 setNewGenus(name);
                 setForm((f) => ({ ...f, genus_id: '' }));
               }}
             />
-            {/* Género nuevo: aquí mismo se elige (o crea) su grupo */}
-            {newGenus && (
+            {/* Género sin grupo (nuevo o viejo): aquí mismo se elige o crea */}
+            {genusNeedsGroup && (
               <CreatableField
                 options={groupsFlat}
                 value={groupsFlat.find((g) => g.id === Number(form.group_id)) ?? null}
                 newName={newGroup}
                 noun="grupo"
-                label={`Grupo de ${newGenus}`}
-                helperText="Ej. Arácnidos, Isópodos. Opcional, pero ordena el catálogo."
+                label={`Grupo de ${genusName} *`}
+                helperText={
+                  newGroup
+                    ? 'Se crea junto con la especie.'
+                    : 'Ej. Arácnidos, Isópodos. Si no existe, escríbelo y elige «Crear grupo».'
+                }
                 renderOption={groupOption}
                 onPick={(g) => {
                   setNewGroup(null);
@@ -474,7 +494,7 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
             value={groupsFlat.find((g) => g.id === Number(form.group_id)) ?? null}
             newName={newGroup}
             noun="grupo"
-            label="Grupo"
+            label="Grupo *"
             helperText={newGroup ? 'Se crea junto con el género.' : 'Si no existe, escríbelo y elige «Crear grupo».'}
             renderOption={groupOption}
             onPick={(g) => {

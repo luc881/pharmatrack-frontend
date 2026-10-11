@@ -585,7 +585,20 @@ export function AnimalTaxonomyView() {
       loading: generaLoading,
       columns: [
         { field: 'name', headerName: 'Nombre', flex: 1, minWidth: 200 },
-        { field: 'group', headerName: 'Grupo', flex: 1, minWidth: 160, valueGetter: (v) => v?.name ?? '—' },
+        {
+          field: 'group',
+          headerName: 'Grupo',
+          flex: 1,
+          minWidth: 160,
+          valueGetter: (v) => v?.name ?? '',
+          // Géneros de antes de que el grupo fuera obligatorio: se marcan para corregirlos
+          renderCell: (params) =>
+            params.value || (
+              <Label variant="soft" color="warning">
+                Sin grupo — edítalo
+              </Label>
+            ),
+        },
         actionsColumn,
       ],
     },
