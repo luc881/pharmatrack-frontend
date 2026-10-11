@@ -729,6 +729,14 @@ export function AnimalTaxonomyView() {
 
   const tabConfig = TABS.find((t) => t.value === tabValue);
 
+  // «Nuevo …» parte de donde estás: dentro de un grupo el género (o subgrupo)
+  // nace en ese grupo; dentro de un género la especie nace en ese género.
+  const initialFromFilter = () => {
+    if (filter?.type === 'group') return { genera: { group_id: filter.id }, groups: { parent_id: filter.id } }[tabValue];
+    if (filter?.type === 'genus' && tabValue === 'species') return { genus_id: filter.id };
+    return undefined;
+  };
+
   return (
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
@@ -746,7 +754,7 @@ export function AnimalTaxonomyView() {
                 <Button
                   variant="contained"
                   startIcon={<Iconify icon="mingcute:add-line" />}
-                  onClick={() => setDialog({ tab: tabValue, current: null })}
+                  onClick={() => setDialog({ tab: tabValue, current: null, initial: initialFromFilter() })}
                 >
                   {`Nuevo ${tabConfig.singular}`}
                 </Button>

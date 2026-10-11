@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { useState } from 'react';
 
 import Box from '@mui/material/Box';
@@ -8,13 +9,14 @@ import Divider from '@mui/material/Divider';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
-import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 
 import { handleApiError } from 'src/utils/handle-api-error';
 
+import { endpoints } from 'src/lib/axios';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import {
   createGenus,
@@ -54,6 +56,66 @@ export const TAXON_ACTIONS = {
 
 // ----------------------------------------------------------------------
 
+const filter = createFilterOptions();
+
+// Revalida géneros y grupos en cualquier vista abierta tras crearlos aquí
+const refreshTaxa = () =>
+  mutate((key) => {
+    const url = Array.isArray(key) ? key[0] : key;
+    return (
+      typeof url === 'string' &&
+      (url.startsWith(endpoints.genus.list) || url.startsWith(endpoints.animalGroup.list))
+    );
+  });
+
+const groupOption = ({ key, ...props }, option) => (
+  <li key={key} {...props} style={{ ...props.style, paddingLeft: 16 + (option.depth ?? 0) * 16 }}>
+    {option.depth > 0 && '└ '}
+    {option.name}
+  </li>
+);
+
+// Autocomplete que además ofrece «Crear "lo escrito"» si no existe. Lo nuevo
+// solo se crea al guardar el diálogo (newName), no al elegirlo.
+function CreatableField({ options, value, newName, onPick, onCreate, label, noun, helperText, renderOption }) {
+  return (
+    <Autocomplete
+      options={options}
+      value={newName ? { __new: newName } : value}
+      onChange={(_, option) => (option?.__create ? onCreate(option.__create) : onPick(option))}
+      filterOptions={(opts, params) => {
+        const out = filter(opts, params);
+        const typed = params.inputValue.trim();
+        if (typed && !opts.some((o) => o.name.toLowerCase() === typed.toLowerCase())) {
+          out.push({ __create: typed });
+        }
+        return out;
+      }}
+      getOptionLabel={(o) => (o?.__new ? `${o.__new} (nuevo)` : (o?.name ?? ''))}
+      isOptionEqualToValue={(o, v) => (o.__new ? o.__new === v.__new : o?.id === v?.id)}
+      renderOption={({ key, ...props }, option) => {
+        if (option.__create) {
+          return (
+            <li key="__create" {...props}>
+              <Iconify icon="mingcute:add-line" width={16} sx={{ mr: 1, color: 'primary.main' }} />
+              {`Crear ${noun} «${option.__create}»`}
+            </li>
+          );
+        }
+        if (renderOption) return renderOption({ key, ...props }, option);
+        return (
+          <li key={key} {...props}>
+            {option.name}
+          </li>
+        );
+      }}
+      renderInput={(params) => <TextField {...params} label={label} helperText={helperText} />}
+    />
+  );
+}
+
+// ----------------------------------------------------------------------
+
 // Diálogo de crear/editar cualquier nivel de la taxonomía. `current` = editar;
 // `initial` prellena campos al crear (p. ej. el género elegido en el form de
 // animal). onSaved recibe la entidad guardada para poder auto-seleccionarla.
@@ -85,6 +147,9 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [nameError, setNameError] = useState('');
+  // Género/grupo escritos que todavía no existen: se crean al guardar
+  const [newGenus, setNewGenus] = useState(null);
+  const [newGroup, setNewGroup] = useState(null);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -113,11 +178,43 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
   );
 
   const missingParent =
-    (tab === 'species' && !form.genus_id) || (tab === 'morphs' && !form.species_id);
+    (tab === 'species' && !form.genus_id && !newGenus) || (tab === 'morphs' && !form.species_id);
+
+  const selectedGenus = genera.find((g) => g.id === Number(form.genus_id));
+  const genusName = newGenus ?? selectedGenus?.name ?? '';
+
+  // "Phyllium gardabagusi" en el campo de especie → solo "gardabagusi"
+  const speciesName = () => {
+    const name = form.name.trim();
+    const prefix = `${genusName.toLowerCase()} `;
+    return genusName && name.toLowerCase().startsWith(prefix) ? name.slice(prefix.length).trim() : name;
+  };
+
+  // Crea primero lo que falte (grupo → género). Ya creados pasan a ser
+  // opciones normales: si después falla la especie, reintentar no duplica.
+  const ensureGroup = async () => {
+    if (!newGroup) return form.group_id ? Number(form.group_id) : null;
+    const group = await createAnimalGroup({ name: newGroup, parent_id: null, show_public: true, feature_home: false });
+    setNewGroup(null);
+    setForm((f) => ({ ...f, group_id: group.id }));
+    await refreshTaxa();
+    return group.id;
+  };
+
+  const ensureGenus = async () => {
+    if (!newGenus) return Number(form.genus_id);
+    const genus = await createGenus({ name: newGenus, group_id: await ensureGroup() });
+    setNewGenus(null);
+    setForm((f) => ({ ...f, genus_id: genus.id }));
+    await refreshTaxa();
+    return genus.id;
+  };
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const genusId = tab === 'species' ? await ensureGenus() : null;
+      const groupId = tab === 'genera' ? await ensureGroup() : null;
       const payload = {
         groups: {
           name: form.name,
@@ -126,10 +223,10 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           // un raíz oculto no puede destacarse; un subgrupo sí
           feature_home: canFeature && form.feature_home,
         },
-        genera: { name: form.name, group_id: form.group_id ? Number(form.group_id) : null },
+        genera: { name: form.name, group_id: groupId },
         species: {
-          genus_id: Number(form.genus_id),
-          name: form.name,
+          genus_id: genusId,
+          name: speciesName(),
           common_name: form.common_name || null,
           // ficha de cuidados que muestra el sitio público
           description: form.description || null,
@@ -233,14 +330,50 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
         )}
 
         {tab === 'species' && (
-          <Autocomplete
-            options={genera}
-            value={genera.find((g) => g.id === Number(form.genus_id)) ?? null}
-            onChange={(_, option) => setForm((f) => ({ ...f, genus_id: option?.id ?? '' }))}
-            getOptionLabel={(option) => option?.name ?? ''}
-            isOptionEqualToValue={(option, value) => option?.id === value?.id}
-            renderInput={(params) => <TextField {...params} label="Género *" sx={{ mt: 1 }} />}
-          />
+          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <CreatableField
+              options={genera}
+              value={selectedGenus ?? null}
+              newName={newGenus}
+              noun="género"
+              label="Género *"
+              helperText={
+                newGenus
+                  ? 'Se crea junto con la especie.'
+                  : selectedGenus
+                    ? `Grupo: ${selectedGenus.group?.name ?? 'sin grupo'}`
+                    : 'Escribe para buscarlo. Si no existe, elige «Crear género».'
+              }
+              onPick={(g) => {
+                setNewGenus(null);
+                setForm((f) => ({ ...f, genus_id: g?.id ?? '' }));
+              }}
+              onCreate={(name) => {
+                setNewGenus(name);
+                setForm((f) => ({ ...f, genus_id: '' }));
+              }}
+            />
+            {/* Género nuevo: aquí mismo se elige (o crea) su grupo */}
+            {newGenus && (
+              <CreatableField
+                options={groupsFlat}
+                value={groupsFlat.find((g) => g.id === Number(form.group_id)) ?? null}
+                newName={newGroup}
+                noun="grupo"
+                label={`Grupo de ${newGenus}`}
+                helperText="Ej. Arácnidos, Isópodos. Opcional, pero ordena el catálogo."
+                renderOption={groupOption}
+                onPick={(g) => {
+                  setNewGroup(null);
+                  setForm((f) => ({ ...f, group_id: g?.id ?? '' }));
+                }}
+                onCreate={(name) => {
+                  setNewGroup(name);
+                  setForm((f) => ({ ...f, group_id: '' }));
+                }}
+              />
+            )}
+          </Box>
         )}
 
         {tab === 'morphs' && (
@@ -307,14 +440,20 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
         )}
 
         <TextField
-          label={tab === 'species' ? 'Nombre científico *' : 'Nombre *'}
+          label={tab === 'species' ? 'Especie (nombre científico) *' : 'Nombre *'}
+          placeholder={tab === 'species' ? 'Ej. gardabagusi' : undefined}
           value={form.name}
           onChange={(e) => {
             setNameError('');
             set('name')(e);
           }}
           error={!!nameError}
-          helperText={nameError}
+          helperText={
+            nameError ||
+            (tab === 'species' && form.name.trim()
+              ? `Quedará como: ${[genusName, speciesName()].filter(Boolean).join(' ')}`
+              : undefined)
+          }
           sx={{ mt: tab === 'genera' ? 1 : 0 }}
         />
 
@@ -330,21 +469,22 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
         )}
 
         {tab === 'genera' && (
-          <Autocomplete
+          <CreatableField
             options={groupsFlat}
             value={groupsFlat.find((g) => g.id === Number(form.group_id)) ?? null}
-            onChange={(_, option) => setForm((f) => ({ ...f, group_id: option?.id ?? '' }))}
-            getOptionLabel={(option) => option?.name ?? ''}
-            isOptionEqualToValue={(option, value) => option?.id === value?.id}
-            renderOption={({ key, ...props }, option) => (
-              <li key={key} {...props} style={{ ...props.style, paddingLeft: 16 + option.depth * 16 }}>
-                {option.depth > 0 && '└ '}
-                {option.name}
-              </li>
-            )}
-            renderInput={(params) => (
-              <TextField {...params} label="Grupo" placeholder="Sin grupo" />
-            )}
+            newName={newGroup}
+            noun="grupo"
+            label="Grupo"
+            helperText={newGroup ? 'Se crea junto con el género.' : 'Si no existe, escríbelo y elige «Crear grupo».'}
+            renderOption={groupOption}
+            onPick={(g) => {
+              setNewGroup(null);
+              setForm((f) => ({ ...f, group_id: g?.id ?? '' }));
+            }}
+            onCreate={(name) => {
+              setNewGroup(name);
+              setForm((f) => ({ ...f, group_id: '' }));
+            }}
           />
         )}
 
