@@ -236,6 +236,7 @@ export const endpoints = {
     create: '/api/v1/deliveries',
     update: (id) => `/api/v1/deliveries/${id}`,
     status: (id) => `/api/v1/deliveries/${id}/status`,
+    summary: '/api/v1/deliveries/summary',
     delete: (id) => `/api/v1/deliveries/${id}`,
   },
   husbandryLog: {

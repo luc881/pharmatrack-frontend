@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { useState } from 'react';
 
 import Box from '@mui/material/Box';
@@ -38,6 +39,7 @@ import { paths } from 'src/routes/paths';
 
 import { fCurrency } from 'src/utils/format-number';
 
+import { endpoints } from 'src/lib/axios';
 import { useGetAnimals } from 'src/actions/animal';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
@@ -56,6 +58,8 @@ import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
+
+import { DeliveryTotals } from '../delivery-totals';
 
 // ----------------------------------------------------------------------
 // Entregas: control de las entregas en persona (Metro) y de los cambios.
@@ -604,6 +608,8 @@ export function DeliveryListView() {
   const refresh = () => {
     pending.deliveriesMutate();
     history.deliveriesMutate();
+    // los totales viven en su propia tarjeta (con su mes elegido)
+    mutate((key) => Array.isArray(key) && key[0] === endpoints.delivery.summary);
   };
 
   const places = [
@@ -654,6 +660,8 @@ export function DeliveryListView() {
         }
         sx={{ mb: 3 }}
       />
+
+      <DeliveryTotals />
 
       <Typography variant="h6" sx={{ mb: 2 }}>
         Pendientes

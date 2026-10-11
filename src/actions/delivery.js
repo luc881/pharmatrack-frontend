@@ -44,3 +44,20 @@ export const setDeliveryStatus = (id, status) =>
   axiosInstance.put(endpoints.delivery.status(id), { status }).then((r) => r.data);
 export const deleteDelivery = (id) =>
   axiosInstance.delete(endpoints.delivery.delete(id)).then((r) => r.data);
+
+// Cobrado en el rango y lo que falta por cobrar
+export function useDeliverySummary({ dateFrom, dateTo } = {}) {
+  const params = {
+    ...(dateFrom ? { date_from: dateFrom } : {}),
+    ...(dateTo ? { date_to: dateTo } : {}),
+  };
+  const { data, isLoading, mutate } = useSWR(
+    [endpoints.delivery.summary, { params }],
+    fetcher,
+    swrOptions
+  );
+  return useMemo(
+    () => ({ summary: data ?? null, summaryLoading: isLoading, summaryMutate: mutate }),
+    [data, isLoading, mutate]
+  );
+}
