@@ -9,7 +9,8 @@
 - **Qué es:** criadero de invertebrados y bioactivo en la Ciudad de México. Vende isópodos, colémbolos y fásmidos (por ejemplo *Phyllium gardabagusi* “Argopuro”).
 - **Nombre:** “Opuntia Den”. *Opuntia* es el género del nopal; *den* es madriguera.
 - **Estética:** editorial, cálida, hecha a mano, como una lámina botánica antigua. Fondo crema, tinta café, serif elegante y mucho aire.
-- **Lema de la web:** “Vida en miniatura”.
+- **Lema de la web:** “Para quien mira de cerca”.
+- **Frase de apoyo:** “Observar · criar · compartir”, siempre como etiqueta (mayúsculas espaciadas, Inter 500), arriba o abajo del lema; nunca en letra grande.
 - **Tono de los textos:** cercano, claro y en español de México. Frases cortas. Sin emojis en la interfaz.
 
 ## 2. Archivos en esta carpeta
@@ -37,7 +38,7 @@
 | `--od-tuna` | `#A8455C` | **Acento puntual**: estrellas, número de kicker, foco |
 | `--od-gris` | `#6E6359` | Texto secundario |
 | `--od-linea` | `#CBBFAE` | Divisores y bordes de 1 px |
-| `--od-olivo` | `#5C6449` | Banda verde (“Vida en miniatura”) |
+| `--od-olivo` | `#5C6449` | Banda verde (lema) |
 | `--od-arena-texto` | `#C9C0B2` | Texto secundario sobre noche |
 
 **Familia de cremas** para alternar fondos o tarjetas: papel `#F4F0E9`, hueso `#EFE8DC`, crema `#EAE3D7`, lino `#E3D8C6` y arena `#D8CBB5`.
