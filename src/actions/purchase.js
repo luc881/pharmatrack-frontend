@@ -54,7 +54,7 @@ export function useGetPurchase(purchaseId) {
 
 export function useGetPurchaseDetails(purchaseId) {
   const url = purchaseId
-    ? [endpoints.purchaseDetail.list, { params: { purchase_id: purchaseId } }]
+    ? [endpoints.purchaseDetail.list, { params: { purchase_id: purchaseId, page_size: 500 } }]
     : null;
 
   const { data, isLoading, error } = useSWR(url, fetcher, swrOptions);
@@ -72,6 +72,8 @@ export function useGetPurchaseDetails(purchaseId) {
 
 // ----------------------------------------------------------------------
 
+// `items` va dentro de la compra: la API guarda todo junto y suma cada renglón
+// al stock (al editar resta lo viejo y suma lo nuevo; al borrar lo resta)
 export const createPurchase = (data) =>
   axiosInstance.post(endpoints.purchase.create, data).then((r) => r.data);
 
@@ -80,9 +82,3 @@ export const updatePurchase = (id, data) =>
 
 export const deletePurchase = (id) =>
   axiosInstance.delete(endpoints.purchase.delete(id)).then((r) => r.data);
-
-export const createPurchaseDetail = (data) =>
-  axiosInstance.post(endpoints.purchaseDetail.create, data).then((r) => r.data);
-
-export const deletePurchaseDetail = (id) =>
-  axiosInstance.delete(endpoints.purchaseDetail.delete(id)).then((r) => r.data);

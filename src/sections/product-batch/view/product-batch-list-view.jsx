@@ -286,7 +286,7 @@ export function ProductBatchListView() {
                 ) : (
                   <EmptyList
                     title="Todavía no hay stock registrado"
-                    description="Cada lote es una entrada de un producto con su cantidad (y su vencimiento si lo tiene). Lo que vende el POS sale de aquí."
+                    description="Cada lote es una entrada de un producto con su cantidad (y su vencimiento si lo tiene). Se llena solo al registrar una compra, o a mano con «Registrar lote». Lo que vende el POS sale de aquí."
                     newLabel="Registrar lote"
                     href={canCreate ? paths.dashboard.productBatch.new : null}
                   />

@@ -81,9 +81,10 @@ export function PurchaseListView() {
         await Promise.all([...selectedRows.ids].map((id) => deletePurchase(id)));
       }
       await purchasesMutate();
-      toast.success('Eliminado correctamente');
-    } catch {
-      toast.error('Error al eliminar');
+      toast.success('Eliminada; su stock se restó');
+    } catch (error) {
+      await purchasesMutate();
+      toast.error(error?.message || 'Error al eliminar');
     } finally {
       setRowToDelete(null);
       confirmDialog.onFalse();
@@ -189,7 +190,7 @@ export function PurchaseListView() {
               noRowsOverlay: () => (
                 <EmptyList
                   title="Todavía no hay compras"
-                  description="Lo que le compras a tus proveedores y cuánto pagaste."
+                  description="Lo que le compras a tus proveedores y cuánto pagaste. Al registrarla, lo que llegó se suma al stock."
                   newLabel="Nueva compra"
                   href={canCreate ? paths.dashboard.purchase.new : null}
                 />
@@ -238,7 +239,8 @@ export function PurchaseListView() {
         content={
           <>
             ¿Estás seguro de eliminar <strong>{deleteCount}</strong>{' '}
-            {deleteCount === 1 ? 'compra' : 'compras'}?
+            {deleteCount === 1 ? 'compra' : 'compras'}? Lo que sumó{deleteCount === 1 ? '' : 'n'} al
+            stock se resta.
           </>
         }
         action={

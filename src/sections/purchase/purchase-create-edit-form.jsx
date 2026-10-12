@@ -5,6 +5,7 @@ import { useForm, FormProvider, useFieldArray, useFormContext } from 'react-hook
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -13,13 +14,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
+import { createPurchase, updatePurchase } from 'src/actions/purchase';
 import { createSupplier, useGetSuppliers } from 'src/actions/supplier';
-import {
-  createPurchase,
-  updatePurchase,
-  createPurchaseDetail,
-  deletePurchaseDetail,
-} from 'src/actions/purchase';
 
 import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
@@ -28,6 +24,7 @@ import { Iconify } from 'src/components/iconify';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { ProductSelect } from '../product/product-select';
+import { useAllProducts } from '../product-batch/use-all-products';
 import { InlineCreatableSelect } from '../product/inline-creatable-select';
 
 // ----------------------------------------------------------------------
@@ -114,41 +111,30 @@ export function PurchaseCreateEditForm({ currentPurchase, currentDetails = [] })
         0
       );
 
-      const purchasePayload = {
+      const payload = {
         supplier_id: Number(data.supplier_id),
         user_id: user.id,
         total: Number(total.toFixed(2)),
         description: data.description || null,
         date_emision: data.date_emision ? `${data.date_emision}T00:00:00` : null,
+        items: data.items.map((item) => ({
+          product_id: Number(item.product_id),
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+          lot_code: item.lot_code || null,
+          expiration_date: item.expiration_date || null,
+        })),
       };
 
-      let purchaseId;
-      if (currentPurchase) {
-        await updatePurchase(currentPurchase.id, purchasePayload);
-        purchaseId = currentPurchase.id;
-        await Promise.all(currentDetails.map((d) => deletePurchaseDetail(d.id)));
-      } else {
-        const created = await createPurchase(purchasePayload);
-        purchaseId = created.id;
-      }
+      if (currentPurchase) await updatePurchase(currentPurchase.id, payload);
+      else await createPurchase(payload);
 
-      await Promise.all(
-        data.items.map((item) =>
-          createPurchaseDetail({
-            purchase_id: purchaseId,
-            product_id: Number(item.product_id),
-            quantity: Number(item.quantity),
-            unit_price: Number(item.unit_price),
-            lot_code: item.lot_code || null,
-            expiration_date: item.expiration_date || null,
-          })
-        )
+      toast.success(
+        currentPurchase ? 'Compra actualizada y stock ajustado' : 'Compra registrada y sumada al stock'
       );
-
-      toast.success(currentPurchase ? 'Compra actualizada' : 'Compra registrada');
       navigate(paths.dashboard.purchase.root);
-    } catch {
-      toast.error('Error al guardar la compra');
+    } catch (error) {
+      toast.error(error?.message || 'Error al guardar la compra');
     }
   });
 
@@ -226,9 +212,14 @@ function PurchaseItems() {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h6" sx={{ mb: 3 }}>
+      <Typography variant="h6" sx={{ mb: 2 }}>
         Productos
       </Typography>
+
+      <Alert severity="info" sx={{ mb: 3 }}>
+        Al guardar, cada producto se suma a <b>Stock y lotes</b> con su lote y vencimiento. Si
+        luego cambias o borras la compra, el stock se ajusta solo.
+      </Alert>
 
       <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
         {fields.map((field, index) => (
@@ -262,6 +253,11 @@ function PurchaseItems() {
 
 function PurchaseItem({ index, onRemove }) {
   const { watch } = useFormContext();
+  const products = useAllProducts();
+
+  const productId = watch(`items.${index}.product_id`);
+  // venta libre (granel, servicios): no lleva inventario, así que ni lote ni vencimiento
+  const noStock = products.find((p) => p.id === Number(productId))?.tracks_batches === false;
 
   const quantity = watch(`items[${index}].quantity`);
   const unitPrice = watch(`items[${index}].unit_price`);
@@ -304,20 +300,31 @@ function PurchaseItem({ index, onRemove }) {
           }}
         />
 
-        <Field.Text
-          name={`items[${index}].lot_code`}
-          label="Lote"
-          size="small"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
+        {noStock ? (
+          <Typography
+            variant="caption"
+            sx={{ gridColumn: { md: 'span 2' }, color: 'text.secondary', alignSelf: 'center' }}
+          >
+            Venta libre: no lleva inventario, solo se registra el costo.
+          </Typography>
+        ) : (
+          <>
+            <Field.Text
+              name={`items[${index}].lot_code`}
+              label="Lote (opcional)"
+              size="small"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
 
-        <Field.Text
-          name={`items[${index}].expiration_date`}
-          label="Vencimiento"
-          type="date"
-          size="small"
-          slotProps={{ inputLabel: { shrink: true } }}
-        />
+            <Field.Text
+              name={`items[${index}].expiration_date`}
+              label="Vencimiento (opcional)"
+              type="date"
+              size="small"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </>
+        )}
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
