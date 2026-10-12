@@ -218,4 +218,56 @@ describe('HusbandryLogView', () => {
       supplement: null,
     });
   });
+
+  it('anota ejemplar por ejemplar y marca la alimentación asistida', async () => {
+    const saved = [];
+    mockApi({
+      species: [{ ...SPECIES, sale_format: 'individual' }],
+      animals: [
+        { id: 2, code: 'EJ-002', sex: 'male', status: 'available', stock: 1, morphs: [] },
+        { id: 1, code: 'EJ-001', sex: 'female', status: 'available', stock: 1, morphs: [] },
+        { id: 3, code: 'EJ-003', status: 'sold', stock: 0, morphs: [] },
+      ],
+    });
+    // lo guardado sale en las entradas del día (✓) y en el historial
+    server.use(
+      http.get(`${API}/husbandry-logs`, () => HttpResponse.json(page(saved))),
+      http.post(`${API}/husbandry-logs`, async ({ request }) => {
+        const body = await request.json();
+        const log = {
+          id: saved.length + 1,
+          ...body,
+          animal_code: `EJ-00${body.animal_id}`,
+          species_name: 'Phyllium gardabagusi',
+          species_common_name: 'Hoja',
+        };
+        saved.push(log);
+        return HttpResponse.json(log, { status: 201 });
+      })
+    );
+    renderView();
+
+    fireEvent.click(await screen.findByRole('button', { name: /ver especies/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Anotar' }));
+    // empieza en el primero por código; el vendido no aparece
+    expect(await screen.findByText(/EJ-001 · ♀/)).toBeInTheDocument();
+    expect(screen.queryByText(/EJ-003/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /asistida/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Guardar y seguir con EJ-002' }));
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]).toMatchObject({ animal_id: 1, assisted: true, fed: true, appetite: null });
+
+    // ya va en EJ-002 y es el último: solo «Guardar»
+    expect(await screen.findByText('1 de 2 anotados ese día')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /sí comió/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(saved).toHaveLength(2));
+    expect(saved[1]).toMatchObject({ animal_id: 2, assisted: false, fed: true });
+
+    // historial tipo hoja: nombre común, ejemplar y «Asistida»
+    expect(await screen.findAllByText('Hoja')).not.toHaveLength(0);
+    expect(await screen.findByRole('button', { name: 'EJ-001' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Asistida' })).toBeInTheDocument();
+  });
 });

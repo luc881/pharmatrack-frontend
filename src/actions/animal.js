@@ -36,7 +36,10 @@ export function useAllGenera() {
 }
 
 export function useAllSpecies(genusId) {
-  const url = [endpoints.species.list, { params: { ...ALL, ...(genusId ? { genus_id: genusId } : {}) } }];
+  const url = [
+    endpoints.species.list,
+    { params: { ...ALL, ...(genusId ? { genus_id: genusId } : {}) } },
+  ];
   const { data, isLoading, mutate } = useSWR(url, fetcher, swrOptions);
   return useMemo(
     () => ({ species: data?.data ?? [], speciesLoading: isLoading, speciesMutate: mutate }),
@@ -45,7 +48,10 @@ export function useAllSpecies(genusId) {
 }
 
 export function useAllMorphs(speciesId) {
-  const url = [endpoints.morph.list, { params: { ...ALL, ...(speciesId ? { species_id: speciesId } : {}) } }];
+  const url = [
+    endpoints.morph.list,
+    { params: { ...ALL, ...(speciesId ? { species_id: speciesId } : {}) } },
+  ];
   const { data, isLoading, mutate } = useSWR(url, fetcher, swrOptions);
   return useMemo(
     () => ({ morphs: data?.data ?? [], morphsLoading: isLoading, morphsMutate: mutate }),
@@ -55,7 +61,14 @@ export function useAllMorphs(speciesId) {
 
 // ----------------------------------------------------------------------
 
-export function useGetAnimals({ page = 1, pageSize = 10, speciesId, genusId, status, groupId } = {}) {
+export function useGetAnimals({
+  page = 1,
+  pageSize = 10,
+  speciesId,
+  genusId,
+  status,
+  groupId,
+} = {}) {
   const params = {
     page,
     page_size: pageSize,
@@ -100,58 +113,100 @@ export function useGetSpecies(speciesId) {
   const { data, isLoading, error, mutate } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
-    () => ({ species: data ?? null, speciesLoading: isLoading, speciesError: error, speciesMutate: mutate }),
+    () => ({
+      species: data ?? null,
+      speciesLoading: isLoading,
+      speciesError: error,
+      speciesMutate: mutate,
+    }),
     [data, error, isLoading, mutate]
   );
 }
 
 // ----------------------------------------------------------------------
 
-export const createAnimalGroup = (data) => axiosInstance.post(endpoints.animalGroup.create, data).then((r) => r.data);
-export const updateAnimalGroup = (id, data) => axiosInstance.put(endpoints.animalGroup.update(id), data).then((r) => r.data);
-export const deleteAnimalGroup = (id) => axiosInstance.delete(endpoints.animalGroup.delete(id)).then((r) => r.data);
+export const createAnimalGroup = (data) =>
+  axiosInstance.post(endpoints.animalGroup.create, data).then((r) => r.data);
+export const updateAnimalGroup = (id, data) =>
+  axiosInstance.put(endpoints.animalGroup.update(id), data).then((r) => r.data);
+export const deleteAnimalGroup = (id) =>
+  axiosInstance.delete(endpoints.animalGroup.delete(id)).then((r) => r.data);
 
-export const createGenus = (data) => axiosInstance.post(endpoints.genus.create, data).then((r) => r.data);
-export const updateGenus = (id, data) => axiosInstance.put(endpoints.genus.update(id), data).then((r) => r.data);
-export const deleteGenus = (id) => axiosInstance.delete(endpoints.genus.delete(id)).then((r) => r.data);
+export const createGenus = (data) =>
+  axiosInstance.post(endpoints.genus.create, data).then((r) => r.data);
+export const updateGenus = (id, data) =>
+  axiosInstance.put(endpoints.genus.update(id), data).then((r) => r.data);
+export const deleteGenus = (id) =>
+  axiosInstance.delete(endpoints.genus.delete(id)).then((r) => r.data);
 
-export const createSpecies = (data) => axiosInstance.post(endpoints.species.create, data).then((r) => r.data);
-export const updateSpecies = (id, data) => axiosInstance.put(endpoints.species.update(id), data).then((r) => r.data);
-export const deleteSpecies = (id) => axiosInstance.delete(endpoints.species.delete(id)).then((r) => r.data);
+export const createSpecies = (data) =>
+  axiosInstance.post(endpoints.species.create, data).then((r) => r.data);
+export const updateSpecies = (id, data) =>
+  axiosInstance.put(endpoints.species.update(id), data).then((r) => r.data);
+export const deleteSpecies = (id) =>
+  axiosInstance.delete(endpoints.species.delete(id)).then((r) => r.data);
 
-export const createMorph = (data) => axiosInstance.post(endpoints.morph.create, data).then((r) => r.data);
-export const updateMorph = (id, data) => axiosInstance.put(endpoints.morph.update(id), data).then((r) => r.data);
-export const deleteMorph = (id) => axiosInstance.delete(endpoints.morph.delete(id)).then((r) => r.data);
+export const createMorph = (data) =>
+  axiosInstance.post(endpoints.morph.create, data).then((r) => r.data);
+export const updateMorph = (id, data) =>
+  axiosInstance.put(endpoints.morph.update(id), data).then((r) => r.data);
+export const deleteMorph = (id) =>
+  axiosInstance.delete(endpoints.morph.delete(id)).then((r) => r.data);
 
-export const createAnimal = (data) => axiosInstance.post(endpoints.animal.create, data).then((r) => r.data);
-export const updateAnimal = (id, data) => axiosInstance.put(endpoints.animal.update(id), data).then((r) => r.data);
-export const deleteAnimal = (id) => axiosInstance.delete(endpoints.animal.delete(id)).then((r) => r.data);
+export const createAnimal = (data) =>
+  axiosInstance.post(endpoints.animal.create, data).then((r) => r.data);
+export const updateAnimal = (id, data) =>
+  axiosInstance.put(endpoints.animal.update(id), data).then((r) => r.data);
+export const deleteAnimal = (id) =>
+  axiosInstance.delete(endpoints.animal.delete(id)).then((r) => r.data);
 
 // ----------------------------------------------------------------------
 // Bitácora del plan de manejo
 
-export function useGetHusbandryLogs({ page = 1, pageSize = 50, speciesId, dateFrom, dateTo } = {}) {
+// skip: no pide nada (p. ej. el diálogo cerrado)
+export function useGetHusbandryLogs({
+  page = 1,
+  pageSize = 50,
+  speciesId,
+  animalId,
+  dateFrom,
+  dateTo,
+  skip,
+} = {}) {
   const params = {
     page,
     page_size: pageSize,
     ...(speciesId ? { species_id: speciesId } : {}),
+    ...(animalId ? { animal_id: animalId } : {}),
     ...(dateFrom ? { date_from: dateFrom } : {}),
     ...(dateTo ? { date_to: dateTo } : {}),
   };
-  const { data, isLoading, mutate } = useSWR([endpoints.husbandryLog.list, { params }], fetcher, swrOptions);
+  const key = skip ? null : [endpoints.husbandryLog.list, { params }];
+  const { data, isLoading, mutate } = useSWR(key, fetcher, swrOptions);
   return useMemo(
-    () => ({ logs: data?.data ?? [], logsTotal: data?.total ?? 0, logsLoading: isLoading, logsMutate: mutate }),
+    () => ({
+      logs: data?.data ?? [],
+      logsTotal: data?.total ?? 0,
+      logsLoading: isLoading,
+      logsMutate: mutate,
+    }),
     [data, isLoading, mutate]
   );
 }
 
-export const createHusbandryLog = (data) => axiosInstance.post(endpoints.husbandryLog.create, data).then((r) => r.data);
-export const updateHusbandryLog = (id, data) => axiosInstance.put(endpoints.husbandryLog.update(id), data).then((r) => r.data);
-export const deleteHusbandryLog = (id) => axiosInstance.delete(endpoints.husbandryLog.delete(id)).then((r) => r.data);
+export const createHusbandryLog = (data) =>
+  axiosInstance.post(endpoints.husbandryLog.create, data).then((r) => r.data);
+export const updateHusbandryLog = (id, data) =>
+  axiosInstance.put(endpoints.husbandryLog.update(id), data).then((r) => r.data);
+export const deleteHusbandryLog = (id) =>
+  axiosInstance.delete(endpoints.husbandryLog.delete(id)).then((r) => r.data);
 
 // Qué toca según el plan (una fila por especie) y conteos del mes
 export function useHusbandryStatus(speciesId) {
-  const url = [endpoints.husbandryLog.status, { params: speciesId ? { species_id: speciesId } : {} }];
+  const url = [
+    endpoints.husbandryLog.status,
+    { params: speciesId ? { species_id: speciesId } : {} },
+  ];
   const { data, isLoading, mutate } = useSWR(url, fetcher, swrOptions);
   return useMemo(
     () => ({ planStatus: data ?? [], planStatusLoading: isLoading, planStatusMutate: mutate }),
