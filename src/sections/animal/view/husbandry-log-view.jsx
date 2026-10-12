@@ -1,5 +1,5 @@
+import { useState } from 'react';
 import { useSWRConfig } from 'swr';
-import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
@@ -10,6 +10,7 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
@@ -31,6 +32,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import InputAdornment from '@mui/material/InputAdornment';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { paths } from 'src/routes/paths';
@@ -70,7 +72,6 @@ import {
   CONDITION,
   PLAN_KIND,
   ACTIVITIES,
-  SUPPLEMENTS,
   planOptions,
 } from '../husbandry';
 
@@ -80,8 +81,8 @@ import {
 // y tocar la especie abre el formulario. Ahí solo se pregunta «¿Comió?»; lo
 // demás (cantidades, terrario, bajas, notas, fotos) queda en «Más detalles».
 // Si se anotan piezas o gramos la API marca «Comió» sola (salvo «No comió»).
-// En especies de venta individual se anota por ejemplar (código): el diálogo
-// marca cuáles ya tienen entrada ese día y «Guardar y seguir» pasa al siguiente.
+// En especies de venta individual se anota por ejemplar desde su renglón: el
+// formulario queda fijo en ese código (no se cambia de ejemplar ahí).
 // ----------------------------------------------------------------------
 
 const HELP_KEY = 'husbandry-log-help-hidden';
@@ -164,22 +165,23 @@ const isBlank = (p) =>
 
 // Lo que va en «Más detalles»: si la entrada ya trae algo de eso, se abre
 const hasDetails = (f) =>
-  Boolean(f.feeding_notes || f.deaths || f.activities.length || f.notes || f.photos.length);
+  Boolean(
+    f.feeding_notes ||
+    (!f.per_animal && f.deaths) ||
+    f.activities.length ||
+    f.notes ||
+    f.photos.length
+  );
 
 const fold = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 const scientific = (sp) => [sp.genus?.name, sp.name].filter(Boolean).join(' ');
-
-const SEX_SIGN = { female: '♀', male: '♂' };
 
 // Ejemplares que siguen en tu cuidado (los vendidos ya no se alimentan)
 const specimensOf = (animals) =>
   animals
     .filter((a) => a.status !== 'sold')
     .sort((a, b) => a.code.localeCompare(b.code, 'es', { numeric: true }));
-
-const specimenLabel = (a) =>
-  [a.code, a.morphs?.map((m) => m.name).join(' '), SEX_SIGN[a.sex]].filter(Boolean).join(' · ');
 
 const fedLabel = (log) => {
   if (log.assisted) return { label: 'Asistida', color: 'warning.main' };
@@ -405,57 +407,16 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
   // Solo se puede descontar de ejemplares/cepas con existencia de esta especie
   const stockAnimals = animals.filter((a) => (a.stock ?? 0) > 0 || a.id === form.animal_id);
 
-  // Venta individual: cada ejemplar tiene su código y se anota por separado
-  const specimens = species?.sale_format === 'individual' ? specimensOf(animals) : [];
-  const current = animals.find((a) => a.id === form.animal_id);
+  // Entrada de un ejemplar: fijo en ese código
+  const current = form.per_animal ? animals.find((a) => a.id === form.animal_id) : null;
 
-  // Qué ejemplares ya tienen entrada ese día (✓)
-  const { logs: dayLogs, logsMutate: dayMutate } = useGetHusbandryLogs({
-    pageSize: 500,
-    speciesId: form.species_id,
-    dateFrom: form.log_date,
-    dateTo: form.log_date,
-    skip: !open || !specimens.length || !form.log_date,
-  });
-  const done = new Set(dayLogs.map((l) => l.animal_id).filter(Boolean));
-  // el siguiente sin anotar, en orden de código y dando la vuelta
-  const next =
-    current && !editingId
-      ? [...specimens.slice(specimens.indexOf(current) + 1), ...specimens].find(
-          (a) => a.id !== current.id && !done.has(a.id)
-        )
-      : null;
-
-  // Entrada nueva: empieza en el primer ejemplar (se puede elegir «Toda la especie»)
-  const firstId = specimens[0]?.id;
-  useEffect(() => {
-    if (open && !editingId && firstId) {
-      setForm((f) =>
-        f.per_animal || f.animal_id || f.whole ? f : { ...f, animal_id: firstId, per_animal: true }
-      );
-    }
-  }, [open, editingId, firstId, setForm]);
-
-  const pick = (a) => setForm((f) => ({ ...f, animal_id: a ? a.id : '', per_animal: Boolean(a) }));
-
-  const save = async (goNext) => {
-    const ok = await onSave({ keepOpen: Boolean(goNext) });
-    if (!ok) return;
-    dayMutate();
-    if (goNext) {
-      // mismo día, misma comida y suplemento; lo demás en blanco para el siguiente
-      setForm((f) => ({
-        ...EMPTY,
-        species_id: f.species_id,
-        log_date: f.log_date,
-        food_type: f.food_type,
-        supplement: f.supplement,
-        animal_id: goNext.id,
-        per_animal: true,
-      }));
-      setMoreOpen(false);
-    }
-  };
+  // Suplemento con un switch: se registra el del plan (o «Suplemento» si no hay)
+  const planSupps = planOptions(species, 'supplement', []);
+  const suppNames = [
+    ...new Set(
+      [...(planSupps.length ? planSupps : ['Suplemento']), form.supplement].filter(Boolean)
+    ),
+  ];
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const fedChoice = form.assisted
@@ -492,54 +453,22 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
     >
       <DialogTitle sx={{ pb: 1 }}>
         {editingId ? 'Editar entrada' : 'Anotar en la bitácora'}
+        {current && ` · ${current.code}`}
         <Typography variant="body2" color="text.secondary">
           {speciesLabel(species)}
+          {current
+            ? [current.morphs?.map((m) => m.name).join(' '), SEX_LABELS[current.sex]]
+                .filter(Boolean)
+                .map((x) => ` · ${x}`)
+                .join('')
+            : ' · Toda la especie'}
         </Typography>
       </DialogTitle>
 
       <DialogContent>
         <Stack spacing={3} sx={{ pt: 1 }}>
-          {specimens.length > 0 && (
-            <Box>
-              <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-                <Typography variant="subtitle1">¿De quién?</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {specimens.filter((a) => done.has(a.id)).length} de {specimens.length} anotados
-                  ese día
-                </Typography>
-              </Stack>
-              <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1 }}>
-                Anótalos uno por uno: «Guardar y seguir» pasa al siguiente ejemplar.
-              </Typography>
-              <Stack direction="row" flexWrap="wrap" gap={1}>
-                <Chip
-                  label="Toda la especie"
-                  color={!form.per_animal ? 'primary' : 'default'}
-                  variant={!form.per_animal ? 'filled' : 'outlined'}
-                  onClick={() => pick(null)}
-                  disabled={Boolean(editingId)}
-                />
-                {specimens.map((a) => {
-                  const on = form.per_animal && form.animal_id === a.id;
-                  return (
-                    <Chip
-                      key={a.id}
-                      label={specimenLabel(a)}
-                      title={SEX_LABELS[a.sex]}
-                      color={on ? 'primary' : done.has(a.id) ? 'success' : 'default'}
-                      variant={on ? 'filled' : 'outlined'}
-                      icon={done.has(a.id) ? <Iconify icon="solar:check-circle-bold" /> : undefined}
-                      onClick={() => pick(a)}
-                      disabled={Boolean(editingId)}
-                    />
-                  );
-                })}
-              </Stack>
-            </Box>
-          )}
-
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, sm: 7 }}>
+            <Grid size={{ xs: 12, sm: 7 }} sx={{ display: form.per_animal ? 'none' : undefined }}>
               <TextField
                 select
                 fullWidth
@@ -556,7 +485,7 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
                 ))}
               </TextField>
             </Grid>
-            <Grid size={{ xs: 12, sm: 5 }}>
+            <Grid size={{ xs: 12, sm: form.per_animal ? 6 : 5 }}>
               <TextField
                 fullWidth
                 type="date"
@@ -685,7 +614,7 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
             label="Peso (opcional)"
             value={form.weight_g}
             onChange={set('weight_g')}
-            helperText={form.per_animal ? undefined : 'Mejor por ejemplar: elige su código arriba.'}
+            helperText={form.per_animal ? undefined : 'Mejor por ejemplar: «Anotar» en su renglón.'}
             slotProps={{
               htmlInput: { min: 0, step: 0.1, inputMode: 'decimal' },
               input: { endAdornment: <InputAdornment position="end">g</InputAdornment> },
@@ -693,19 +622,50 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
             sx={{ maxWidth: { sm: 220 } }}
           />
 
-          <Autocomplete
-            freeSolo
-            options={planOptions(species, 'supplement', SUPPLEMENTS)}
-            inputValue={form.supplement}
-            onInputChange={(_, v) => setForm((f) => ({ ...f, supplement: v }))}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Suplemento (opcional)"
-                helperText="Ej. calcio espolvoreado en la papilla"
+          <Box>
+            <Typography variant="subtitle1">Suplemento</Typography>
+            {suppNames.map((name) => (
+              <FormControlLabel
+                key={name}
+                sx={{ display: 'flex' }}
+                control={
+                  <Switch
+                    checked={form.supplement === name}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, supplement: e.target.checked ? name : '' }))
+                    }
+                  />
+                }
+                label={name === 'Suplemento' ? 'Se suplementó' : `Se suplementó con ${name}`}
               />
+            ))}
+            {!planSupps.length && (
+              <Typography variant="caption" color="text.secondary">
+                Para que registre cuál, agrégalo al plan de la especie.
+              </Typography>
             )}
-          />
+          </Box>
+
+          {form.per_animal && (
+            <Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    color="error"
+                    checked={Boolean(num(form.deaths))}
+                    onChange={(e) => setForm((f) => ({ ...f, deaths: e.target.checked ? 1 : '' }))}
+                  />
+                }
+                label="Baja: murió"
+              />
+              {Boolean(num(form.deaths)) && (
+                <Typography variant="caption" color="error" component="div">
+                  {current?.code ?? 'El ejemplar'} sale del inventario al guardar (si borras la
+                  entrada, regresa).
+                </Typography>
+              )}
+            </Box>
+          )}
 
           <Box>
             <Button
@@ -721,7 +681,9 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
               Más detalles (opcional)
             </Button>
             <Typography variant="caption" color="text.secondary" component="div">
-              Notas, muda, limpieza, bajas y fotos.
+              {form.per_animal
+                ? 'Notas, muda, limpieza y fotos.'
+                : 'Notas, muda, limpieza, bajas y fotos.'}
             </Typography>
           </Box>
 
@@ -762,23 +724,19 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
                   })}
               </Stack>
 
-              <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 4 }}>
-                  <TextField
-                    fullWidth
-                    type="number"
-                    label="Bajas"
-                    value={form.deaths}
-                    onChange={set('deaths')}
-                    slotProps={{ htmlInput: { min: 0, step: 1, inputMode: 'numeric' } }}
-                  />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 8 }}>
-                  {form.per_animal ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ pt: 2 }}>
-                      Las bajas se descuentan del inventario de {current?.code ?? 'este ejemplar'}.
-                    </Typography>
-                  ) : (
+              {!form.per_animal && (
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Bajas"
+                      value={form.deaths}
+                      onChange={set('deaths')}
+                      slotProps={{ htmlInput: { min: 0, step: 1, inputMode: 'numeric' } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 8 }}>
                     <TextField
                       select
                       fullWidth
@@ -802,9 +760,9 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
                         </MenuItem>
                       ))}
                     </TextField>
-                  )}
+                  </Grid>
                 </Grid>
-              </Grid>
+              )}
 
               <TextField
                 multiline
@@ -873,25 +831,14 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
           Cancelar
         </Button>
         <Button
-          variant={next ? 'outlined' : 'contained'}
+          variant="contained"
           loading={saving}
           disabled={uploading}
           startIcon={<Iconify icon="solar:check-circle-bold" />}
-          onClick={() => save(null)}
+          onClick={onSave}
         >
-          {editingId ? 'Guardar cambios' : next ? 'Guardar y cerrar' : 'Guardar'}
+          {editingId ? 'Guardar cambios' : 'Guardar'}
         </Button>
-        {next && (
-          <Button
-            variant="contained"
-            loading={saving}
-            disabled={uploading}
-            endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
-            onClick={() => save(next)}
-          >
-            Guardar y seguir con {next.code}
-          </Button>
-        )}
       </DialogActions>
     </Dialog>
   );
@@ -1140,7 +1087,7 @@ export function HusbandryLogView() {
       ...EMPTY,
       species_id: sp.id,
       log_date: today(),
-      ...(animal ? { animal_id: animal.id, per_animal: true } : { whole: true }),
+      ...(animal && { animal_id: animal.id, per_animal: true }),
     });
     setDialogOpen(true);
   };
@@ -1158,7 +1105,7 @@ export function HusbandryLogView() {
     setEditingId(null);
   };
 
-  const handleSave = async ({ keepOpen } = {}) => {
+  const handleSave = async () => {
     const payload = toPayload(form);
     const problem = !form.log_date
       ? 'Pon la fecha'
@@ -1172,7 +1119,7 @@ export function HusbandryLogView() {
       if (editingId) await updateHusbandryLog(editingId, payload);
       else await createHusbandryLog(payload);
       toast.success(editingId ? 'Entrada actualizada' : 'Entrada guardada');
-      if (!keepOpen) close();
+      close();
       refreshLogs();
       planStatusMutate();
       return true;

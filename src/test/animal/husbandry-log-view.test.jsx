@@ -187,17 +187,25 @@ describe('HusbandryLogView', () => {
     expect(await screen.findByText('Zarzamora · cada 2 d')).toBeInTheDocument();
     expect(screen.getByText('AN-55')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Anotar para toda la especie' }));
-    fireEvent.click(await screen.findByRole('button', { name: /más detalles/i }));
+    // el switch registra el suplemento del plan, sin escribirlo
+    fireEvent.click(await screen.findByRole('switch', { name: 'Se suplementó con Calcio' }));
+    fireEvent.click(screen.getByRole('button', { name: /más detalles/i }));
     fireEvent.change(screen.getByLabelText('Bajas'), { target: { value: '2' } });
     fireEvent.mouseDown(screen.getByRole('combobox', { name: /descontar del inventario/i }));
     fireEvent.click(await screen.findByRole('option', { name: /AN-55/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(saved).not.toBeNull());
-    expect(saved).toMatchObject({ species_id: 7, fed: false, deaths: 2, animal_id: 55 });
+    expect(saved).toMatchObject({
+      species_id: 7,
+      fed: false,
+      deaths: 2,
+      animal_id: 55,
+      supplement: 'Calcio',
+    });
   });
 
-  it('anota ejemplar por ejemplar y marca la alimentación asistida', async () => {
+  it('«Anotar» de un ejemplar queda fijo en su código; suplemento y baja con switch', async () => {
     const saved = [];
     mockApi({
       species: [{ ...SPECIES, sale_format: 'individual' }],
@@ -231,15 +239,32 @@ describe('HusbandryLogView', () => {
     await screen.findByText('EJ-001');
     expect(screen.queryByText('EJ-003')).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: 'Anotar' })[0]);
-    expect(await screen.findByText(/EJ-001 · ♀/)).toBeInTheDocument();
+    // el título dice de quién es y no se puede cambiar a otro ejemplar
+    expect(await screen.findByText(/Anotar en la bitácora · EJ-001/)).toBeInTheDocument();
+    expect(screen.queryByText('¿De quién?')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /asistida/i }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Guardar y seguir con EJ-002' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Se suplementó' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Baja: murió' }));
+    expect(screen.getByText(/EJ-001 sale del inventario/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(saved).toHaveLength(1));
-    expect(saved[0]).toMatchObject({ animal_id: 1, assisted: true, fed: true, appetite: null });
+    expect(saved[0]).toMatchObject({
+      animal_id: 1,
+      assisted: true,
+      fed: true,
+      appetite: null,
+      supplement: 'Suplemento',
+      deaths: 1,
+    });
 
-    // ya va en EJ-002 y es el último: solo «Guardar»
-    expect(await screen.findByText('1 de 2 anotados ese día')).toBeInTheDocument();
+    // el diálogo tarda en cerrarse y soltar el resto de la página
+    await waitFor(
+      () => expect(screen.getAllByRole('button', { name: 'Anotar' })).toHaveLength(2),
+      { timeout: 3000 }
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Anotar' })[1]);
+    expect(await screen.findByText(/Anotar en la bitácora · EJ-002/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Poco' }));
     fireEvent.click(screen.getByRole('button', { name: 'Letárgico' }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
