@@ -129,6 +129,7 @@ function PlanDue() {
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {PLAN_KIND[p.kind]?.label}
+                  {p.pending_codes?.length > 0 && ` · ${p.pending_codes.join(', ')}`}
                 </Typography>
               </Box>
               <Label color={tag.color}>{tag.label}</Label>

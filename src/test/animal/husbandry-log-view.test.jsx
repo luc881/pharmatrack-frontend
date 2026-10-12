@@ -332,4 +332,47 @@ describe('HusbandryLogView', () => {
     await waitFor(() => expect(saved).not.toBeNull());
     expect(saved).toMatchObject({ animal_id: 1, deaths: 1, replacement_animal_id: 3 });
   });
+
+  it('el suplemento se sigue por ejemplar: cuenta el de toda la especie o el suyo', async () => {
+    const day = (n) => {
+      const d = new Date();
+      d.setDate(d.getDate() - n);
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    };
+    mockApi({
+      species: [{ ...SPECIES, husbandry_plan: [PLAN[0]] }],
+      status: [
+        {
+          species_id: 7,
+          species_name: 'Phyllium gardabagusi',
+          common_name: 'Hoja',
+          month: {},
+          plan: [{ ...PLAN[0], next_due: day(2), days_overdue: 2, pending_codes: ['EJ-2'] }],
+        },
+      ],
+      animals: [
+        { id: 1, code: 'EJ-1', status: 'available', morphs: [] },
+        { id: 2, code: 'EJ-2', status: 'available', morphs: [] },
+      ],
+    });
+    server.use(
+      http.get(`${API}/husbandry-logs`, () =>
+        HttpResponse.json(
+          page([
+            { id: 2, species_id: 7, animal_id: 1, log_date: day(0), supplement: 'calcio ' },
+            { id: 1, species_id: 7, animal_id: null, log_date: day(9), supplement: 'Calcio' },
+          ])
+        )
+      )
+    );
+    renderView();
+
+    // arriba dice a quién le falta
+    fireEvent.click(await screen.findByRole('button', { name: /hoja/i }));
+    expect(screen.getByText('Atrasado 2 d · EJ-2')).toBeInTheDocument();
+    // dentro: EJ-1 al día por su entrada; EJ-2 solo tiene la de toda la especie
+    const row = async (code) => (await screen.findByText(code)).closest('tr');
+    expect((await row('EJ-1')).textContent).toContain('En 7 días');
+    expect((await row('EJ-2')).textContent).toContain('Atrasado 2 d');
+  });
 });

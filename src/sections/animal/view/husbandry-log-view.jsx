@@ -53,6 +53,7 @@ import {
   useAnimalGroupTree,
   useGetHusbandryLogs,
   useAnimalCommitments,
+  sendHusbandryReminder,
 } from 'src/actions/animal';
 
 import { Label } from 'src/components/label';
@@ -184,6 +185,10 @@ const scientific = (sp) => [sp.genus?.name, sp.name].filter(Boolean).join(' ');
 
 // Ejemplares de la tabla: sin los vendidos; los que murieron van al final
 // (en gris y sin «Anotar») para que su historial siga a la mano
+// mismo criterio que la API: sin mayúsculas ni espacios de más
+const normName = (s) => (s ?? '').toLowerCase().trim().split(/\s+/).join(' ');
+const sameName = (a, b) => Boolean(a) && normName(a) === normName(b);
+
 const specimensOf = (animals) =>
   animals
     .filter((a) => a.status !== 'sold')
@@ -252,7 +257,13 @@ function SpeciesRow({ sp, status, canEdit, expanded, onToggle, onOpen, onPlan })
             {sp.genus?.group?.name ? `${sp.common_name ? ' · ' : ''}${sp.genus.group.name}` : ''}
           </Typography>
         </Box>
-        {tag && <Label color={tag.color}>{tag.label}</Label>}
+        {tag && (
+          <Label color={tag.color}>
+            {tag.label}
+            {/* suplemento que solo les falta a algunos ejemplares */}
+            {worst.pending_codes?.length > 0 && ` · ${worst.pending_codes.join(', ')}`}
+          </Label>
+        )}
         <Iconify
           icon={expanded ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
           sx={{ color: 'text.secondary', flexShrink: 0 }}
@@ -299,6 +310,21 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
     if (l.condition && !lastCondition[l.animal_id]) lastCondition[l.animal_id] = l;
   });
 
+  // Suplementos por ejemplar: cuenta la entrada de toda la especie o la suya
+  // (igual que el resumen de la API)
+  const supps = plan.filter((p) => p.kind === 'supplement');
+  const suppDue = (a, p) => {
+    const last = logs.find(
+      (l) => sameName(l.supplement, p.name) && (!l.animal_id || l.animal_id === a.id)
+    );
+    if (!last) return { last: null, overdue: 0 };
+    const due = new Date(`${last.log_date}T12:00:00`);
+    due.setDate(due.getDate() + p.every_days);
+    const now = new Date(`${today()}T12:00:00`);
+    return { last: last.log_date, overdue: Math.round((now - due) / 86400000) };
+  };
+  const cols = 7 + (supps.length ? 1 : 0) + (canEdit ? 1 : 0);
+
   return (
     <Box sx={{ px: 2.5, pb: 2.5, bgcolor: 'background.neutral' }}>
       <Stack
@@ -341,6 +367,7 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
               <TableCell>Morph</TableCell>
               <TableCell>Sexo</TableCell>
               <TableCell>Última comida</TableCell>
+              {supps.length > 0 && <TableCell>Suplemento</TableCell>}
               <TableCell>Estado</TableCell>
               <TableCell align="right">Peso</TableCell>
               <TableCell>Última entrada</TableCell>
@@ -362,6 +389,26 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
                       ? `${fDate(fed.log_date)} · ${fedLabel(fed)?.label ?? ''}`
                       : 'Sin registro'}
                   </TableCell>
+                  {supps.length > 0 && (
+                    <TableCell>
+                      {!dead &&
+                        supps.map((p) => {
+                          const d = suppDue(a, p);
+                          const tag = dueLabel(d.overdue);
+                          return (
+                            <Label
+                              key={p.name}
+                              color={tag.color}
+                              title={d.last ? `Último: ${fDate(d.last)}` : 'Sin registro'}
+                              sx={{ mr: 0.5 }}
+                            >
+                              {supps.length > 1 && `${p.name}: `}
+                              {tag.label}
+                            </Label>
+                          );
+                        })}
+                    </TableCell>
+                  )}
                   <TableCell title={lastCondition[a.id] && fDate(lastCondition[a.id].log_date)}>
                     {lastCondition[a.id] ? conditionText(lastCondition[a.id]) : ''}
                   </TableCell>
@@ -398,7 +445,7 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
             })}
             {!animalsLoading && !specimens.length && (
               <TableRow>
-                <TableCell colSpan={canEdit ? 8 : 7} sx={{ color: 'text.secondary' }}>
+                <TableCell colSpan={cols} sx={{ color: 'text.secondary' }}>
                   No hay ejemplares de esta especie en inventario.
                 </TableCell>
               </TableRow>
@@ -1305,6 +1352,21 @@ export function HusbandryLogView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Bitácora de manejo"
+        action={
+          canEdit && (
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="custom:send-fill" />}
+              onClick={() =>
+                sendHusbandryReminder()
+                  .then(() => toast.success('Pendientes enviados a Telegram'))
+                  .catch((e) => toast.error(e.message || 'No se pudo mandar a Telegram'))
+              }
+            >
+              Mandar pendientes a Telegram
+            </Button>
+          )
+        }
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Animales', href: paths.dashboard.animal.root },

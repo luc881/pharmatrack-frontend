@@ -207,6 +207,9 @@ export const updateHusbandryLog = (id, data) =>
   axiosInstance.put(endpoints.husbandryLog.update(id), data).then((r) => r.data);
 export const deleteHusbandryLog = (id) =>
   axiosInstance.delete(endpoints.husbandryLog.delete(id)).then((r) => r.data);
+// manda ya los pendientes del plan al Telegram configurado en la API
+export const sendHusbandryReminder = () =>
+  axiosInstance.post(endpoints.husbandryLog.remind).then((r) => r.data);
 
 // Qué toca según el plan (una fila por especie) y conteos del mes
 export function useHusbandryStatus(speciesId) {
