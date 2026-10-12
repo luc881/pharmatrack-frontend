@@ -20,7 +20,7 @@ import { endpoints } from 'src/lib/axios';
 import { createProductBatch, updateProductBatch } from 'src/actions/product-batch';
 
 import { toast } from 'src/components/snackbar';
-import { Field } from 'src/components/hook-form';
+import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 import { useAllProducts } from './use-all-products';
 import { ProductSelect } from '../product/product-select';
@@ -132,6 +132,7 @@ export function ProductBatchCreateEditForm({ currentBatch }) {
 
   return (
     <FormProvider {...methods}>
+      <FormLeaveGuard />
       <form onSubmit={onSubmit}>
         <Card sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>

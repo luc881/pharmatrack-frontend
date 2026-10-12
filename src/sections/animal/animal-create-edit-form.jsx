@@ -35,7 +35,7 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { Field } from 'src/components/hook-form';
+import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -307,6 +307,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
 
   return (
     <FormProvider {...methods}>
+      <FormLeaveGuard />
       <form onSubmit={onSubmit}>
         <Card sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 3 }}>

@@ -34,7 +34,7 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { Field } from 'src/components/hook-form';
+import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 // Un paquete ES un producto (sin stock propio): al venderlo se descuenta
@@ -207,6 +207,7 @@ export function BundleCreateEditForm({ currentBundle }) {
 
   return (
     <FormProvider {...methods}>
+      <FormLeaveGuard />
       <form onSubmit={onSubmit}>
         <Card sx={{ p: 3 }}>
           <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>

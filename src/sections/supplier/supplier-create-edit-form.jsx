@@ -19,7 +19,7 @@ import { handleApiError } from 'src/utils/handle-api-error';
 import { createSupplier, updateSupplier } from 'src/actions/supplier';
 
 import { toast } from 'src/components/snackbar';
-import { Form, Field } from 'src/components/hook-form';
+import { Form, Field, FormLeaveGuard } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
@@ -97,6 +97,7 @@ export function SupplierCreateEditForm({ currentSupplier }) {
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
+      <FormLeaveGuard />
       <Stack spacing={{ xs: 3, md: 5 }} sx={{ mx: 'auto', maxWidth: { xs: 720, xl: 880 } }}>
         <Card>
           <CardHeader title="Información" subheader="Datos del proveedor" sx={{ mb: 3 }} />

@@ -35,7 +35,7 @@ import { createProduct, updateProduct, useGetProductBrands, useGetProductCategor
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { UploadAvatar } from 'src/components/upload';
-import { Form, Field, schemaUtils } from 'src/components/hook-form';
+import { Form, Field, schemaUtils, FormLeaveGuard } from 'src/components/hook-form';
 
 import { InlineCreatableSelect } from './inline-creatable-select';
 
@@ -775,6 +775,7 @@ export function ProductCreateEditForm({ currentProduct }) {
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
+      <FormLeaveGuard />
       <Stack spacing={{ xs: 3, md: 5 }} sx={{ mx: 'auto', maxWidth: { xs: 720, xl: 880 } }}>
         {renderDetails()}
         {renderProperties()}

@@ -33,6 +33,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { AnimalCapAlert } from '../animal-cap-alert';
 import { STATUS_LABELS, STATUS_COLORS } from '../utils';
 
 // ----------------------------------------------------------------------
@@ -79,7 +80,10 @@ export function InventorySheetView() {
   const [to, setTo] = useState(today);
   const [tab, setTab] = useState('all');
 
-  const { animals, animalsLoading, animalsMutate } = useGetAnimals({ page: 1, pageSize: 500 });
+  const { animals, animalsTotal, animalsLoading, animalsMutate } = useGetAnimals({
+    page: 1,
+    pageSize: 500,
+  });
   const { species } = useAllSpecies();
 
   // Ventas completadas del rango, por producto (cada animal tiene su producto gemelo)
@@ -307,6 +311,8 @@ export function InventorySheetView() {
           'Vendidos e ingreso salen de las ventas completadas del POS entre las fechas que elijas.',
         ]}
       />
+
+      <AnimalCapAlert shown={animals.length} total={animalsTotal} sx={{ mb: 3 }} />
 
       {/* Controles: descuento (solo vista) y rango de ventas */}
       <Card sx={{ p: 2.5, mb: 3 }}>

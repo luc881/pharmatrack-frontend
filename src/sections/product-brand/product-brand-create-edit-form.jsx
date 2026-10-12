@@ -18,7 +18,7 @@ import { endpoints } from 'src/lib/axios';
 import { createProductBrand, updateProductBrand } from 'src/actions/product-brand';
 
 import { toast } from 'src/components/snackbar';
-import { Field } from 'src/components/hook-form';
+import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
@@ -66,6 +66,7 @@ export function ProductBrandCreateEditForm({ currentBrand }) {
 
   return (
     <FormProvider {...methods}>
+      <FormLeaveGuard />
       <form onSubmit={onSubmit}>
         <Card sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>

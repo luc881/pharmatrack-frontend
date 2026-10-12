@@ -16,8 +16,8 @@ import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { updateUser, useGetUser } from 'src/actions/user';
 
 import { toast } from 'src/components/snackbar';
-import { Form, Field } from 'src/components/hook-form';
 import { AvatarPicker } from 'src/components/avatar-picker';
+import { Form, Field, FormLeaveGuard } from 'src/components/hook-form';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -110,6 +110,7 @@ export function AccountGeneral() {
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
+      <FormLeaveGuard />
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3, textAlign: 'center' }}>

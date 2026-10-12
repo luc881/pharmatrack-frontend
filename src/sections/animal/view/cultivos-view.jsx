@@ -42,6 +42,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { AnimalCapAlert } from '../animal-cap-alert';
 import { speciesLabel, flattenGroupTree } from '../utils';
 
 // ----------------------------------------------------------------------
@@ -84,7 +85,7 @@ export function CultivosView() {
   const { groupTree } = useAnimalGroupTree();
   const groupsFlat = flattenGroupTree(groupTree);
   // Todo el inventario para derivar unidades disponibles por especie
-  const { animals } = useGetAnimals({ page: 1, pageSize: 500 });
+  const { animals, animalsTotal } = useGetAnimals({ page: 1, pageSize: 500 });
 
   const availableBySpecies = useMemo(() => {
     const map = {};
@@ -159,6 +160,8 @@ export function CultivosView() {
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
+
+      <AnimalCapAlert shown={animals.length} total={animalsTotal} sx={{ mb: 3 }} />
 
       <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap', gap: 2 }}>
         <StatCard label="Especies" value={counts.total} />

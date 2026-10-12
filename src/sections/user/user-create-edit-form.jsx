@@ -22,9 +22,9 @@ import { useGetBranches } from 'src/actions/sale';
 import { createUser, updateUser } from 'src/actions/user';
 
 import { toast } from 'src/components/snackbar';
-import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { AvatarPicker } from 'src/components/avatar-picker';
+import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
@@ -170,6 +170,7 @@ export function UserCreateEditForm({ currentUser }) {
 
   return (
     <FormProvider {...methods}>
+      <FormLeaveGuard />
       <form onSubmit={onSubmit}>
         <Stack spacing={3}>
           {/* Avatar preview */}

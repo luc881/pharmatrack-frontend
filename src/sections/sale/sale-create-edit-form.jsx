@@ -40,8 +40,8 @@ import {
 } from 'src/actions/sale';
 
 import { toast } from 'src/components/snackbar';
-import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
+import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -343,6 +343,7 @@ export function SaleCreateEditForm({
 
   return (
     <FormProvider {...methods}>
+      <FormLeaveGuard />
       <form onSubmit={onSubmit}>
         <Stack spacing={3}>
           {/* Header */}

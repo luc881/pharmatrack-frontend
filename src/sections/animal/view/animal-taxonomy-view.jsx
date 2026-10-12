@@ -53,6 +53,7 @@ import {
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { AnimalCapAlert } from '../animal-cap-alert';
 import { speciesLabel, flattenGroupTree } from '../utils';
 import { TaxonDialog, TAXON_ACTIONS } from '../taxon-dialog';
 import {
@@ -262,7 +263,7 @@ export function AnimalTaxonomyView() {
   // "Cultivos" dentro de la pestaña Especies: unidades disponibles derivadas del
   // inventario más el estado de stock/cría por especie. Mismo cálculo que la
   // vista Cultivos, reutilizando sus helpers.
-  const { animals } = useGetAnimals({ page: 1, pageSize: 500 });
+  const { animals, animalsTotal } = useGetAnimals({ page: 1, pageSize: 500 });
   const availableBySpecies = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
@@ -776,6 +777,10 @@ export function AnimalTaxonomyView() {
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
+
+        {tabValue === 'species' && (
+          <AnimalCapAlert shown={animals.length} total={animalsTotal} sx={{ mb: 3 }} />
+        )}
 
         {tabValue === 'species' && (
           <Stack direction="row" spacing={2} sx={{ mb: 3, flexWrap: 'wrap', gap: 2 }}>

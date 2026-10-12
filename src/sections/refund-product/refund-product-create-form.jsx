@@ -13,7 +13,7 @@ import { paths } from 'src/routes/paths';
 import { createRefundProduct } from 'src/actions/refund-product';
 
 import { toast } from 'src/components/snackbar';
-import { Field } from 'src/components/hook-form';
+import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 import { ProductSelect } from '../product/product-select';
 
@@ -64,6 +64,7 @@ export function RefundProductCreateForm() {
 
   return (
     <FormProvider {...methods}>
+      <FormLeaveGuard />
       <form onSubmit={onSubmit}>
         <Card sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 3 }}>

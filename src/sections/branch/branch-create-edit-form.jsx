@@ -17,7 +17,7 @@ import { endpoints } from 'src/lib/axios';
 import { createBranch, updateBranch } from 'src/actions/branch';
 
 import { toast } from 'src/components/snackbar';
-import { Field } from 'src/components/hook-form';
+import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
@@ -80,6 +80,7 @@ export function BranchCreateEditForm({ currentBranch }) {
 
   return (
     <FormProvider {...methods}>
+      <FormLeaveGuard />
       <form onSubmit={onSubmit}>
         <Card sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 3 }}>

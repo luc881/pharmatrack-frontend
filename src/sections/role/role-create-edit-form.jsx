@@ -28,7 +28,7 @@ import { endpoints } from 'src/lib/axios';
 import { createRole, updateRole, useGetPermissions } from 'src/actions/role';
 
 import { toast } from 'src/components/snackbar';
-import { Field } from 'src/components/hook-form';
+import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
@@ -263,6 +263,7 @@ export function RoleCreateEditForm({ currentRole }) {
 
   return (
     <FormProvider {...methods}>
+      <FormLeaveGuard />
       <form onSubmit={onSubmit}>
         <Stack spacing={3}>
           {/* Name */}
