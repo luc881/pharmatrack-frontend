@@ -211,6 +211,14 @@ export const deleteHusbandryLog = (id) =>
 export const sendHusbandryReminder = () =>
   axiosInstance.post(endpoints.husbandryLog.remind).then((r) => r.data);
 
+// Hora del recordatorio diario ({ hour, configured })
+export function useHusbandryReminder() {
+  const { data, mutate } = useSWR(endpoints.husbandryLog.reminder, fetcher, swrOptions);
+  return { reminder: data ?? null, reminderMutate: mutate };
+}
+export const updateHusbandryReminder = (hour) =>
+  axiosInstance.put(endpoints.husbandryLog.reminder, { hour }).then((r) => r.data);
+
 // Qué toca según el plan (una fila por especie) y conteos del mes
 export function useHusbandryStatus(speciesId) {
   const url = [

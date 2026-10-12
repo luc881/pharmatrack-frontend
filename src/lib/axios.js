@@ -243,6 +243,7 @@ export const endpoints = {
     list: '/api/v1/husbandry-logs',
     status: '/api/v1/husbandry-logs/status',
     remind: '/api/v1/husbandry-logs/remind',
+    reminder: '/api/v1/husbandry-logs/reminder',
     create: '/api/v1/husbandry-logs',
     update: (id) => `/api/v1/husbandry-logs/${id}`,
     delete: (id) => `/api/v1/husbandry-logs/${id}`,

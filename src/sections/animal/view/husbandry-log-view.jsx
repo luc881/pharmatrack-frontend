@@ -53,7 +53,9 @@ import {
   useAnimalGroupTree,
   useGetHusbandryLogs,
   useAnimalCommitments,
+  useHusbandryReminder,
   sendHusbandryReminder,
+  updateHusbandryReminder,
 } from 'src/actions/animal';
 
 import { Label } from 'src/components/label';
@@ -222,6 +224,52 @@ const shortDate = (d) => {
 // ----------------------------------------------------------------------
 
 // ----------------------------------------------------------------------
+
+// Recordatorio diario por Telegram: la hora se elige aquí; el bot y el chat
+// van en las variables de Railway
+function TelegramReminder() {
+  const { reminder, reminderMutate } = useHusbandryReminder();
+  const changeHour = (e) =>
+    updateHusbandryReminder(e.target.value)
+      .then((r) => {
+        reminderMutate(r, { revalidate: false });
+        toast.success(`Recordatorio diario a las ${r.hour}:00`);
+      })
+      .catch((err) => toast.error(err.message || 'No se pudo guardar la hora'));
+
+  return (
+    <Stack direction="row" spacing={1} alignItems="center">
+      <TextField
+        select
+        size="small"
+        label="Recordatorio diario"
+        value={reminder?.hour ?? ''}
+        onChange={changeHour}
+        disabled={!reminder}
+        helperText={reminder && !reminder.configured ? 'Telegram sin configurar' : ' '}
+        sx={{ minWidth: 170 }}
+      >
+        {Array.from({ length: 24 }, (_, h) => (
+          <MenuItem key={h} value={h}>
+            a las {h}:00
+          </MenuItem>
+        ))}
+      </TextField>
+      <Button
+        variant="outlined"
+        startIcon={<Iconify icon="custom:send-fill" />}
+        onClick={() =>
+          sendHusbandryReminder()
+            .then(() => toast.success('Pendientes enviados a Telegram'))
+            .catch((e) => toast.error(e.message || 'No se pudo mandar a Telegram'))
+        }
+        sx={{ mb: '23px' }}
+      >
+        Mandar pendientes ahora
+      </Button>
+    </Stack>
+  );
+}
 
 // Una especie: arriba solo nombre común y científico (y si algo del plan ya
 // toca). Al tocarla se despliegan sus ejemplares por código, cada uno con su
@@ -1352,21 +1400,7 @@ export function HusbandryLogView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Bitácora de manejo"
-        action={
-          canEdit && (
-            <Button
-              variant="outlined"
-              startIcon={<Iconify icon="custom:send-fill" />}
-              onClick={() =>
-                sendHusbandryReminder()
-                  .then(() => toast.success('Pendientes enviados a Telegram'))
-                  .catch((e) => toast.error(e.message || 'No se pudo mandar a Telegram'))
-              }
-            >
-              Mandar pendientes a Telegram
-            </Button>
-          )
-        }
+        action={canEdit && <TelegramReminder />}
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Animales', href: paths.dashboard.animal.root },

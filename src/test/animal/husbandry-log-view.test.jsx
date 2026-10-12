@@ -62,6 +62,7 @@ function mockApi({ species = [SPECIES], status = [], animals = [], onSave, onPla
     http.get(`${API}/morphs`, () => HttpResponse.json(page([]))),
     http.get(`${API}/husbandry-logs`, () => HttpResponse.json(page([]))),
     http.get(`${API}/husbandry-logs/status`, () => HttpResponse.json(status)),
+    http.get(`${API}/husbandry-logs/reminder`, () => HttpResponse.json({ hour: 8, configured: true })),
     http.get(`${API}/animals`, () => HttpResponse.json(page(animals))),
     http.post(`${API}/husbandry-logs`, async ({ request }) => {
       const body = await request.json();
