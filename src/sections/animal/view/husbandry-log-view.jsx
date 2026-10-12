@@ -177,11 +177,16 @@ const fold = (s) => (s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 
 const scientific = (sp) => [sp.genus?.name, sp.name].filter(Boolean).join(' ');
 
-// Ejemplares que siguen en tu cuidado (los vendidos ya no se alimentan)
+// Ejemplares de la tabla: sin los vendidos; los que murieron van al final
+// (en gris y sin «Anotar») para que su historial siga a la mano
 const specimensOf = (animals) =>
   animals
     .filter((a) => a.status !== 'sold')
-    .sort((a, b) => a.code.localeCompare(b.code, 'es', { numeric: true }));
+    .sort(
+      (a, b) =>
+        (a.status === 'deceased') - (b.status === 'deceased') ||
+        a.code.localeCompare(b.code, 'es', { numeric: true })
+    );
 
 const fedLabel = (log) => {
   if (log.assisted) return { label: 'Asistida', color: 'warning.main' };
@@ -333,8 +338,9 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
             {specimens.map((a) => {
               const fed = lastFed[a.id];
               const last = lastLog[a.id];
+              const dead = a.status === 'deceased';
               return (
-                <TableRow key={a.id}>
+                <TableRow key={a.id} sx={dead ? { '& td': { color: 'text.disabled' } } : undefined}>
                   <TableCell sx={{ fontWeight: 600 }}>{a.code}</TableCell>
                   <TableCell>{a.morphs?.map((m) => m.name).join(', ')}</TableCell>
                   <TableCell>{SEX_LABELS[a.sex] ?? ''}</TableCell>
@@ -353,7 +359,12 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
                     {grams(lastWeight[a.id]?.weight_g)}
                   </TableCell>
                   <TableCell>{last ? fDate(last.log_date) : ''}</TableCell>
-                  {canEdit && (
+                  {canEdit && dead && (
+                    <TableCell>
+                      <Label color="error">Murió</Label>
+                    </TableCell>
+                  )}
+                  {canEdit && !dead && (
                     <TableCell sx={{ py: '2px !important' }}>
                       <Button
                         size="small"

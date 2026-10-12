@@ -279,8 +279,17 @@ export function InventorySheetView() {
         width: 115,
         valueFormatter: (v) => STATUS_LABELS[v] ?? v,
         renderCell: ({ row }) => (
-          <Label variant="soft" color={row.stock === 0 ? 'default' : STATUS_COLORS[row.status] ?? 'default'}>
-            {row.stock === 0 ? 'Agotado' : STATUS_LABELS[row.status] ?? row.status}
+          <Label
+            variant="soft"
+            color={
+              row.stock === 0 && row.status !== 'deceased'
+                ? 'default'
+                : (STATUS_COLORS[row.status] ?? 'default')
+            }
+          >
+            {row.stock === 0 && row.status !== 'deceased'
+              ? 'Agotado'
+              : (STATUS_LABELS[row.status] ?? row.status)}
           </Label>
         ),
       },

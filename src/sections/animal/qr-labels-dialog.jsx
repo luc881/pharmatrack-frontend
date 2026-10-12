@@ -17,7 +17,7 @@ import DialogContent from '@mui/material/DialogContent';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
-import { STATUS_LABELS } from './utils';
+import { STATUS_LABELS, isClosedStatus } from './utils';
 
 // ----------------------------------------------------------------------
 // Etiquetas QR para los contenedores: el QR codifica el código del animal
@@ -45,7 +45,7 @@ export function QrLabelsDialog({ species, animals, onClose }) {
 
   // Copias por etiqueta: para cepas el default es su stock (una por contenedor)
   const [copies, setCopies] = useState(() =>
-    Object.fromEntries(animals.map((a) => [a.id, a.status === 'sold' ? 0 : Math.max(a.stock ?? 1, 1)]))
+    Object.fromEntries(animals.map((a) => [a.id, isClosedStatus(a.status) ? 0 : Math.max(a.stock ?? 1, 1)]))
   );
 
   const total = animals.reduce((sum, a) => sum + (Number(copies[a.id]) || 0), 0);

@@ -127,17 +127,25 @@ function useProductIdsWithStock() {
   return productIds; // null while loading, Set<number> when ready
 }
 
-// Product IDs de animales reservados — se marcan como no vendibles en el selector.
-// Sin cache: las reservas cambian seguido; si la carga falla, el 400 del complete protege igual.
-function useReservedAnimalProductIds() {
-  const [ids, setIds] = useState(() => new Set());
+// Animales que no se pueden vender (reservados o que murieron): product_id →
+// etiqueta para el selector. Sin cache: cambian seguido; si la carga falla, el
+// 400 del complete protege igual.
+const BLOCKED_STATUS = { reserved: 'Reservado', deceased: 'Murió' };
+
+function useBlockedAnimalProducts() {
+  const [blocked, setBlocked] = useState(() => new Map());
   useEffect(() => {
-    axiosInstance
-      .get(endpoints.animal.list, { params: { page: 1, page_size: 500, status: 'reserved' } })
-      .then((r) => setIds(new Set((r.data?.data ?? []).map((a) => Number(a.product_id)))))
+    Promise.all(
+      Object.keys(BLOCKED_STATUS).map((status) =>
+        axiosInstance
+          .get(endpoints.animal.list, { params: { page: 1, page_size: 500, status } })
+          .then((r) => (r.data?.data ?? []).map((a) => [Number(a.product_id), BLOCKED_STATUS[status]]))
+      )
+    )
+      .then((lists) => setBlocked(new Map(lists.flat())))
       .catch(() => {});
   }, []);
-  return ids;
+  return blocked;
 }
 
 // ----------------------------------------------------------------------
@@ -206,7 +214,7 @@ export function SaleCreateEditForm({
   const { products, productsLoading } = useAllProducts();
   const productIdsWithStock = useProductIdsWithStock();
   const ticketTemplate = useTicketTemplate();
-  const reservedProductIds = useReservedAnimalProductIds();
+  const blockedProducts = useBlockedAnimalProducts();
 
   const defaultValues = {
     branch_id: currentSale?.branch_id ?? (branches[0]?.id ?? ''),
@@ -377,7 +385,7 @@ export function SaleCreateEditForm({
               products={products}
               productsLoading={productsLoading}
               productIdsWithStock={productIdsWithStock}
-              reservedProductIds={reservedProductIds}
+              blockedProducts={blockedProducts}
               estimatedTotal={estimatedTotal}
             />
           </Card>
@@ -409,7 +417,7 @@ export function SaleCreateEditForm({
 
 // ----------------------------------------------------------------------
 
-function SaleItems({ products, productsLoading, productIdsWithStock, reservedProductIds, estimatedTotal }) {
+function SaleItems({ products, productsLoading, productIdsWithStock, blockedProducts, estimatedTotal }) {
   const { control, setValue, getValues } = useFormContext();
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -674,7 +682,7 @@ function SaleItems({ products, productsLoading, productIdsWithStock, reservedPro
 
       <Stack divider={<Divider flexItem sx={{ borderStyle: 'dashed' }} />} spacing={3}>
         {fields.map((field, index) => (
-          <SaleItem key={field.id} index={index} products={products} productIdsWithStock={productIdsWithStock} reservedProductIds={reservedProductIds} onRemove={() => remove(index)} />
+          <SaleItem key={field.id} index={index} products={products} productIdsWithStock={productIdsWithStock} blockedProducts={blockedProducts} onRemove={() => remove(index)} />
         ))}
       </Stack>
 
@@ -702,7 +710,7 @@ function SaleItems({ products, productsLoading, productIdsWithStock, reservedPro
 
 // ----------------------------------------------------------------------
 
-function SaleItem({ index, products, productIdsWithStock, reservedProductIds, onRemove }) {
+function SaleItem({ index, products, productIdsWithStock, blockedProducts, onRemove }) {
   const { watch, setValue, control, getValues } = useFormContext();
   const [batches, setBatches] = useState([]);
   const [batchesLoading, setBatchesLoading] = useState(false);
@@ -800,7 +808,7 @@ function SaleItem({ index, products, productIdsWithStock, reservedProductIds, on
                   }
                 }}
                 noOptionsText="Sin resultados"
-                getOptionDisabled={(opt) => reservedProductIds.has(opt.id)}
+                getOptionDisabled={(opt) => blockedProducts.has(opt.id)}
                 renderOption={(props, option) => {
                   // key por id: MUI mete el título como key dentro de props y hay títulos duplicados
                   // en el catálogo, lo que rompe la reconciliación y deja opciones viejas en el listbox
@@ -811,8 +819,14 @@ function SaleItem({ index, products, productIdsWithStock, reservedProductIds, on
                       {noStock(option) && (
                         <Chip size="small" variant="soft" label="Sin stock" sx={{ ml: 1 }} />
                       )}
-                      {reservedProductIds.has(option.id) && (
-                        <Chip size="small" variant="soft" color="warning" label="Reservado" sx={{ ml: 1 }} />
+                      {blockedProducts.has(option.id) && (
+                        <Chip
+                          size="small"
+                          variant="soft"
+                          color={blockedProducts.get(option.id) === 'Murió' ? 'error' : 'warning'}
+                          label={blockedProducts.get(option.id)}
+                          sx={{ ml: 1 }}
+                        />
                       )}
                     </li>
                   );

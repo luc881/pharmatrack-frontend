@@ -47,6 +47,7 @@ import {
   speciesLabel,
   STATUS_COLORS,
   STATUS_LABELS,
+  isClosedStatus,
   saleFormatLabel,
   flattenGroupTree,
 } from '../utils';
@@ -412,8 +413,8 @@ export function AnimalListView() {
 function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpecies, onDelete, onPrintLabels, selected, onToggleSelected }) {
   const { species, animals } = entry;
 
-  // Los vendidos no se pueden borrar: quedan fuera del "seleccionar todos"
-  const deletable = animals.filter((a) => a.status !== 'sold');
+  // Vendidos y muertos no se borran: quedan fuera del "seleccionar todos"
+  const deletable = animals.filter((a) => !isClosedStatus(a.status));
   const selectedHere = deletable.filter((a) => selected.has(a.id)).length;
   const allSelected = deletable.length > 0 && selectedHere === deletable.length;
 
@@ -615,7 +616,7 @@ export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onD
           <Checkbox
             size="small"
             checked={isSelected}
-            disabled={animal.status === 'sold'}
+            disabled={isClosedStatus(animal.status)}
             onChange={() => onToggleSelect([animal.id], !isSelected)}
           />
         </TableCell>
@@ -663,7 +664,7 @@ export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onD
             </IconButton>
           </Tooltip>
         )}
-        {canDelete && animal.status !== 'sold' && (
+        {canDelete && !isClosedStatus(animal.status) && (
           <Tooltip title="Eliminar">
             <IconButton size="small" color="error" onClick={() => onDelete(animal.id)}>
               <Iconify icon="solar:trash-bin-trash-bold" width={18} />

@@ -6,9 +6,23 @@ export const SEX_OPTIONS = [
 
 export const SEX_LABELS = { male: 'Macho', female: 'Hembra', unknown: 'Desconocido' };
 
-export const STATUS_LABELS = { available: 'Disponible', reserved: 'Reservado', sold: 'Vendido' };
+export const STATUS_LABELS = {
+  available: 'Disponible',
+  reserved: 'Reservado',
+  sold: 'Vendido',
+  deceased: 'Murió',
+};
 
-export const STATUS_COLORS = { available: 'success', reserved: 'warning', sold: 'default' };
+export const STATUS_COLORS = {
+  available: 'success',
+  reserved: 'warning',
+  sold: 'default',
+  deceased: 'error',
+};
+
+// Vendido o muerto: ya no está a la venta ni en tu cuidado. No se borra ni se
+// cambia su estado a mano (los pone la venta o la baja en la bitácora).
+export const isClosedStatus = (status) => status === 'sold' || status === 'deceased';
 
 export const SALE_FORMAT_OPTIONS = [
   { value: 'individual', label: 'Individual' },

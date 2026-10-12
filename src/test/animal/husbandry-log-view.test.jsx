@@ -213,6 +213,7 @@ describe('HusbandryLogView', () => {
         { id: 2, code: 'EJ-002', sex: 'male', status: 'available', stock: 1, morphs: [] },
         { id: 1, code: 'EJ-001', sex: 'female', status: 'available', stock: 1, morphs: [] },
         { id: 3, code: 'EJ-003', status: 'sold', stock: 0, morphs: [] },
+        { id: 4, code: 'EJ-004', status: 'deceased', stock: 0, morphs: [] },
       ],
     });
     // lo guardado sale en las entradas del día (✓) y en el historial
@@ -238,6 +239,10 @@ describe('HusbandryLogView', () => {
     // la lista va por código y el vendido no aparece
     await screen.findByText('EJ-001');
     expect(screen.queryByText('EJ-003')).not.toBeInTheDocument();
+    // el que murió sigue en la lista, al final y sin «Anotar»
+    expect(screen.getByText('EJ-004')).toBeInTheDocument();
+    expect(screen.getByText('Murió')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Anotar' })).toHaveLength(2);
     fireEvent.click(screen.getAllByRole('button', { name: 'Anotar' })[0]);
     // el título dice de quién es y no se puede cambiar a otro ejemplar
     expect(await screen.findByText(/Anotar en la bitácora · EJ-001/)).toBeInTheDocument();

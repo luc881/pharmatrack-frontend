@@ -40,7 +40,13 @@ import { Field, FormLeaveGuard } from 'src/components/hook-form';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { TaxonDialog } from './taxon-dialog';
-import { SEX_OPTIONS, saleFormatLabel, flattenGroupTree, SALE_FORMAT_OPTIONS } from './utils';
+import {
+  SEX_OPTIONS,
+  isClosedStatus,
+  saleFormatLabel,
+  flattenGroupTree,
+  SALE_FORMAT_OPTIONS,
+} from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -211,7 +217,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [speciesId]);
 
-  const isSold = currentAnimal?.status === 'sold';
+  // vendido o murió: el estado no se edita aquí (no se puede revivir ni regresar a la venta)
+  const isSold = isClosedStatus(currentAnimal?.status);
 
   const photos = watch('photos');
   const requiresLegalDoc = watch('requires_legal_doc');
@@ -285,7 +292,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         // solo las cepas/paquetes manejan stock; individuales quedan en 1
         // (antes `|| 1` convertía un 0 en 1 y no había forma de agotar a mano)
         ...(isBulk ? { stock: Number.isFinite(Number(data.stock)) ? Number(data.stock) : 1 } : {}),
-        // "sold" solo lo asigna el flujo de venta — nunca se manda desde aquí
+        // "sold" lo asigna la venta y "deceased" la bitácora — nunca se manda desde aquí
         ...(isEdit && !isSold ? { status: data.status } : {}),
       };
 
@@ -630,6 +637,13 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               helperText="Si se deja vacío se genera automáticamente"
               slotProps={{ inputLabel: { shrink: true } }}
             />
+
+            {currentAnimal?.status === 'deceased' && (
+              <Alert severity="error" sx={{ gridColumn: { sm: 'span 2' } }}>
+                Murió (baja registrada en la bitácora). Si fue un error, borra esa entrada en la
+                bitácora y regresa a la venta.
+              </Alert>
+            )}
 
             {isEdit && !isSold && (
               <Field.Select name="status" label="Estado">
