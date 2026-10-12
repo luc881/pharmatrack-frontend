@@ -24,7 +24,7 @@ const DATA = {
   guides: [{ name: 'Isópodos', url: '/articulos/x', sub: false }],
   pages: {
     gracias: { label: 'Criadero', title: 'Gracias por tu compra', lead: '', footer: '', buttons: [{ label: 'Ver catálogo', url: '/catalogo', primary: true }] },
-    links: { label: 'Criadero', title: 'Para quien mira de cerca', lead: '', footer: '', buttons: [] },
+    links: { label: 'Criadero', title: 'Historia natural', lead: '', footer: '', buttons: [] },
   },
 };
 
@@ -60,7 +60,7 @@ describe('SiteLinksView', () => {
     await waitFor(() => expect(saved).not.toBeNull());
     expect(saved.pages.gracias.title).toBe('Gracias, de verdad');
     expect(saved.events[0].title).toBe('Animalia Otoño CDMX 2026');
-    expect(saved.pages.links.title).toBe('Para quien mira de cerca');
+    expect(saved.pages.links.title).toBe('Historia natural');
   });
 
   it('no manda al API un enlace inválido', async () => {

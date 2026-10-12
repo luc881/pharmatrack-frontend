@@ -9,7 +9,7 @@
 - **Qué es:** criadero de invertebrados y bioactivo en la Ciudad de México. Vende isópodos, colémbolos y fásmidos (por ejemplo *Phyllium gardabagusi* “Argopuro”).
 - **Nombre:** “Opuntia Den”. *Opuntia* es el género del nopal; *den* es madriguera.
 - **Estética:** editorial, cálida, hecha a mano, como una lámina botánica antigua. Fondo crema, tinta café, serif elegante y mucho aire.
-- **Lema de la web:** “Para quien mira de cerca”.
+- **Lema de la web:** “Historia natural”.
 - **Frase de apoyo:** “Observar · criar · compartir”, siempre como etiqueta (mayúsculas espaciadas, Inter 500), arriba o abajo del lema; nunca en letra grande.
 - **Tono de los textos:** cercano, claro y en español de México. Frases cortas. Sin emojis en la interfaz.
 
