@@ -1,3 +1,4 @@
+import { useSWRConfig } from 'swr';
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 
@@ -34,6 +35,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { paths } from 'src/routes/paths';
 
+import { endpoints } from 'src/lib/axios';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
@@ -187,115 +189,175 @@ const shortDate = (d) => {
 
 // ----------------------------------------------------------------------
 
-function SpeciesRow({ sp, status, canEdit, onOpen, onQuick, onPlan }) {
-  const [busy, setBusy] = useState(null);
-  // Con estado del servidor (especies en cultivo) se ven fechas; si no, solo el plan
+// Una especie: arriba solo nombre común y científico (y si algo del plan ya
+// toca). Al tocarla se despliegan sus ejemplares por código, cada uno con su
+// última comida y su «Anotar»; también «Toda la especie» para el terrario.
+function SpeciesRow({ sp, status, canEdit, expanded, onToggle, onOpen, onPlan }) {
   const plan = status?.plan ?? (sp.husbandry_plan ?? []).map((p) => ({ ...p, days_overdue: null }));
+  // lo más atrasado del plan, como aviso (sin botones)
+  const worst = plan.reduce(
+    (w, p) => (p.days_overdue != null && p.days_overdue > (w?.days_overdue ?? -Infinity) ? p : w),
+    null
+  );
+  const tag = worst && worst.days_overdue >= 0 ? dueLabel(worst.days_overdue) : null;
 
   return (
-    <Stack
-      direction={{ xs: 'column', md: 'row' }}
-      spacing={{ xs: 1.5, md: 2 }}
-      alignItems={{ md: 'center' }}
-      sx={{ px: 2.5, py: 2 }}
-    >
+    <Box>
       <ButtonBase
-        onClick={() => onOpen(sp)}
-        disabled={!canEdit}
-        aria-label={`Anotar ${speciesLabel(sp)}`}
+        onClick={onToggle}
+        aria-expanded={expanded}
         sx={{
-          flex: '0 0 auto',
-          width: { md: 280 },
-          justifyContent: 'flex-start',
+          width: 1,
+          px: 2.5,
+          py: 1.75,
+          gap: 2,
           textAlign: 'left',
-          borderRadius: 1,
-          p: 1,
-          m: -1,
+          justifyContent: 'flex-start',
           '&:hover': { bgcolor: 'action.hover' },
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="subtitle2">{sp.common_name || scientific(sp)}</Typography>
           <Typography variant="caption" color="text.secondary" component="div">
             {sp.common_name && <i>{scientific(sp)}</i>}
             {sp.genus?.group?.name ? `${sp.common_name ? ' · ' : ''}${sp.genus.group.name}` : ''}
           </Typography>
-          {status?.last_fed && (
-            <Typography variant="caption" color="text.secondary" component="div">
-              Última comida: {fDate(status.last_fed)}
-            </Typography>
-          )}
         </Box>
+        {tag && <Label color={tag.color}>{tag.label}</Label>}
+        <Iconify
+          icon={expanded ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
+          sx={{ color: 'text.secondary', flexShrink: 0 }}
+        />
       </ButtonBase>
 
-      <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
-        {!plan.length && (
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Typography variant="body2" color="text.secondary">
-              Sin plan
-            </Typography>
-            {canEdit && (
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-                onClick={() => onPlan(sp)}
-              >
-                Agregar plan
-              </Button>
-            )}
-          </Stack>
-        )}
-        {plan.map((p) => {
-          const tag = p.days_overdue == null ? null : dueLabel(p.days_overdue);
-          const due = p.days_overdue != null && p.days_overdue >= 0;
-          return (
-            <Stack
-              key={`${p.kind}-${p.name}`}
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              flexWrap="wrap"
-              useFlexGap
-            >
-              <Label variant="soft" color={PLAN_KIND[p.kind]?.color}>
-                {PLAN_KIND[p.kind]?.label}
-              </Label>
-              <Typography variant="body2">
+      <Collapse in={expanded} unmountOnExit>
+        <SpecimenPanel
+          sp={sp}
+          plan={plan}
+          status={status}
+          canEdit={canEdit}
+          onOpen={onOpen}
+          onPlan={onPlan}
+        />
+      </Collapse>
+    </Box>
+  );
+}
+
+function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
+  const { animals, animalsLoading } = useGetAnimals({ pageSize: 500, speciesId: sp.id });
+  const specimens = specimensOf(animals);
+  // las entradas recientes de la especie dicen la última comida de cada ejemplar
+  const { logs } = useGetHusbandryLogs({ pageSize: 500, speciesId: sp.id });
+  const lastFed = {};
+  const lastLog = {};
+  logs.forEach((l) => {
+    // vienen de la más nueva a la más vieja: la primera de cada uno es la última
+    if (!l.animal_id) return;
+    if (!lastLog[l.animal_id]) lastLog[l.animal_id] = l;
+    if (l.fed && !lastFed[l.animal_id]) lastFed[l.animal_id] = l;
+  });
+
+  return (
+    <Box sx={{ px: 2.5, pb: 2.5, bgcolor: 'background.neutral' }}>
+      <Stack
+        direction="row"
+        flexWrap="wrap"
+        alignItems="center"
+        gap={1}
+        sx={{ py: 1.5, typography: 'body2', color: 'text.secondary' }}
+      >
+        {plan.length ? (
+          <>
+            Plan:{' '}
+            {plan.map((p) => (
+              <Label key={`${p.kind}-${p.name}`} variant="soft" color={PLAN_KIND[p.kind]?.color}>
                 {p.name} · cada {p.every_days} d
-              </Typography>
-              {tag && <Label color={tag.color}>{tag.label}</Label>}
-              {due && canEdit && (
-                <Button
-                  size="small"
-                  variant="contained"
-                  loading={busy === p}
-                  startIcon={<Iconify icon="solar:check-circle-bold" />}
-                  onClick={async () => {
-                    setBusy(p);
-                    await onQuick(sp, p);
-                    setBusy(null);
-                  }}
-                >
-                  Hecho
-                </Button>
-              )}
-            </Stack>
-          );
-        })}
+              </Label>
+            ))}
+          </>
+        ) : (
+          'Sin plan'
+        )}
+        {status?.last_fed && <>· Última comida de la especie: {fDate(status.last_fed)}</>}
+        {canEdit && (
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Iconify icon={plan.length ? 'solar:pen-bold' : 'mingcute:add-line'} />}
+            onClick={() => onPlan(sp)}
+          >
+            {plan.length ? 'Editar plan' : 'Agregar plan'}
+          </Button>
+        )}
       </Stack>
+
+      <TableContainer sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
+        <Table size="small" sx={GRID_SX}>
+          <TableHead>
+            <TableRow>
+              <TableCell>Código</TableCell>
+              <TableCell>Morph</TableCell>
+              <TableCell>Sexo</TableCell>
+              <TableCell>Última comida</TableCell>
+              <TableCell>Última entrada</TableCell>
+              {canEdit && <TableCell />}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {specimens.map((a) => {
+              const fed = lastFed[a.id];
+              const last = lastLog[a.id];
+              return (
+                <TableRow key={a.id}>
+                  <TableCell sx={{ fontWeight: 600 }}>{a.code}</TableCell>
+                  <TableCell>{a.morphs?.map((m) => m.name).join(', ')}</TableCell>
+                  <TableCell>{SEX_LABELS[a.sex] ?? ''}</TableCell>
+                  <TableCell>
+                    {fed
+                      ? `${fDate(fed.log_date)}${fed.assisted ? ' (asistida)' : ''}`
+                      : 'Sin registro'}
+                  </TableCell>
+                  <TableCell>{last ? fDate(last.log_date) : ''}</TableCell>
+                  {canEdit && (
+                    <TableCell sx={{ py: '2px !important' }}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        startIcon={<Iconify icon="solar:pen-new-square-linear" />}
+                        onClick={() => onOpen(sp, a)}
+                      >
+                        Anotar
+                      </Button>
+                    </TableCell>
+                  )}
+                </TableRow>
+              );
+            })}
+            {!animalsLoading && !specimens.length && (
+              <TableRow>
+                <TableCell colSpan={canEdit ? 6 : 5} sx={{ color: 'text.secondary' }}>
+                  No hay ejemplares de esta especie en inventario.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       {canEdit && (
         <Button
+          size="small"
+          color="inherit"
           variant="outlined"
-          onClick={() => onOpen(sp)}
           startIcon={<Iconify icon="solar:pen-new-square-linear" />}
-          sx={{ alignSelf: { xs: 'stretch', md: 'center' }, flexShrink: 0 }}
+          onClick={() => onOpen(sp, null)}
+          sx={{ mt: 1.5 }}
         >
-          Anotar
+          Anotar para toda la especie
         </Button>
       )}
-    </Stack>
+    </Box>
   );
 }
 
@@ -313,7 +375,7 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
 
   // Venta individual: cada ejemplar tiene su código y se anota por separado
   const specimens = species?.sale_format === 'individual' ? specimensOf(animals) : [];
-  const current = specimens.find((a) => a.id === form.animal_id);
+  const current = animals.find((a) => a.id === form.animal_id);
 
   // Qué ejemplares ya tienen entrada ese día (✓)
   const { logs: dayLogs, logsMutate: dayMutate } = useGetHusbandryLogs({
@@ -337,7 +399,7 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
   useEffect(() => {
     if (open && !editingId && firstId) {
       setForm((f) =>
-        f.per_animal || f.animal_id ? f : { ...f, animal_id: firstId, per_animal: true }
+        f.per_animal || f.animal_id || f.whole ? f : { ...f, animal_id: firstId, per_animal: true }
       );
     }
   }, [open, editingId, firstId, setForm]);
@@ -963,7 +1025,11 @@ export function HusbandryLogView() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
 
-  const { logs, logsTotal, logsLoading, logsMutate } = useGetHusbandryLogs({
+  const { mutate } = useSWRConfig();
+  const refreshLogs = () =>
+    mutate((key) => Array.isArray(key) && key[0] === endpoints.husbandryLog.list);
+
+  const { logs, logsTotal, logsLoading } = useGetHusbandryLogs({
     page: page + 1,
     pageSize: rowsPerPage,
     speciesId: filterId,
@@ -1003,11 +1069,19 @@ export function HusbandryLogView() {
     0
   );
 
-  const openFor = (sp) => {
+  // animal: ese ejemplar; null: toda la especie (no se preselecciona ejemplar)
+  const openFor = (sp, animal) => {
     setEditingId(null);
-    setForm({ ...EMPTY, species_id: sp.id, log_date: today() });
+    setForm({
+      ...EMPTY,
+      species_id: sp.id,
+      log_date: today(),
+      ...(animal ? { animal_id: animal.id, per_animal: true } : { whole: true }),
+    });
     setDialogOpen(true);
   };
+
+  const [expandedId, setExpandedId] = useState(initialSpecies);
 
   const handleEdit = (log) => {
     setEditingId(log.id);
@@ -1035,7 +1109,7 @@ export function HusbandryLogView() {
       else await createHusbandryLog(payload);
       toast.success(editingId ? 'Entrada actualizada' : 'Entrada guardada');
       if (!keepOpen) close();
-      logsMutate();
+      refreshLogs();
       planStatusMutate();
       return true;
     } catch (error) {
@@ -1055,29 +1129,10 @@ export function HusbandryLogView() {
     if (!ok) return;
     try {
       await deleteHusbandryLog(log.id);
-      logsMutate();
+      refreshLogs();
       planStatusMutate();
     } catch (error) {
       toast.error(error?.message || 'No se pudo borrar');
-    }
-  };
-
-  // «Hecho»: registra el renglón del plan como hecho hoy, sin formulario
-  const handleQuick = async (sp, p) => {
-    try {
-      await createHusbandryLog(
-        toPayload({
-          ...EMPTY,
-          species_id: sp.id,
-          log_date: today(),
-          ...(p.kind === 'food' ? { fed: true, food_type: p.name } : { supplement: p.name }),
-        })
-      );
-      toast.success(`${p.name}: registrado`);
-      logsMutate();
-      planStatusMutate();
-    } catch (error) {
-      toast.error(error?.message || 'No se pudo guardar');
     }
   };
 
@@ -1104,10 +1159,12 @@ export function HusbandryLogView() {
             En «Todas», toca <b>Agregar plan</b> en la especie: qué come, qué suplemento y cada
             cuántos días.
           </>,
+          'Esa especie aparece aquí; si algo del plan ya toca, lo dice a la derecha.',
           <>
-            Esa especie aparece aquí con lo que le toca. Cuando ya lo hiciste, toca <b>Hecho</b>.
+            Toca la especie para ver sus ejemplares por código y <b>Anotar</b> en cada uno (comió,
+            asistida, una muda, una baja, una foto). «Anotar para toda la especie» es para lo del
+            terrario.
           </>,
-          'Para anotar más (cuánto comió, una muda, una baja, una foto) toca la especie. Todo es opcional.',
         ]}
       />
 
@@ -1211,8 +1268,9 @@ export function HusbandryLogView() {
                   sp={sp}
                   status={statusById[sp.id]}
                   canEdit={canEdit}
+                  expanded={expandedId === sp.id}
+                  onToggle={() => setExpandedId((id) => (id === sp.id ? null : sp.id))}
                   onOpen={openFor}
-                  onQuick={handleQuick}
                   onPlan={setPlanFor}
                 />
               ))}

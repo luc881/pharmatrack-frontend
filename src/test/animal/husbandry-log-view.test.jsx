@@ -13,7 +13,8 @@ import { server } from '../mocks/server';
 import { createWrapper } from '../utils';
 
 // ----------------------------------------------------------------------
-// Bitácora de manejo: especies con plan arriba; tocar una abre el formulario.
+// Bitácora de manejo: especies con plan arriba (solo nombres); tocar una
+// despliega sus ejemplares por código, cada uno con su «Anotar».
 // ----------------------------------------------------------------------
 
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
@@ -75,7 +76,9 @@ describe('HusbandryLogView', () => {
 
     expect(await screen.findByText(/ninguna especie tiene plan/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /ver especies/i }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Anotar' }));
+    fireEvent.click(await screen.findByRole('button', { name: /hoja/i }));
+    expect(await screen.findByText(/no hay ejemplares/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Anotar para toda la especie' }));
     fireEvent.click(await screen.findByRole('button', { name: /sí comió/i }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
@@ -103,6 +106,7 @@ describe('HusbandryLogView', () => {
     renderView();
 
     fireEvent.click(await screen.findByRole('button', { name: /ver especies/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /hoja/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Agregar plan' }));
     // ya trae un renglón de comida para llenar
     fireEvent.change(await screen.findByRole('combobox', { name: 'Qué' }), {
@@ -119,7 +123,8 @@ describe('HusbandryLogView', () => {
     mockApi({ species: [{ ...SPECIES, husbandry_plan: PLAN }], onSave: (b) => (saved = b) });
     renderView();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Anotar' }));
+    fireEvent.click(await screen.findByRole('button', { name: /hoja/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Anotar para toda la especie' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Guardar' }));
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/marca si comió/i))
@@ -127,7 +132,7 @@ describe('HusbandryLogView', () => {
     expect(saved).toBeNull();
   });
 
-  it('muestra el plan con lo que toca y las bajas descuentan del ejemplar', async () => {
+  it('arriba solo nombres y lo que toca; dentro, el plan y las bajas de una cepa', async () => {
     let saved = null;
     const status = [
       {
@@ -164,59 +169,23 @@ describe('HusbandryLogView', () => {
     });
     renderView();
 
+    // arriba: nombres y el aviso de lo más atrasado; sin «Hecho» ni «Comió»
     expect(await screen.findByText('Atrasado 2 d')).toBeInTheDocument();
-    expect(screen.getByText('En 8 días')).toBeInTheDocument();
-    // solo lo que ya toca lleva «Hecho»
-    expect(screen.getAllByRole('button', { name: 'Hecho' })).toHaveLength(1);
+    expect(screen.getByText('Phyllium gardabagusi')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Hecho' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Anotar' }));
+    fireEvent.click(screen.getByRole('button', { name: /hoja/i }));
+    expect(await screen.findByText('Zarzamora · cada 2 d')).toBeInTheDocument();
+    expect(screen.getByText('AN-55')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Anotar para toda la especie' }));
     fireEvent.click(await screen.findByRole('button', { name: /más detalles/i }));
     fireEvent.change(screen.getByLabelText('Bajas'), { target: { value: '2' } });
     fireEvent.mouseDown(screen.getByRole('combobox', { name: /descontar del inventario/i }));
-    fireEvent.click(await screen.findByText(/AN-55/));
+    fireEvent.click(await screen.findByRole('option', { name: /AN-55/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(saved).not.toBeNull());
     expect(saved).toMatchObject({ species_id: 7, fed: false, deaths: 2, animal_id: 55 });
-  });
-
-  it('«Hecho» registra el renglón del plan de un toque', async () => {
-    let saved = null;
-    const status = [
-      {
-        species_id: 7,
-        species_name: 'Phyllium gardabagusi',
-        common_name: 'Hoja',
-        last_fed: null,
-        month: {},
-        plan: [
-          {
-            kind: 'food',
-            name: 'Zarzamora',
-            every_days: 2,
-            last_done: null,
-            next_due: '2026-10-10',
-            days_overdue: 0,
-          },
-        ],
-      },
-    ];
-    mockApi({
-      species: [{ ...SPECIES, husbandry_plan: [PLAN[1]] }],
-      status,
-      onSave: (b) => (saved = b),
-    });
-    renderView();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Hecho' }));
-
-    await waitFor(() => expect(saved).not.toBeNull());
-    expect(saved).toMatchObject({
-      species_id: 7,
-      fed: true,
-      food_type: 'Zarzamora',
-      supplement: null,
-    });
   });
 
   it('anota ejemplar por ejemplar y marca la alimentación asistida', async () => {
@@ -248,10 +217,12 @@ describe('HusbandryLogView', () => {
     renderView();
 
     fireEvent.click(await screen.findByRole('button', { name: /ver especies/i }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Anotar' }));
-    // empieza en el primero por código; el vendido no aparece
+    fireEvent.click(await screen.findByRole('button', { name: /hoja/i }));
+    // la lista va por código y el vendido no aparece
+    await screen.findByText('EJ-001');
+    expect(screen.queryByText('EJ-003')).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Anotar' })[0]);
     expect(await screen.findByText(/EJ-001 · ♀/)).toBeInTheDocument();
-    expect(screen.queryByText(/EJ-003/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /asistida/i }));
     fireEvent.click(await screen.findByRole('button', { name: 'Guardar y seguir con EJ-002' }));
