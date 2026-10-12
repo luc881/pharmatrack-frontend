@@ -3,11 +3,19 @@
 // bitácora y la ficha de especie.
 // ----------------------------------------------------------------------
 
+// ¿Cuánto comió? (regular solo aparece en entradas viejas)
 export const APPETITE = {
-  good: { label: 'Bien', color: 'success' },
+  good: { label: 'Todo', color: 'success' },
   regular: { label: 'Regular', color: 'info' },
   poor: { label: 'Poco', color: 'warning' },
-  refused: { label: 'No comió', color: 'error' },
+  refused: { label: 'Nada', color: 'error' },
+};
+
+// Cómo se ve el ejemplar; «Otro» lleva una nota
+export const CONDITION = {
+  active: { label: 'Activo', color: 'success' },
+  lethargic: { label: 'Letárgico', color: 'warning' },
+  other: { label: 'Otro', color: 'default' },
 };
 
 // "deaths" se marca solo al anotar bajas (no es chip)

@@ -79,7 +79,13 @@ describe('HusbandryLogView', () => {
     fireEvent.click(await screen.findByRole('button', { name: /hoja/i }));
     expect(await screen.findByText(/no hay ejemplares/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Anotar para toda la especie' }));
-    fireEvent.click(await screen.findByRole('button', { name: /sí comió/i }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Todo' }));
+    // estado «Otro» pide qué presenta; el peso va en gramos
+    fireEvent.click(screen.getByRole('button', { name: 'Otro' }));
+    fireEvent.change(await screen.findByLabelText('¿Qué presenta?'), {
+      target: { value: 'Mudando' },
+    });
+    fireEvent.change(screen.getByLabelText(/peso/i), { target: { value: '42.5' } });
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(saved).not.toBeNull());
@@ -90,7 +96,10 @@ describe('HusbandryLogView', () => {
       food_type: null,
       pieces: null,
       grams: null,
-      appetite: null,
+      appetite: 'good',
+      condition: 'other',
+      condition_note: 'Mudando',
+      weight_g: 42.5,
       activities: [],
       supplement: null,
       deaths: null,
@@ -231,10 +240,18 @@ describe('HusbandryLogView', () => {
 
     // ya va en EJ-002 y es el último: solo «Guardar»
     expect(await screen.findByText('1 de 2 anotados ese día')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /sí comió/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Poco' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Letárgico' }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(saved).toHaveLength(2));
-    expect(saved[1]).toMatchObject({ animal_id: 2, assisted: false, fed: true });
+    expect(saved[1]).toMatchObject({
+      animal_id: 2,
+      assisted: false,
+      fed: true,
+      appetite: 'poor',
+      condition: 'lethargic',
+      condition_note: null,
+    });
 
     // historial tipo hoja: nombre común, ejemplar y «Asistida»
     expect(await screen.findAllByText('Hoja')).not.toHaveLength(0);

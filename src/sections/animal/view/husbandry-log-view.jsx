@@ -66,8 +66,8 @@ import { SEX_LABELS, speciesLabel, flattenGroupTree } from '../utils';
 import {
   FOODS,
   fDate,
-  APPETITE,
   dueLabel,
+  CONDITION,
   PLAN_KIND,
   ACTIVITIES,
   SUPPLEMENTS,
@@ -103,6 +103,9 @@ const EMPTY = {
   appetite: '',
   feeding_notes: '',
   supplement: '',
+  condition: '',
+  condition_note: '',
+  weight_g: '',
   deaths: '',
   animal_id: '',
   // la entrada es de un ejemplar (no de toda la especie); no viaja a la API
@@ -132,6 +135,9 @@ const toPayload = (f) => ({
   appetite: f.appetite || null,
   feeding_notes: f.feeding_notes.trim() || null,
   supplement: f.supplement.trim() || null,
+  condition: f.condition || null,
+  condition_note: f.condition === 'other' ? f.condition_note.trim() || null : null,
+  weight_g: num(f.weight_g),
   deaths: num(f.deaths) || null,
   // de un ejemplar, o de toda la especie con bajas descontadas de una cepa
   animal_id: f.per_animal || num(f.deaths) ? f.animal_id || null : null,
@@ -148,6 +154,8 @@ const isBlank = (p) =>
   p.pieces == null &&
   p.grams == null &&
   !p.supplement &&
+  !p.condition &&
+  p.weight_g == null &&
   !p.feeding_notes &&
   !p.deaths &&
   !p.activities.length &&
@@ -175,10 +183,19 @@ const specimenLabel = (a) =>
 
 const fedLabel = (log) => {
   if (log.assisted) return { label: 'Asistida', color: 'warning.main' };
-  if (log.fed) return { label: 'Sí', color: 'success.main' };
-  if (log.appetite === 'refused') return { label: 'No', color: 'error.main' };
+  if (log.appetite === 'refused') return { label: 'Nada', color: 'error.main' };
+  if (log.fed && log.appetite === 'poor') return { label: 'Poco', color: 'warning.main' };
+  if (log.fed && log.appetite === 'regular') return { label: 'Regular', color: 'info.main' };
+  if (log.fed) return { label: 'Todo', color: 'success.main' };
   return null;
 };
+
+const conditionText = (log) =>
+  log.condition === 'other'
+    ? log.condition_note || 'Otro'
+    : (CONDITION[log.condition]?.label ?? '');
+
+const grams = (v) => (v == null ? '' : `${Number(v)} g`);
 
 const shortDate = (d) => {
   const [y, m, day] = d.split('-');
@@ -251,11 +268,15 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
   const { logs } = useGetHusbandryLogs({ pageSize: 500, speciesId: sp.id });
   const lastFed = {};
   const lastLog = {};
+  const lastWeight = {};
+  const lastCondition = {};
   logs.forEach((l) => {
     // vienen de la más nueva a la más vieja: la primera de cada uno es la última
     if (!l.animal_id) return;
     if (!lastLog[l.animal_id]) lastLog[l.animal_id] = l;
     if (l.fed && !lastFed[l.animal_id]) lastFed[l.animal_id] = l;
+    if (l.weight_g != null && !lastWeight[l.animal_id]) lastWeight[l.animal_id] = l;
+    if (l.condition && !lastCondition[l.animal_id]) lastCondition[l.animal_id] = l;
   });
 
   return (
@@ -300,6 +321,8 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
               <TableCell>Morph</TableCell>
               <TableCell>Sexo</TableCell>
               <TableCell>Última comida</TableCell>
+              <TableCell>Estado</TableCell>
+              <TableCell align="right">Peso</TableCell>
               <TableCell>Última entrada</TableCell>
               {canEdit && <TableCell />}
             </TableRow>
@@ -315,8 +338,17 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
                   <TableCell>{SEX_LABELS[a.sex] ?? ''}</TableCell>
                   <TableCell>
                     {fed
-                      ? `${fDate(fed.log_date)}${fed.assisted ? ' (asistida)' : ''}`
+                      ? `${fDate(fed.log_date)} · ${fedLabel(fed)?.label ?? ''}`
                       : 'Sin registro'}
+                  </TableCell>
+                  <TableCell title={lastCondition[a.id] && fDate(lastCondition[a.id].log_date)}>
+                    {lastCondition[a.id] ? conditionText(lastCondition[a.id]) : ''}
+                  </TableCell>
+                  <TableCell
+                    align="right"
+                    title={lastWeight[a.id] && fDate(lastWeight[a.id].log_date)}
+                  >
+                    {grams(lastWeight[a.id]?.weight_g)}
                   </TableCell>
                   <TableCell>{last ? fDate(last.log_date) : ''}</TableCell>
                   {canEdit && (
@@ -336,7 +368,7 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
             })}
             {!animalsLoading && !specimens.length && (
               <TableRow>
-                <TableCell colSpan={canEdit ? 6 : 5} sx={{ color: 'text.secondary' }}>
+                <TableCell colSpan={canEdit ? 8 : 7} sx={{ color: 'text.secondary' }}>
                   No hay ejemplares de esta especie en inventario.
                 </TableCell>
               </TableRow>
@@ -428,10 +460,12 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const fedChoice = form.assisted
     ? 'assisted'
-    : form.fed
-      ? 'yes'
-      : form.appetite === 'refused'
-        ? 'no'
+    : form.appetite === 'refused'
+      ? 'none'
+      : form.fed
+        ? form.appetite === 'poor'
+          ? 'little'
+          : 'all'
         : null;
   const showMore = moreOpen || hasDetails(form);
 
@@ -546,28 +580,28 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
               onChange={(_, v) =>
                 setForm((f) => ({
                   ...f,
-                  fed: v === 'yes' || v === 'assisted',
+                  fed: v === 'all' || v === 'little' || v === 'assisted',
                   assisted: v === 'assisted',
-                  appetite:
-                    v === 'no'
-                      ? 'refused'
-                      : v === 'assisted' || f.appetite === 'refused'
-                        ? ''
-                        : f.appetite,
+                  appetite: { all: 'good', little: 'poor', none: 'refused' }[v] ?? '',
                 }))
               }
+              sx={{ flexWrap: 'wrap' }}
             >
-              <ToggleButton value="yes">
+              <ToggleButton value="all">
                 <Iconify icon="solar:check-circle-bold" sx={{ mr: 1 }} />
-                Sí comió
+                Todo
+              </ToggleButton>
+              <ToggleButton value="little">
+                <Iconify icon="solar:pie-chart-2-bold" sx={{ mr: 1 }} />
+                Poco
+              </ToggleButton>
+              <ToggleButton value="none">
+                <Iconify icon="solar:close-circle-bold" sx={{ mr: 1 }} />
+                Nada
               </ToggleButton>
               <ToggleButton value="assisted">
                 <Iconify icon="solar:hand-heart-bold" sx={{ mr: 1 }} />
                 Asistida
-              </ToggleButton>
-              <ToggleButton value="no">
-                <Iconify icon="solar:close-circle-bold" sx={{ mr: 1 }} />
-                No comió
               </ToggleButton>
             </ToggleButtonGroup>
             {form.assisted && (
@@ -610,28 +644,54 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
                   }}
                 />
               </Stack>
-              <Box sx={{ display: form.assisted ? 'none' : 'block' }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  ¿Cómo comió? (opcional)
-                </Typography>
-                <ToggleButtonGroup
-                  exclusive
-                  size="small"
-                  value={form.appetite}
-                  onChange={(_, v) => setForm((f) => ({ ...f, appetite: v ?? '' }))}
-                  sx={{ flexWrap: 'wrap' }}
-                >
-                  {Object.entries(APPETITE)
-                    .filter(([value]) => value !== 'refused')
-                    .map(([value, { label }]) => (
-                      <ToggleButton key={value} value={value}>
-                        {label}
-                      </ToggleButton>
-                    ))}
-                </ToggleButtonGroup>
-              </Box>
             </Stack>
           </Collapse>
+
+          <Box>
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+              Estado{' '}
+              <Typography component="span" variant="body2" color="text.secondary">
+                (opcional)
+              </Typography>
+            </Typography>
+            <ToggleButtonGroup
+              exclusive
+              fullWidth
+              color="primary"
+              value={form.condition}
+              onChange={(_, v) => setForm((f) => ({ ...f, condition: v ?? '' }))}
+            >
+              {Object.entries(CONDITION).map(([value, { label }]) => (
+                <ToggleButton key={value} value={value}>
+                  {label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+            <Collapse in={form.condition === 'other'} unmountOnExit>
+              <TextField
+                fullWidth
+                label="¿Qué presenta?"
+                placeholder="Ej. ojo hinchado, mudando, escondido…"
+                value={form.condition_note}
+                onChange={set('condition_note')}
+                slotProps={{ htmlInput: { maxLength: 200 } }}
+                sx={{ mt: 1.5 }}
+              />
+            </Collapse>
+          </Box>
+
+          <TextField
+            type="number"
+            label="Peso (opcional)"
+            value={form.weight_g}
+            onChange={set('weight_g')}
+            helperText={form.per_animal ? undefined : 'Mejor por ejemplar: elige su código arriba.'}
+            slotProps={{
+              htmlInput: { min: 0, step: 0.1, inputMode: 'decimal' },
+              input: { endAdornment: <InputAdornment position="end">g</InputAdornment> },
+            }}
+            sx={{ maxWidth: { sm: 220 } }}
+          />
 
           <Autocomplete
             freeSolo
@@ -881,8 +941,9 @@ function LogTable({ logs, canEdit, editingId, onEdit, onDelete, onPickAnimal }) 
             <TableCell>Alimento</TableCell>
             <TableCell align="right">Piezas</TableCell>
             <TableCell align="right">Gramos</TableCell>
-            <TableCell>Apetito</TableCell>
             <TableCell>Suplemento</TableCell>
+            <TableCell>Estado</TableCell>
+            <TableCell align="right">Peso</TableCell>
             <TableCell>Terrario</TableCell>
             <TableCell align="right">Bajas</TableCell>
             <TableCell>Notas</TableCell>
@@ -926,10 +987,13 @@ function LogTable({ logs, canEdit, editingId, onEdit, onDelete, onPickAnimal }) 
                 <TableCell>{log.food_type ?? ''}</TableCell>
                 <TableCell align="right">{log.pieces ?? ''}</TableCell>
                 <TableCell align="right">{log.grams != null ? Number(log.grams) : ''}</TableCell>
-                <TableCell>
-                  {log.appetite && log.appetite !== 'refused' ? APPETITE[log.appetite]?.label : ''}
-                </TableCell>
                 <TableCell>{log.supplement ?? ''}</TableCell>
+                <TableCell
+                  sx={{ color: log.condition === 'lethargic' ? 'warning.main' : undefined }}
+                >
+                  {conditionText(log)}
+                </TableCell>
+                <TableCell align="right">{grams(log.weight_g)}</TableCell>
                 <TableCell>{terrarium}</TableCell>
                 <TableCell align="right" sx={{ color: log.deaths ? 'error.main' : undefined }}>
                   {log.deaths || ''}
