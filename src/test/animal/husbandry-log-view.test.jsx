@@ -46,8 +46,11 @@ function renderView() {
   );
 }
 
-function mockApi({ species = [SPECIES], status = [], animals = [], onSave, onPlan }) {
+function mockApi({ species = [SPECIES], status = [], animals = [], onSave, onPlan, commitments }) {
   server.use(
+    http.get(`${API}/animals/:id/commitments`, () =>
+      HttpResponse.json(commitments ?? { status: 'available', sale: null, deliveries: [] })
+    ),
     http.put(`${API}/species/7`, async ({ request }) => {
       const body = await request.json();
       onPlan?.(body);
@@ -251,7 +254,7 @@ describe('HusbandryLogView', () => {
     fireEvent.click(screen.getByRole('button', { name: /asistida/i }));
     fireEvent.click(screen.getByRole('switch', { name: 'Se suplementó' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Baja: murió' }));
-    expect(screen.getByText(/EJ-001 sale del inventario/)).toBeInTheDocument();
+    expect(screen.getByText(/EJ-001 queda como «Murió»/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(saved).toHaveLength(1));
     expect(saved[0]).toMatchObject({
@@ -285,7 +288,48 @@ describe('HusbandryLogView', () => {
 
     // historial tipo hoja: nombre común, ejemplar y «Asistida»
     expect(await screen.findAllByText('Hoja')).not.toHaveLength(0);
-    expect(await screen.findByRole('button', { name: 'EJ-001' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'EJ-001' }, { timeout: 5000 })
+    ).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'Asistida' })).toBeInTheDocument();
+  }, 30000);
+
+  it('la baja de un ejemplar vendido ofrece cambiarlo por otro disponible', async () => {
+    let saved = null;
+    mockApi({
+      species: [{ ...SPECIES, sale_format: 'individual' }],
+      animals: [
+        { id: 1, code: 'RAU-001', sex: 'female', status: 'sold', stock: 0, morphs: [] },
+        { id: 3, code: 'RAU-003', sex: 'male', status: 'available', stock: 1, price: 4500, morphs: [] },
+      ],
+      commitments: {
+        status: 'sold',
+        sale: { id: 88, date_sale: '2026-10-11T18:00:00' },
+        deliveries: [{ id: 5, buyer_name: 'Ana', scheduled_date: '2026-10-20' }],
+      },
+      onSave: (b) => (saved = b),
+    });
+    renderView();
+
+    fireEvent.click(await screen.findByRole('button', { name: /ver especies/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /hoja/i }));
+    // el vendido no está en la tabla; su baja se anota desde «Murió uno ya vendido»
+    expect(await screen.findByText('RAU-003')).toBeInTheDocument();
+    expect(screen.queryByText('RAU-001')).not.toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: /murió uno ya vendido/i }));
+    fireEvent.click(await screen.findByRole('option', { name: 'RAU-001' }));
+
+    // abre con la baja puesta y dice a qué estaba comprometido
+    expect(await screen.findByText(/Anotar en la bitácora · RAU-001/)).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Baja: murió' })).toBeChecked();
+    expect(await screen.findByText(/venta #88/)).toBeInTheDocument();
+    expect(screen.getByText(/entrega pendiente de Ana/)).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: /lo cambias por otro/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /RAU-003 · Macho/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => expect(saved).not.toBeNull());
+    expect(saved).toMatchObject({ animal_id: 1, deaths: 1, replacement_animal_id: 3 });
   });
 });

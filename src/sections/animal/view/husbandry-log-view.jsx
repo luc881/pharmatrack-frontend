@@ -6,6 +6,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Grid from '@mui/material/Grid';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
@@ -51,6 +52,7 @@ import {
   useHusbandryStatus,
   useAnimalGroupTree,
   useGetHusbandryLogs,
+  useAnimalCommitments,
 } from 'src/actions/animal';
 
 import { Label } from 'src/components/label';
@@ -109,6 +111,8 @@ const EMPTY = {
   weight_g: '',
   deaths: '',
   animal_id: '',
+  // si murió un ejemplar comprometido: a cuál pasa su reserva/venta/entrega
+  replacement_animal_id: '',
   // la entrada es de un ejemplar (no de toda la especie); no viaja a la API
   per_animal: false,
   activities: [],
@@ -142,6 +146,7 @@ const toPayload = (f) => ({
   deaths: num(f.deaths) || null,
   // de un ejemplar, o de toda la especie con bajas descontadas de una cepa
   animal_id: f.per_animal || num(f.deaths) ? f.animal_id || null : null,
+  replacement_animal_id: f.per_animal && num(f.deaths) ? f.replacement_animal_id || null : null,
   activities: f.activities.filter((a) => a !== 'deaths'),
   notes: f.notes.trim() || null,
   photos: f.photos,
@@ -271,11 +276,15 @@ function SpeciesRow({ sp, status, canEdit, expanded, onToggle, onOpen, onPlan })
 function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
   const { animals, animalsLoading } = useGetAnimals({ pageSize: 500, speciesId: sp.id });
   const specimens = specimensOf(animals);
+  const sold = animals
+    .filter((a) => a.status === 'sold')
+    .sort((a, b) => a.code.localeCompare(b.code, 'es', { numeric: true }));
   // las entradas recientes de la especie dicen la última comida de cada ejemplar
   const { logs } = useGetHusbandryLogs({ pageSize: 500, speciesId: sp.id });
   const lastFed = {};
   const lastLog = {};
   const lastWeight = {};
+  const deathLog = {};
   const lastCondition = {};
   logs.forEach((l) => {
     // vienen de la más nueva a la más vieja: la primera de cada uno es la última
@@ -283,6 +292,7 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
     if (!lastLog[l.animal_id]) lastLog[l.animal_id] = l;
     if (l.fed && !lastFed[l.animal_id]) lastFed[l.animal_id] = l;
     if (l.weight_g != null && !lastWeight[l.animal_id]) lastWeight[l.animal_id] = l;
+    if (l.deaths && !deathLog[l.animal_id]) deathLog[l.animal_id] = l;
     if (l.condition && !lastCondition[l.animal_id]) lastCondition[l.animal_id] = l;
   });
 
@@ -361,7 +371,11 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
                   <TableCell>{last ? fDate(last.log_date) : ''}</TableCell>
                   {canEdit && dead && (
                     <TableCell>
-                      <Label color="error">Murió</Label>
+                      <Label color="error">
+                        Murió
+                        {deathLog[a.id]?.replacement_code &&
+                          ` · cambiado por ${deathLog[a.id].replacement_code}`}
+                      </Label>
                     </TableCell>
                   )}
                   {canEdit && !dead && (
@@ -391,16 +405,42 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
       </TableContainer>
 
       {canEdit && (
-        <Button
-          size="small"
-          color="inherit"
-          variant="outlined"
-          startIcon={<Iconify icon="solar:pen-new-square-linear" />}
-          onClick={() => onOpen(sp, null)}
-          sx={{ mt: 1.5 }}
-        >
-          Anotar para toda la especie
-        </Button>
+        <Stack direction="row" flexWrap="wrap" alignItems="center" gap={1.5} sx={{ mt: 1.5 }}>
+          <Button
+            size="small"
+            color="inherit"
+            variant="outlined"
+            startIcon={<Iconify icon="solar:pen-new-square-linear" />}
+            onClick={() => onOpen(sp, null)}
+          >
+            Anotar para toda la especie
+          </Button>
+          {/* los vendidos no salen en la tabla; si uno muere antes de entregarse
+              se anota aquí y se puede cambiar por otro para esa venta */}
+          {sold.length > 0 && (
+            <TextField
+              select
+              size="small"
+              label="Murió uno ya vendido (sin entregar)"
+              value=""
+              onChange={(e) =>
+                onOpen(
+                  sp,
+                  sold.find((a) => a.id === e.target.value),
+                  { deaths: 1 }
+                )
+              }
+              sx={{ minWidth: 280, bgcolor: 'background.paper' }}
+            >
+              {sold.map((a) => (
+                <MenuItem key={a.id} value={a.id}>
+                  {a.code}
+                  {a.morphs?.length ? ` · ${a.morphs.map((m) => m.name).join(' ')}` : ''}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+        </Stack>
       )}
     </Box>
   );
@@ -420,6 +460,17 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
 
   // Entrada de un ejemplar: fijo en ese código
   const current = form.per_animal ? animals.find((a) => a.id === form.animal_id) : null;
+
+  // Baja de un ejemplar comprometido: ofrece cambiarlo por otro disponible
+  const dying = Boolean(form.per_animal && num(form.deaths));
+  const swapLocked = Boolean(editingId && form.replacement_animal_id);
+  const { commitments } = useAnimalCommitments(dying && !editingId ? form.animal_id : null);
+  const promised =
+    commitments &&
+    (commitments.status === 'reserved' || commitments.sale || commitments.deliveries.length > 0);
+  const candidates = specimensOf(animals).filter(
+    (a) => a.status === 'available' && a.id !== form.animal_id && (a.stock ?? 1) > 0
+  );
 
   // Suplemento con un switch: se registra el del plan (o «Suplemento» si no hay)
   const planSupps = planOptions(species, 'supplement', []);
@@ -663,19 +714,80 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
                 control={
                   <Switch
                     color="error"
+                    disabled={swapLocked}
                     checked={Boolean(num(form.deaths))}
-                    onChange={(e) => setForm((f) => ({ ...f, deaths: e.target.checked ? 1 : '' }))}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        deaths: e.target.checked ? 1 : '',
+                        replacement_animal_id: e.target.checked ? f.replacement_animal_id : '',
+                      }))
+                    }
                   />
                 }
                 label="Baja: murió"
               />
-              {Boolean(num(form.deaths)) && (
+              {dying && !swapLocked && (
                 <Typography variant="caption" color="error" component="div">
-                  {current?.code ?? 'El ejemplar'} sale del inventario al guardar (si borras la
-                  entrada, regresa).
+                  {current?.code ?? 'El ejemplar'} queda como «Murió» al guardar (si borras la
+                  entrada, regresa como estaba).
+                </Typography>
+              )}
+              {swapLocked && (
+                <Typography variant="caption" color="text.secondary" component="div">
+                  Se cambió por otro ejemplar. Para corregir la baja, borra la entrada (deshace el
+                  cambio) y anótala de nuevo.
                 </Typography>
               )}
             </Box>
+          )}
+
+          {dying && promised && (
+            <Alert severity="warning">
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                {current?.code} ya estaba comprometido:
+              </Typography>
+              <Box component="ul" sx={{ m: 0, pl: 2.5, typography: 'body2' }}>
+                {commitments.status === 'reserved' && <li>Reservado para un cliente.</li>}
+                {commitments.sale && (
+                  <li>
+                    Vendido en la venta #{commitments.sale.id} (
+                    {fDate(commitments.sale.date_sale.slice(0, 10))}).
+                  </li>
+                )}
+                {commitments.deliveries.map((d) => (
+                  <li key={d.id}>
+                    En la entrega pendiente de {d.buyer_name} ({fDate(d.scheduled_date)}).
+                  </li>
+                ))}
+              </Box>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="¿Lo cambias por otro ejemplar?"
+                value={form.replacement_animal_id}
+                onChange={set('replacement_animal_id')}
+                sx={{ mt: 1.5, bgcolor: 'background.paper' }}
+                helperText={
+                  form.replacement_animal_id
+                    ? 'Ese ejemplar toma su lugar: la reserva, la venta (sin cambiar lo cobrado) y la entrega pasan a él.'
+                    : candidates.length
+                      ? 'Sin cambio, la venta o reserva queda con el que murió (para devolver o cancelar).'
+                      : 'No hay otro ejemplar disponible de esta especie.'
+                }
+              >
+                <MenuItem value="">No cambiar</MenuItem>
+                {candidates.map((a) => (
+                  <MenuItem key={a.id} value={a.id}>
+                    {[a.code, a.morphs?.map((m) => m.name).join(' '), SEX_LABELS[a.sex]]
+                      .filter(Boolean)
+                      .join(' · ')}{' '}
+                    — ${Number(a.price).toLocaleString('es-MX')}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Alert>
           )}
 
           <Box>
@@ -955,6 +1067,7 @@ function LogTable({ logs, canEdit, editingId, onEdit, onDelete, onPickAnimal }) 
                 <TableCell>{terrarium}</TableCell>
                 <TableCell align="right" sx={{ color: log.deaths ? 'error.main' : undefined }}>
                   {log.deaths || ''}
+                  {log.replacement_code && ` → ${log.replacement_code}`}
                 </TableCell>
                 <TableCell
                   title={notes}
@@ -1092,13 +1205,15 @@ export function HusbandryLogView() {
   );
 
   // animal: ese ejemplar; null: toda la especie (no se preselecciona ejemplar)
-  const openFor = (sp, animal) => {
+  // preset: campos ya llenos (p. ej. la baja de uno vendido)
+  const openFor = (sp, animal, preset) => {
     setEditingId(null);
     setForm({
       ...EMPTY,
       species_id: sp.id,
       log_date: today(),
       ...(animal && { animal_id: animal.id, per_animal: true }),
+      ...preset,
     });
     setDialogOpen(true);
   };
@@ -1145,7 +1260,9 @@ export function HusbandryLogView() {
   const handleDelete = async (log) => {
     const ok = await ask({
       title: `¿Borrar la entrada del ${fDate(log.log_date)}?`,
-      content: 'Si descontó bajas del inventario, se regresan.',
+      content: log.replacement_code
+        ? `Se deshace el cambio: lo que pasó a ${log.replacement_code} (reserva, venta o entrega) regresa a ${log.animal_code}, y ${log.animal_code} vuelve a como estaba.`
+        : 'Si fue una baja, el ejemplar regresa a como estaba (disponible, reservado o vendido).',
       options: [{ label: 'Borrar', value: true, color: 'error' }],
     });
     if (!ok) return;

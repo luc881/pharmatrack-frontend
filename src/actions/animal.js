@@ -108,6 +108,13 @@ export function useGetAnimal(animalId) {
 }
 
 // Especie por id (respuesta admin: incluye los campos privados de cultivo)
+// Reserva, venta y entregas pendientes de un ejemplar (para la baja con cambio)
+export function useAnimalCommitments(animalId) {
+  const url = animalId ? `${endpoints.animal.details(animalId)}/commitments` : null;
+  const { data, isLoading } = useSWR(url, fetcher, { ...swrOptions, revalidateOnMount: true });
+  return { commitments: data ?? null, commitmentsLoading: isLoading };
+}
+
 export function useGetSpecies(speciesId) {
   const url = speciesId ? endpoints.species.details(speciesId) : null;
   const { data, isLoading, error, mutate } = useSWR(url, fetcher, swrOptions);
