@@ -3,7 +3,7 @@ import { z as zod } from 'zod';
 import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -80,6 +80,8 @@ const NEW_BUTTON_SX = { height: 56, flexShrink: 0 };
 
 export function AnimalCreateEditForm({ currentAnimal }) {
   const navigate = useNavigate();
+  // «Nuevo ejemplar» desde la bitácora o la lista manda de dónde vino
+  const { state: navState } = useLocation();
   const isEdit = !!currentAnimal;
 
   const { user } = useAuthContext();
@@ -304,7 +306,9 @@ export function AnimalCreateEditForm({ currentAnimal }) {
 
       toast.success(isEdit ? 'Animal actualizado' : 'Animal registrado');
       mutate((key) => Array.isArray(key) && key[0] === endpoints.animal.list);
-      navigate(paths.dashboard.animal.root);
+      navigate(navState?.from ?? paths.dashboard.animal.root, {
+        state: { expand: Number(data.species_id) },
+      });
     } catch (error) {
       if (!handleApiError(error, setError)) {
         toast.error(error.message || 'Error al guardar el animal');

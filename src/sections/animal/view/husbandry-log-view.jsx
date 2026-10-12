@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSWRConfig } from 'swr';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -274,6 +274,9 @@ function SpeciesRow({ sp, status, canEdit, expanded, onToggle, onOpen, onPlan })
 }
 
 function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
+  const { user } = useAuthContext();
+  const canCreate = user?.permissions?.includes('animals.create');
+  const navigate = useNavigate();
   const { animals, animalsLoading } = useGetAnimals({ pageSize: 500, speciesId: sp.id });
   const specimens = specimensOf(animals);
   const sold = animals
@@ -404,20 +407,37 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
         </Table>
       </TableContainer>
 
-      {canEdit && (
+      {(canEdit || canCreate) && (
         <Stack direction="row" flexWrap="wrap" alignItems="center" gap={1.5} sx={{ mt: 1.5 }}>
-          <Button
-            size="small"
-            color="inherit"
-            variant="outlined"
-            startIcon={<Iconify icon="solar:pen-new-square-linear" />}
-            onClick={() => onOpen(sp, null)}
-          >
-            Anotar para toda la especie
-          </Button>
+          {canEdit && (
+            <Button
+              size="small"
+              color="inherit"
+              variant="outlined"
+              startIcon={<Iconify icon="solar:pen-new-square-linear" />}
+              onClick={() => onOpen(sp, null)}
+            >
+              Anotar para toda la especie
+            </Button>
+          )}
+          {canCreate && (
+            <Button
+              size="small"
+              color="inherit"
+              variant="outlined"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+              onClick={() =>
+                navigate(`${paths.dashboard.animal.new}?species_id=${sp.id}`, {
+                  state: { from: `${paths.dashboard.animal.log}?species=${sp.id}` },
+                })
+              }
+            >
+              Nuevo ejemplar
+            </Button>
+          )}
           {/* los vendidos no salen en la tabla; si uno muere antes de entregarse
               se anota aquí y se puede cambiar por otro para esa venta */}
-          {sold.length > 0 && (
+          {canEdit && sold.length > 0 && (
             <TextField
               select
               size="small"
@@ -1188,7 +1208,11 @@ export function HusbandryLogView() {
     Math.max(-Infinity, ...(statusById[sp.id]?.plan ?? []).map((p) => p.days_overdue));
 
   // dataset chico (una fila por especie): se filtra en cada render sin memo
-  const rows = (scope === 'plan' ? withPlan : species)
+  const rows = (
+    scope === 'plan'
+      ? species.filter((s) => s.husbandry_plan?.length || s.id === initialSpecies)
+      : species
+  )
     .filter((s) => !groupIds || groupIds.has(s.genus?.group?.id))
     .filter((s) => !genusId || s.genus?.id === genusId)
     .filter((s) => !needle || fold(speciesLabel(s)).includes(needle))

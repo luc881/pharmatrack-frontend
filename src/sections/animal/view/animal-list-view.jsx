@@ -1,6 +1,6 @@
-import { useSearchParams } from 'react-router';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo, useState, useCallback } from 'react';
+import { useLocation, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -117,6 +117,7 @@ export function AnimalListView() {
 
   // El breadcrumb del detalle enlaza aquí con ?genus_id= / ?species_id=
   const [searchParams] = useSearchParams();
+  const { state: navState } = useLocation();
 
   const [groupFilter, setGroupFilter] = useState('');
   const [genusFilter, setGenusFilter] = useState(() => Number(searchParams.get('genus_id')) || '');
@@ -124,7 +125,8 @@ export function AnimalListView() {
   const [statusFilter, setStatusFilter] = useState('');
   const [rowToDelete, setRowToDelete] = useState(null);
   const [selected, setSelected] = useState(() => new Set()); // ids de ejemplares
-  const [expanded, setExpanded] = useState(() => new Set());
+  // recién dado de alta un ejemplar: su especie llega abierta
+  const [expanded, setExpanded] = useState(() => new Set(navState?.expand ? [navState.expand] : []));
   const [labelsFor, setLabelsFor] = useState(null); // entry {species, animals} → diálogo de etiquetas QR
 
   const { genera: allGenera } = useAllGenera();
@@ -363,6 +365,7 @@ export function AnimalListView() {
                         entry={entry}
                         open={expanded.has(entry.species.id) || grouped.length === 1}
                         onToggle={() => toggleExpanded(entry.species.id)}
+                        canCreate={canCreate}
                         canUpdate={canUpdate}
                         canDelete={canDelete}
                         canUpdateSpecies={canUpdateSpecies}
@@ -410,8 +413,9 @@ export function AnimalListView() {
 
 // ----------------------------------------------------------------------
 
-function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpecies, onDelete, onPrintLabels, selected, onToggleSelected }) {
+function SpeciesRows({ entry, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onDelete, onPrintLabels, selected, onToggleSelected }) {
   const { species, animals } = entry;
+  const { pathname, search } = useLocation();
 
   // Vendidos y muertos no se borran: quedan fuera del "seleccionar todos"
   const deletable = animals.filter((a) => !isClosedStatus(a.status));
@@ -499,7 +503,21 @@ function SpeciesRows({ entry, open, onToggle, canUpdate, canDelete, canUpdateSpe
         <TableCell>{format ?? '—'}</TableCell>
 
         <TableCell align="right">
-          <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+          <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+            {canCreate && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                component={RouterLink}
+                href={`${paths.dashboard.animal.new}?species_id=${species.id}`}
+                state={{ from: `${pathname}${search}` }}
+                onClick={(event) => event.stopPropagation()}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Nuevo ejemplar
+              </Button>
+            )}
             {canUpdateSpecies && (
               <Tooltip title="Editar ficha de cuidados">
                 <IconButton
