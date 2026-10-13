@@ -33,6 +33,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import InputAdornment from '@mui/material/InputAdornment';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
+import CircularProgress from '@mui/material/CircularProgress';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
@@ -74,10 +75,12 @@ import {
   FOODS,
   fDate,
   dueLabel,
+  fedLabel,
   CONDITION,
   PLAN_KIND,
   ACTIVITIES,
   planOptions,
+  conditionText,
 } from '../husbandry';
 
 // ----------------------------------------------------------------------
@@ -200,20 +203,6 @@ const specimensOf = (animals) =>
         a.code.localeCompare(b.code, 'es', { numeric: true })
     );
 
-const fedLabel = (log) => {
-  if (log.assisted) return { label: 'Asistida', color: 'warning.main' };
-  if (log.appetite === 'refused') return { label: 'Nada', color: 'error.main' };
-  if (log.fed && log.appetite === 'poor') return { label: 'Poco', color: 'warning.main' };
-  if (log.fed && log.appetite === 'regular') return { label: 'Regular', color: 'info.main' };
-  if (log.fed) return { label: 'Todo', color: 'success.main' };
-  return null;
-};
-
-const conditionText = (log) =>
-  log.condition === 'other'
-    ? log.condition_note || 'Otro'
-    : (CONDITION[log.condition]?.label ?? '');
-
 const grams = (v) => (v == null ? '' : `${Number(v)} g`);
 
 const shortDate = (d) => {
@@ -268,6 +257,39 @@ function TelegramReminder() {
         Mandar pendientes ahora
       </Button>
     </Stack>
+  );
+}
+
+// «Exportar PDF» del historial; react-pdf se carga solo al hacer clic
+function PdfExportButton(props) {
+  const [loading, setLoading] = useState(false);
+  const handleExport = async () => {
+    setLoading(true);
+    try {
+      const { exportHusbandryLogPdf } = await import('../husbandry-log-pdf');
+      await exportHusbandryLogPdf(props);
+    } catch (err) {
+      console.error('PDF de la bitácora:', err);
+      toast.error('No se pudo generar el PDF');
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <Button
+      variant="outlined"
+      onClick={handleExport}
+      disabled={loading}
+      startIcon={
+        loading ? (
+          <CircularProgress size={16} color="inherit" />
+        ) : (
+          <Iconify icon="eva:cloud-download-fill" />
+        )
+      }
+    >
+      {loading ? 'Generando PDF…' : 'Exportar PDF'}
+    </Button>
   );
 }
 
@@ -1568,20 +1590,34 @@ export function HusbandryLogView() {
         <CardHeader
           title="Historial"
           action={
-            <Autocomplete
-              size="small"
-              options={species}
-              value={filterSpecies}
-              onChange={(_, s) => {
-                setFilterId(s?.id ?? null);
-                setAnimalFilter(null);
-                setPage(0);
-              }}
-              getOptionLabel={speciesLabel}
-              isOptionEqualToValue={(a, b) => a.id === b.id}
-              renderInput={(params) => <TextField {...params} label="Filtrar especie" />}
-              sx={{ width: { xs: 200, sm: 300 } }}
-            />
+            <Stack direction="row" flexWrap="wrap" alignItems="center" gap={1.5}>
+              <Autocomplete
+                size="small"
+                options={species}
+                value={filterSpecies}
+                onChange={(_, s) => {
+                  setFilterId(s?.id ?? null);
+                  setAnimalFilter(null);
+                  setPage(0);
+                }}
+                getOptionLabel={speciesLabel}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderInput={(params) => <TextField {...params} label="Filtrar especie" />}
+                sx={{ width: { xs: 200, sm: 300 } }}
+              />
+              {/* exporta lo que se está viendo: con filtro, solo eso */}
+              <PdfExportButton
+                speciesId={filterId}
+                animal={animalFilter}
+                scope={
+                  animalFilter
+                    ? `Ejemplar ${animalFilter.code}`
+                    : filterSpecies
+                      ? speciesLabel(filterSpecies)
+                      : 'Todas las especies'
+                }
+              />
+            </Stack>
           }
           sx={{ flexWrap: 'wrap', gap: 2 }}
         />

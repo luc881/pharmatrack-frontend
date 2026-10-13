@@ -29,6 +29,21 @@ export const ACTIVITIES = {
   deaths: 'Bajas',
 };
 
+// ¿Comió? de una entrada (historial y PDF). `color` es de la paleta de MUI.
+export const fedLabel = (log) => {
+  if (log.assisted) return { label: 'Asistida', color: 'warning.main' };
+  if (log.appetite === 'refused') return { label: 'Nada', color: 'error.main' };
+  if (log.fed && log.appetite === 'poor') return { label: 'Poco', color: 'warning.main' };
+  if (log.fed && log.appetite === 'regular') return { label: 'Regular', color: 'info.main' };
+  if (log.fed) return { label: 'Todo', color: 'success.main' };
+  return null;
+};
+
+export const conditionText = (log) =>
+  log.condition === 'other'
+    ? log.condition_note || 'Otro'
+    : (CONDITION[log.condition]?.label ?? '');
+
 export const PLAN_KIND = {
   food: { label: 'Comida', color: 'primary' },
   supplement: { label: 'Suplemento', color: 'secondary' },

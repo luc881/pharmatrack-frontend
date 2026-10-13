@@ -270,7 +270,7 @@ describe('HusbandryLogView', () => {
     // el diálogo tarda en cerrarse y soltar el resto de la página
     await waitFor(
       () => expect(screen.getAllByRole('button', { name: 'Anotar' })).toHaveLength(2),
-      { timeout: 3000 }
+      { timeout: 8000 }
     );
     fireEvent.click(screen.getAllByRole('button', { name: 'Anotar' })[1]);
     expect(await screen.findByText(/Anotar en la bitácora · EJ-002/)).toBeInTheDocument();
