@@ -109,7 +109,16 @@ export const navData = [
         path: paths.dashboard.article.root,
         icon: ICONS.file,
         allowedRoles: ['settings.update', 'articles.read'],
-        isActive: inSection('sitio'),
+        // las fichas son del área Sitio pero tienen su propia entrada
+        isActive: (pathname) =>
+          inSection('sitio')(pathname) && !pathname.startsWith(paths.dashboard.careSheet.root),
+      },
+      {
+        title: 'Fichas de cuidados',
+        path: paths.dashboard.careSheet.root,
+        icon: ICONS.course,
+        allowedRoles: ['species.read'],
+        isActive: (pathname) => pathname.startsWith(paths.dashboard.careSheet.root),
       },
     ],
   },
