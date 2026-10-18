@@ -93,6 +93,8 @@ const SiteMediaPage     = lazy(() => import('src/pages/dashboard/site/media'));
 const SiteLinksPage     = lazy(() => import('src/pages/dashboard/site/links'));
 const ArticleCreatePage = lazy(() => import('src/pages/dashboard/article/new'));
 const ArticleEditPage   = lazy(() => import('src/pages/dashboard/article/edit'));
+const CareSheetListPage = lazy(() => import('src/pages/dashboard/care-sheet/list'));
+const CareSheetFormPage = lazy(() => import('src/pages/dashboard/care-sheet/form'));
 
 const BundleListPage   = lazy(() => import('src/pages/dashboard/bundle/list'));
 const BundleCreatePage = lazy(() => import('src/pages/dashboard/bundle/new'));
@@ -147,6 +149,8 @@ const P = {
   // Animals
   animalsCreate: ['animals.create'],
   animalsUpdate: ['animals.update'],
+  speciesRead:   ['species.read'],
+  speciesCreate: ['species.create'],
   speciesUpdate: ['species.update'],
   // Articles
   articlesRead:   ['articles.read'],
@@ -386,6 +390,16 @@ export const dashboardRoutes = [
           { path: 'list',     element: guard(P.articlesRead,   <ArticleListPage />) },
           { path: 'new',      element: guard(P.articlesCreate, <ArticleCreatePage />) },
           { path: ':id/edit', element: guard(P.articlesUpdate, <ArticleEditPage />) },
+        ],
+      },
+
+      // ── Fichas de cuidados (permisos de species) ────────────────────
+      {
+        path: 'care-sheet',
+        children: [
+          { index: true,      element: guard(P.speciesRead,   <CareSheetListPage />) },
+          { path: 'new',      element: guard(P.speciesCreate, <CareSheetFormPage />) },
+          { path: ':id/edit', element: guard(P.speciesUpdate, <CareSheetFormPage />) },
         ],
       },
 

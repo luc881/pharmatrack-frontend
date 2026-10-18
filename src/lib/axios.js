@@ -258,6 +258,10 @@ export const endpoints = {
     update: (id) => `/api/v1/articles/${id}`,
     delete: (id) => `/api/v1/articles/${id}`,
   },
+  careSheet: {
+    list: '/api/v1/care-sheets',
+    details: (id) => `/api/v1/care-sheets/${id}`,
+  },
   order: {
     list: '/api/v1/orders',
     details: (id) => `/api/v1/orders/${id}`,

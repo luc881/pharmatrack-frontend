@@ -116,6 +116,11 @@ export const paths = {
       new: `${ROOTS.DASHBOARD}/article/new`,
       edit: (id) => `${ROOTS.DASHBOARD}/article/${id}/edit`,
     },
+    careSheet: {
+      root: `${ROOTS.DASHBOARD}/care-sheet`,
+      new: `${ROOTS.DASHBOARD}/care-sheet/new`,
+      edit: (id) => `${ROOTS.DASHBOARD}/care-sheet/${id}/edit`,
+    },
     bundle: {
       root: `${ROOTS.DASHBOARD}/bundle`,
       new: `${ROOTS.DASHBOARD}/bundle/new`,

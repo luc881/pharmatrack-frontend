@@ -69,6 +69,7 @@ export const SECTIONS = [
     key: 'sitio',
     tabs: [
       { label: 'Artículos', path: D.article.root, allowedRoles: ['articles.read'] },
+      { label: 'Fichas de cuidados', path: D.careSheet.root, allowedRoles: ['species.read'] },
       { label: 'Fotos del sitio', path: D.site.media, allowedRoles: ['settings.update'] },
       { label: 'Links y eventos', path: D.site.links, allowedRoles: ['settings.update'] },
     ],
