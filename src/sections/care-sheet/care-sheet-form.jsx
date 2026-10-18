@@ -58,6 +58,14 @@ const makeSchema = (isEdit) =>
           .refine((f) => !f.label || f.value, { message: 'Falta el valor', path: ['value'] })
           .refine((f) => !f.value || f.label, { message: 'Falta la etiqueta', path: ['label'] })
       ),
+      morphology: zod.array(
+        zod
+          .object({ label: max(60), text: max(1000) })
+          .refine((m) => !m.label || m.text, { message: 'Falta el texto', path: ['text'] })
+          .refine((m) => !m.text || m.label, { message: 'Falta la etiqueta', path: ['label'] })
+      ),
+      habitat: max(2000),
+      tags: zod.array(zod.string().trim().max(40, 'Máximo 40 caracteres')).max(12, 'Máximo 12'),
       basics: zod.array(zod.object({ text: zod.string().trim() })),
       references: zod.array(
         zod.object({
@@ -100,6 +108,9 @@ const toFormValues = (c) => ({
   summary: c?.summary ?? '',
   taxonomy: c ? (c.taxonomy ?? []) : NEW_TAXONOMY,
   facts: c?.facts ?? [],
+  morphology: c?.morphology ?? [],
+  habitat: c?.habitat ?? '',
+  tags: c?.tags ?? [],
   basics: (c?.basics ?? []).map((text) => ({ text })),
   references: (c?.references ?? []).map((r) => ({ text: r.text, url: r.url ?? '' })),
   body: c?.body ?? '',
@@ -119,6 +130,9 @@ const toPayload = (d, isEdit) => ({
   summary: d.summary,
   taxonomy: d.taxonomy.filter((r) => r.name),
   facts: d.facts.filter((f) => f.label || f.value),
+  morphology: d.morphology.filter((m) => m.label || m.text),
+  habitat: d.habitat || null,
+  tags: d.tags.filter(Boolean),
   basics: d.basics.map((b) => b.text).filter(Boolean),
   body: d.body.trim() ? d.body : null,
   photos: d.photos,
@@ -355,6 +369,56 @@ export function CareSheetForm({ current }) {
                 </>
               )}
             />
+          </Section>
+
+          <Section title="Morfología" help="Un bloque por etiqueta: Hembra, Macho, Ninfa, Huevo…">
+            <RowList
+              name="morphology"
+              emptyRow={{ label: '', text: '' }}
+              renderRow={(i) => (
+                <>
+                  <Field.Text
+                    name={`morphology.${i}.label`}
+                    label="Etiqueta"
+                    sx={{ maxWidth: 220 }}
+                  />
+                  <Field.Text name={`morphology.${i}.text`} label="Texto" multiline minRows={2} />
+                </>
+              )}
+            />
+          </Section>
+
+          <Section title="Hábitat y etiquetas">
+            <Stack spacing={2}>
+              <Field.Text
+                name="habitat"
+                label="Hábitat"
+                multiline
+                minRows={3}
+                helperText="Dónde vive en la naturaleza. Máximo 2000 caracteres"
+              />
+              <Controller
+                name="tags"
+                control={control}
+                render={({ field, fieldState: { error } }) => (
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    options={[]}
+                    value={field.value}
+                    onChange={(_, v) => field.onChange(v.map((t) => t.trim()).filter(Boolean))}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Etiquetas"
+                        error={!!error}
+                        helperText={error?.message ?? 'Escribe y presiona Enter. Máximo 12'}
+                      />
+                    )}
+                  />
+                )}
+              />
+            </Stack>
           </Section>
 
           <Section title="Lo básico" help="Una idea por fila. Admite *cursivas*.">

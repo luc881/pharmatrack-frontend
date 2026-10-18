@@ -141,6 +141,16 @@ describe('CareSheetForm', () => {
     type(within(facts).getByLabelText('Etiqueta'), 'Hembra adulta');
     type(within(facts).getByLabelText('Valor'), '18–20 cm');
 
+    const morph = region('Morfología');
+    fireEvent.click(within(morph).getByRole('button', { name: '+ Agregar fila' }));
+    type(within(morph).getByLabelText('Etiqueta'), 'Hembra');
+    type(within(morph).getByLabelText('Texto'), 'Más robusta que el macho.');
+
+    type(screen.getByLabelText('Hábitat'), 'Sabana de África occidental.');
+    const tags = within(region('Hábitat y etiquetas')).getByLabelText('Etiquetas');
+    type(tags, 'Escorpión');
+    fireEvent.keyDown(tags, { key: 'Enter' });
+
     const basics = region('Lo básico');
     fireEvent.click(within(basics).getByRole('button', { name: '+ Agregar fila' }));
     fireEvent.click(within(basics).getByRole('button', { name: '+ Agregar fila' }));
@@ -168,6 +178,9 @@ describe('CareSheetForm', () => {
         { rank: 'Localidad tipo', name: 'Ghana', italic: false },
       ],
       facts: [{ label: 'Hembra adulta', value: '18–20 cm' }],
+      morphology: [{ label: 'Hembra', text: 'Más robusta que el macho.' }],
+      habitat: 'Sabana de África occidental.',
+      tags: ['Escorpión'],
       basics: ['Sustrato *húmedo*'],
       body: '## Terrario\n\nUno de 40 cm.',
       photos: [],
