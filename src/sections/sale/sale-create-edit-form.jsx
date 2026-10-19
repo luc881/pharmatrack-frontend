@@ -156,6 +156,12 @@ export function useBlockedAnimalProducts() {
   return blocked;
 }
 
+// Mensaje de rechazo del escáner si el producto no se puede vender; null si sí
+export const scanBlockReason = (product, blocked) =>
+  blocked.has(product.id)
+    ? `${product.title}: ${blocked.get(product.id)} — no se puede vender`
+    : null;
+
 // ----------------------------------------------------------------------
 
 const PAYMENT_METHODS = [
@@ -472,7 +478,12 @@ function SaleItems({ products, productsLoading, productIdsWithStock, blockedProd
 
       setBarcodeInput('');
 
-      if (found) {
+      const blockReason = found && scanBlockReason(found, blockedProducts);
+      if (blockReason) {
+        setScanFlash('error');
+        setTimeout(() => setScanFlash(null), 500);
+        toast.error(blockReason);
+      } else if (found) {
         const currentItems = getValues('items');
         const existingIndex = currentItems.findIndex(
           (item) => Number(item.product_id) === found.id
@@ -504,7 +515,7 @@ function SaleItems({ products, productsLoading, productIdsWithStock, blockedProd
 
       setTimeout(() => barcodeRef.current?.focus(), 50);
     },
-    [products, productsLoading, append, getValues, setValue]
+    [products, productsLoading, blockedProducts, append, getValues, setValue]
   );
 
   return (

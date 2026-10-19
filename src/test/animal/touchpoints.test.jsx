@@ -7,7 +7,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 
 import { availableUnits } from 'src/sections/animal/view/cultivos-view';
 import { DeliveryListView } from 'src/sections/delivery/view/delivery-list-view';
-import { useBlockedAnimalProducts } from 'src/sections/sale/sale-create-edit-form';
+import { scanBlockReason, useBlockedAnimalProducts } from 'src/sections/sale/sale-create-edit-form';
 
 import { server } from '../mocks/server';
 import { createWrapper } from '../utils';
@@ -69,5 +69,13 @@ describe('destino en los puntos de contacto', () => {
     fireEvent.click(await screen.findByRole('button', { name: /nueva entrega/i }));
     await waitFor(() => expect(seen.length).toBeGreaterThan(0));
     expect(seen.every((p) => p.get('purpose') === 'sale')).toBe(true);
+  });
+
+  it('el escáner rechaza un animal que no está en venta', () => {
+    const blocked = new Map([[11, 'Pie de cría']]);
+    expect(scanBlockReason({ id: 11, title: 'Gecko 01' }, blocked)).toBe(
+      'Gecko 01: Pie de cría — no se puede vender'
+    );
+    expect(scanBlockReason({ id: 12, title: 'Gecko 02' }, blocked)).toBeNull();
   });
 });
