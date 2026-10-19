@@ -83,6 +83,7 @@ export function InventorySheetView() {
   const { animals, animalsTotal, animalsLoading, animalsMutate } = useGetAnimals({
     page: 1,
     pageSize: 500,
+    purpose: 'sale',
   });
   const { species } = useAllSpecies();
 

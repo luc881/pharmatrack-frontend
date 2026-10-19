@@ -274,7 +274,7 @@ function DeliveryDialog({ current, places, onClose, onSaved }) {
   const fullScreen = useMediaQuery((t) => t.breakpoints.down('sm'));
   const [form, setForm] = useState(() => (current ? fromDelivery(current) : emptyForm()));
   const [saving, setSaving] = useState(false);
-  const { animals } = useGetAnimals({ page: 1, pageSize: 500, status: 'available' });
+  const { animals } = useGetAnimals({ page: 1, pageSize: 500, status: 'available', purpose: 'sale' });
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 

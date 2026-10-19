@@ -43,7 +43,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { AnimalCapAlert } from '../animal-cap-alert';
-import { speciesLabel, flattenGroupTree } from '../utils';
+import { purposeOf, animalUnits, speciesLabel, PURPOSE_LABELS, flattenGroupTree } from '../utils';
 
 // ----------------------------------------------------------------------
 // "Cultivos": tablero privado de manejo/cría por especie. Muestra unidades
@@ -67,9 +67,13 @@ export const STOCK = {
   out: { label: 'Agotado', color: 'error' },
 };
 
-// ponytail: unidades disponibles = suma de stock de ejemplares available
+// ponytail: unidades disponibles = suma de stock de ejemplares available y en venta
+// (pie de cría y en crianza no se ofrecen, así que no cuentan para el bajo stock)
 export const availableUnits = (animals) =>
-  animals.reduce((sum, a) => (a.status === 'available' ? sum + (a.stock ?? 1) : sum), 0);
+  animals.reduce(
+    (sum, a) => (a.status === 'available' && purposeOf(a) === 'sale' ? sum + (a.stock ?? 1) : sum),
+    0
+  );
 
 export const stockStateOf = (units, threshold = DEFAULT_LOW_STOCK) =>
   units === 0 ? 'out' : units <= threshold ? 'low' : 'ok';
@@ -90,11 +94,24 @@ export function CultivosView() {
   const availableBySpecies = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      if (a.status !== 'available' || !a.species_id) return;
+      if (a.status !== 'available' || !a.species_id || purposeOf(a) !== 'sale') return;
       map[a.species_id] = (map[a.species_id] ?? 0) + (a.stock ?? 1);
     });
     return map;
   }, [animals]);
+
+  // Animales por especie que no están en venta: { [speciesId]: { breeder, growing } }
+  const keptBySpecies = useMemo(() => {
+    const speciesById = new Map(allSpecies.map((sp) => [sp.id, sp]));
+    const map = {};
+    animals.forEach((a) => {
+      const purpose = purposeOf(a);
+      if (purpose === 'sale' || !a.species_id) return;
+      const row = (map[a.species_id] ??= { breeder: 0, growing: 0 });
+      row[purpose] += animalUnits(a, speciesById.get(a.species_id));
+    });
+    return map;
+  }, [animals, allSpecies]);
 
   const [groupFilter, setGroupFilter] = useState('');
   const [genusFilter, setGenusFilter] = useState('');
@@ -275,7 +292,20 @@ export function CultivosView() {
                           </Typography>
                         </TableCell>
                         <TableCell>{sp.genus?.group?.name ?? '—'}</TableCell>
-                        <TableCell align="right">{units}</TableCell>
+                        <TableCell align="right">
+                          {units}
+                          {['breeder', 'growing'].map((purpose) =>
+                            keptBySpecies[sp.id]?.[purpose] ? (
+                              <Typography
+                                key={purpose}
+                                variant="caption"
+                                sx={{ display: 'block', color: 'text.secondary' }}
+                              >
+                                {PURPOSE_LABELS[purpose]}: {keptBySpecies[sp.id][purpose]}
+                              </Typography>
+                            ) : null
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Label variant="soft" color={STOCK[stockState].color}>
                             {STOCK[stockState].label}

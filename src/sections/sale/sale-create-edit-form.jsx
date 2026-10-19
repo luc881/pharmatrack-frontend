@@ -130,15 +130,24 @@ function useProductIdsWithStock() {
 // etiqueta para el selector. Sin cache: cambian seguido; si la carga falla, el
 // 400 del complete protege igual.
 const BLOCKED_STATUS = { reserved: 'Reservado', deceased: 'Murió' };
+// Disponibles pero que no se venden: pie de cría y en crianza
+const BLOCKED_PURPOSE = { breeder: 'Pie de cría', growing: 'En crianza' };
 
-function useBlockedAnimalProducts() {
+export function useBlockedAnimalProducts() {
   const [blocked, setBlocked] = useState(() => new Map());
   useEffect(() => {
+    const queries = [
+      ...Object.entries(BLOCKED_STATUS).map(([status, label]) => [{ status }, label]),
+      ...Object.entries(BLOCKED_PURPOSE).map(([purpose, label]) => [
+        { status: 'available', purpose },
+        label,
+      ]),
+    ];
     Promise.all(
-      Object.keys(BLOCKED_STATUS).map((status) =>
+      queries.map(([params, label]) =>
         axiosInstance
-          .get(endpoints.animal.list, { params: { page: 1, page_size: 500, status } })
-          .then((r) => (r.data?.data ?? []).map((a) => [Number(a.product_id), BLOCKED_STATUS[status]]))
+          .get(endpoints.animal.list, { params: { page: 1, page_size: 500, ...params } })
+          .then((r) => (r.data?.data ?? []).map((a) => [Number(a.product_id), label]))
       )
     )
       .then((lists) => setBlocked(new Map(lists.flat())))

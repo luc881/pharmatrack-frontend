@@ -71,7 +71,14 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { PlanDialog } from '../husbandry-plan-card';
-import { SEX_LABELS, speciesLabel, flattenGroupTree } from '../utils';
+import {
+  purposeOf,
+  SEX_LABELS,
+  speciesLabel,
+  PURPOSE_COLORS,
+  PURPOSE_LABELS,
+  flattenGroupTree,
+} from '../utils';
 import {
   FOODS,
   fDate,
@@ -395,7 +402,7 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan, onRemovePlan
     const now = new Date(`${today()}T12:00:00`);
     return { last: last.log_date, overdue: Math.round((now - due) / 86400000) };
   };
-  const cols = 7 + (supps.length ? 1 : 0) + (canEdit ? 1 : 0);
+  const cols = 8 + (supps.length ? 1 : 0) + (canEdit ? 1 : 0);
 
   return (
     <Box sx={{ px: 2.5, pb: 2.5, bgcolor: 'background.neutral' }}>
@@ -449,6 +456,7 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan, onRemovePlan
               <TableCell>Código</TableCell>
               <TableCell>Morph</TableCell>
               <TableCell>Sexo</TableCell>
+              <TableCell>Destino</TableCell>
               <TableCell>Última comida</TableCell>
               {supps.length > 0 && <TableCell>Suplemento</TableCell>}
               <TableCell>Estado</TableCell>
@@ -467,6 +475,11 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan, onRemovePlan
                   <TableCell sx={{ fontWeight: 600 }}>{a.code}</TableCell>
                   <TableCell>{a.morphs?.map((m) => m.name).join(', ')}</TableCell>
                   <TableCell>{SEX_LABELS[a.sex] ?? ''}</TableCell>
+                  <TableCell>
+                    <Label variant="soft" color={PURPOSE_COLORS[purposeOf(a)]}>
+                      {PURPOSE_LABELS[purposeOf(a)]}
+                    </Label>
+                  </TableCell>
                   <TableCell>
                     {fed
                       ? `${fDate(fed.log_date)} · ${fedLabel(fed)?.label ?? ''}`
