@@ -1,4 +1,5 @@
-import { useRef, useState, useCallback } from 'react';
+import useSWR from 'swr';
+import { useRef, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -12,6 +13,9 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useSearchParams } from 'src/routes/hooks';
 
+import axiosInstance, { fetcher } from 'src/lib/axios';
+
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { SaleTicket } from '../sale-ticket';
@@ -23,47 +27,76 @@ import { SAMPLE_TICKET, useSaleTicket } from '../print-ticket';
 // Sin saleId imprime el ticket de prueba.
 // ----------------------------------------------------------------------
 
-const WIDTH_KEY = 'ticketWidth';
-const OFFSET_KEY = 'ticketOffset';
 // Área imprimible de cada rollo (lo mismo que .od-ticket en sale-ticket.jsx)
 const PRINTABLE = { 58: 48, 80: 72 };
+const SETTINGS_URL = '/api/v1/settings/ticket-print';
+const DEFAULTS = { width: 80, offset: 0 };
 
-const read = (key) => {
+// Antes el ajuste vivía en el navegador; se lee solo para subirlo a la cuenta
+const readLocal = (key) => {
   try {
     return Number(localStorage.getItem(key)) || 0;
   } catch {
     return 0;
   }
 };
-const save = (key, value) => {
-  try {
-    localStorage.setItem(key, String(value));
-  } catch {
-    /* sin almacenamiento: solo dura esta visita */
-  }
-};
+
+// Rollo y ajuste horizontal guardados en la cuenta (API /settings/ticket-print)
+function useTicketPrintSettings() {
+  const { data, error, mutate } = useSWR(SETTINGS_URL, fetcher, {
+    revalidateIfStale: false,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+  const timer = useRef();
+
+  // Los clics seguidos (0.1 mm) se mandan como un solo guardado
+  const save = useCallback(
+    (next) => {
+      mutate({ ...next, saved: true }, { revalidate: false });
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        axiosInstance
+          .put(SETTINGS_URL, next)
+          .catch(() => toast.error('No se pudo guardar el ajuste de la impresora'));
+      }, 400);
+    },
+    [mutate]
+  );
+
+  useEffect(() => {
+    if (!data || data.saved) return;
+    const local = {
+      width: readLocal('ticketWidth') === 58 ? 58 : 80,
+      offset: readLocal('ticketOffset'),
+    };
+    if (local.width !== DEFAULTS.width || local.offset) save(local);
+  }, [data, save]);
+
+  // Sin API (p. ej. versión vieja en modo convención) se imprime con los valores base
+  return [data ?? (error ? DEFAULTS : null), save];
+}
 
 export function SaleTicketView({ saleId }) {
   const searchParams = useSearchParams();
   const autoPrint = searchParams.get('print') === '1';
-  const [width, setWidth] = useState(() => (read(WIDTH_KEY) === 58 ? 58 : 80));
   // ponytail: perilla de calibración; cada driver/cabezal trae unos mm de desfase propio
-  const [offset, setOffset] = useState(() => read(OFFSET_KEY));
+  const [settings, saveSettings] = useTicketPrintSettings();
+  const { width, offset } = settings ?? DEFAULTS;
   const printed = useRef(false);
 
   const saleTicket = useSaleTicket(saleId);
-  const ticket = saleId ? saleTicket : SAMPLE_TICKET;
+  // El ticket espera al ajuste de la cuenta para no imprimir con el de fábrica
+  const ticket = settings && (saleId ? saleTicket : SAMPLE_TICKET);
 
   const changeWidth = (_, value) => {
     if (!value) return;
-    setWidth(value);
-    save(WIDTH_KEY, value);
+    saveSettings({ width: value, offset });
   };
 
   const nudge = (delta) => {
     const next = Math.max(-8, Math.min(8, Math.round((offset + delta) * 10) / 10));
-    setOffset(next);
-    save(OFFSET_KEY, next);
+    saveSettings({ width, offset: next });
   };
 
   // Si la fuente web tarda (sin internet), se imprime con la de respaldo
