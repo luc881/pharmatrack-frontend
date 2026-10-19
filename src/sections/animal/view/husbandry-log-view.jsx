@@ -47,6 +47,7 @@ import {
   useAllGenera,
   useAllSpecies,
   useGetAnimals,
+  updateSpecies,
   createHusbandryLog,
   deleteHusbandryLog,
   updateHusbandryLog,
@@ -296,7 +297,7 @@ function PdfExportButton(props) {
 // Una especie: arriba solo nombre común y científico (y si algo del plan ya
 // toca). Al tocarla se despliegan sus ejemplares por código, cada uno con su
 // última comida y su «Anotar»; también «Toda la especie» para el terrario.
-function SpeciesRow({ sp, status, canEdit, expanded, onToggle, onOpen, onPlan }) {
+function SpeciesRow({ sp, status, canEdit, expanded, onToggle, onOpen, onPlan, onRemovePlan }) {
   const plan = status?.plan ?? (sp.husbandry_plan ?? []).map((p) => ({ ...p, days_overdue: null }));
   // lo más atrasado del plan, como aviso (sin botones)
   const worst = plan.reduce(
@@ -348,13 +349,14 @@ function SpeciesRow({ sp, status, canEdit, expanded, onToggle, onOpen, onPlan })
           canEdit={canEdit}
           onOpen={onOpen}
           onPlan={onPlan}
+          onRemovePlan={onRemovePlan}
         />
       </Collapse>
     </Box>
   );
 }
 
-function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
+function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan, onRemovePlan }) {
   const { user } = useAuthContext();
   const canCreate = user?.permissions?.includes('animals.create');
   const navigate = useNavigate();
@@ -425,6 +427,17 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan }) {
             onClick={() => onPlan(sp)}
           >
             {plan.length ? 'Editar plan' : 'Agregar plan'}
+          </Button>
+        )}
+        {canEdit && plan.length > 0 && (
+          <Button
+            size="small"
+            variant="outlined"
+            color="error"
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={() => onRemovePlan(sp)}
+          >
+            Quitar del plan
           </Button>
         )}
       </Stack>
@@ -1398,6 +1411,25 @@ export function HusbandryLogView() {
     }
   };
 
+  // Quita la especie de «Con plan»; sus entradas de la bitácora se quedan
+  const handleRemovePlan = async (sp) => {
+    const ok = await ask({
+      title: `¿Quitar ${sp.common_name || scientific(sp)} del plan?`,
+      content:
+        'Deja de aparecer en «Con plan» y sin recordatorios. Su historial de la bitácora se queda; puedes volver a agregar el plan cuando quieras.',
+      options: [{ label: 'Quitar del plan', value: true, color: 'error' }],
+    });
+    if (!ok) return;
+    try {
+      await updateSpecies(sp.id, { husbandry_plan: [] });
+      toast.success('Especie quitada del plan');
+      speciesMutate();
+      planStatusMutate();
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo quitar del plan');
+    }
+  };
+
   const handleDelete = async (log) => {
     const ok = await ask({
       title: `¿Borrar la entrada del ${fDate(log.log_date)}?`,
@@ -1553,6 +1585,7 @@ export function HusbandryLogView() {
                   onToggle={() => setExpandedId((id) => (id === sp.id ? null : sp.id))}
                   onOpen={openFor}
                   onPlan={setPlanFor}
+                  onRemovePlan={handleRemovePlan}
                 />
               ))}
             </Stack>
