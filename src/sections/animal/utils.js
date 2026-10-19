@@ -100,8 +100,9 @@ export function countByPurpose(animals, speciesById = {}) {
 
 export function statusLabel(animal) {
   const bulk = animal.species?.sale_format && animal.species.sale_format !== 'individual';
-  if (animal.status === 'available' && purposeOf(animal) !== 'sale') return 'Activo';
+  // Vacío primero: un «Mover a… → Todos» deja el registro de origen en 0, sea del destino que sea
   if (animal.status === 'available' && bulk && Number(animal.stock) === 0) return 'Vacío';
+  if (animal.status === 'available' && purposeOf(animal) !== 'sale') return 'Activo';
   return STATUS_LABELS[animal.status];
 }
 

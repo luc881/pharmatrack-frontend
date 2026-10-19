@@ -25,6 +25,7 @@ describe('findSection', () => {
   it('resuelve sub-pestañas y rutas extra (match)', () => {
     expect(where('/dashboard/product-brand')).toEqual(['productos', 'Categorías y marcas', 'Marcas']);
     expect(where('/dashboard/calendar')).toEqual(['productos', 'Avanzado', 'Calendario de caducidades']);
+    expect(where('/dashboard/animal')).toEqual(['animales', 'Mi criadero', null]);
     expect(where('/dashboard/animal/species/3')).toEqual(['animales', 'Taxonomía y cultivos', null]);
     expect(where('/dashboard/user/account')).toEqual(['ajustes', 'Usuarios', null]);
   });

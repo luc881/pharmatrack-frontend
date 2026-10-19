@@ -3,8 +3,10 @@ import { useMemo, useState, useCallback } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
+import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Avatar from '@mui/material/Avatar';
@@ -12,7 +14,6 @@ import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
 import Collapse from '@mui/material/Collapse';
-import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -21,6 +22,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import Autocomplete from '@mui/material/Autocomplete';
+import CardActionArea from '@mui/material/CardActionArea';
 import TableContainer from '@mui/material/TableContainer';
 
 import { paths } from 'src/routes/paths';
@@ -42,15 +44,73 @@ import { EmptyList, EmptyContent } from 'src/components/empty-content';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { QrLabelsDialog } from '../qr-labels-dialog';
+import { MoveAnimalMenu } from '../move-animal-dialog';
 import {
+  PURPOSES,
+  purposeOf,
   SEX_LABELS,
+  statusLabel,
+  animalUnits,
   speciesLabel,
   STATUS_COLORS,
   STATUS_LABELS,
+  PURPOSE_COLORS,
+  PURPOSE_LABELS,
+  countByPurpose,
   isClosedStatus,
   saleFormatLabel,
   flattenGroupTree,
 } from '../utils';
+
+// ----------------------------------------------------------------------
+
+// Filtro por destino: los de venta/cría/crianza entre los vivos; vendidos y
+// bajas por estado
+const DESTINATIONS = [
+  { value: 'all', label: 'Todo' },
+  ...PURPOSES.map((p) => ({ value: p, label: PURPOSE_LABELS[p] })),
+  { value: 'sold', label: 'Vendidos' },
+  { value: 'deceased', label: 'Bajas' },
+];
+
+const isBulkSpecies = (species) => !!species?.sale_format && species.sale_format !== 'individual';
+
+// Colonia o paquete que se quedó en 0: solo se ve en «Todo», en gris
+const isEmptyBulk = (animal) =>
+  animal.status === 'available' && isBulkSpecies(animal.species) && Number(animal.stock) === 0;
+
+function matchesDestination(animal, destination) {
+  if (destination === 'all') return true;
+  if (destination === 'sold' || destination === 'deceased') return animal.status === destination;
+  const live = animal.status === 'available' || animal.status === 'reserved';
+  return live && !isEmptyBulk(animal) && purposeOf(animal) === destination;
+}
+
+function groupBySpecies(animals) {
+  const map = new Map();
+  animals.forEach((animal) => {
+    if (!animal.species) return;
+    let entry = map.get(animal.species.id);
+    if (!entry) {
+      entry = { species: animal.species, animals: [] };
+      map.set(animal.species.id, entry);
+    }
+    entry.animals.push(animal);
+  });
+  return [...map.values()].sort((a, b) => speciesLabel(a.species).localeCompare(speciesLabel(b.species)));
+}
+
+// Como Promise.allSettled, pero de `size` en `size` para no saturar la API
+// ponytail: tandas fijas (no un pool que rellena huecos); basta para decenas
+async function runInBatches(items, size, fn) {
+  const results = [];
+  for (let i = 0; i < items.length; i += size) {
+    results.push(...(await Promise.allSettled(items.slice(i, i + size).map(fn))));
+  }
+  return results;
+}
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 // ----------------------------------------------------------------------
 
@@ -60,7 +120,9 @@ function printPriceList(grouped) {
     .map((entry) => {
       const { species, animals } = entry;
       const sci = [species.genus?.name, species.name].filter(Boolean).join(' ');
-      const available = animals.filter((a) => a.status === 'available');
+      const available = animals.filter(
+        (a) => a.status === 'available' && purposeOf(a) === 'sale' && !isEmptyBulk(a)
+      );
       if (!available.length) return null;
       const units = available.reduce((sum, a) => sum + (a.stock ?? 1), 0);
       const tiers = species.price_tiers ?? [];
@@ -104,8 +166,9 @@ function printPriceList(grouped) {
   setTimeout(() => win.print(), 300);
 }
 
-// La lista agrupa por especie (como producto → lotes): la fila muestra la
-// cantidad por estado y al expandir salen los ejemplares con su folio.
+// «Mi criadero»: arriba cuántos hay en venta, pie de cría y en crianza; la
+// lista agrupa por especie (como producto → lotes) con un chip por destino y
+// al expandir salen los ejemplares con «Mover a…».
 export function AnimalListView() {
   const confirmDialog = useBoolean();
 
@@ -122,8 +185,7 @@ export function AnimalListView() {
   const [groupFilter, setGroupFilter] = useState('');
   const [genusFilter, setGenusFilter] = useState(() => Number(searchParams.get('genus_id')) || '');
   const [speciesFilter, setSpeciesFilter] = useState(() => Number(searchParams.get('species_id')) || '');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [rowToDelete, setRowToDelete] = useState(null);
+  const [destination, setDestination] = useState('all');
   const [selected, setSelected] = useState(() => new Set()); // ids de ejemplares
   // recién dado de alta un ejemplar: su especie llega abierta
   const [expanded, setExpanded] = useState(() => new Set(navState?.expand ? [navState.expand] : []));
@@ -146,24 +208,31 @@ export function AnimalListView() {
     groupId: groupFilter || undefined,
     genusId: genusFilter || undefined,
     speciesId: speciesFilter || undefined,
-    status: statusFilter || undefined,
   });
 
-  const grouped = useMemo(() => {
-    const map = new Map();
-    animals.forEach((animal) => {
-      if (!animal.species) return;
-      let entry = map.get(animal.species.id);
-      if (!entry) {
-        entry = { species: animal.species, animals: [] };
-        map.set(animal.species.id, entry);
-      }
-      entry.animals.push(animal);
-    });
-    return [...map.values()].sort((a, b) =>
-      speciesLabel(a.species).localeCompare(speciesLabel(b.species))
-    );
+  // Tarjetas y conteos del filtro: en unidades (una colonia cuenta su stock);
+  // vendidos y bajas en registros. «Todo» es la suma.
+  const counts = useMemo(() => {
+    const byPurpose = countByPurpose(animals);
+    const sold = animals.filter((a) => a.status === 'sold').length;
+    const deceased = animals.filter((a) => a.status === 'deceased').length;
+    const saleAvailable = animals
+      .filter((a) => a.status === 'available' && purposeOf(a) === 'sale')
+      .reduce((sum, a) => sum + animalUnits(a, a.species), 0);
+    return {
+      ...byPurpose,
+      sold,
+      deceased,
+      saleAvailable,
+      all: byPurpose.sale + byPurpose.breeder + byPurpose.growing + sold + deceased,
+    };
   }, [animals]);
+
+  const visible = useMemo(
+    () => animals.filter((a) => matchesDestination(a, destination)),
+    [animals, destination]
+  );
+  const grouped = useMemo(() => groupBySpecies(visible), [visible]);
 
   const toggleExpanded = (speciesId) =>
     setExpanded((prev) => {
@@ -172,8 +241,6 @@ export function AnimalListView() {
       else next.add(speciesId);
       return next;
     });
-
-  const handleFilter = useCallback((setter) => (event) => setter(event.target.value), []);
 
   // Selección para borrado en lote: alterna un ejemplar o todos los de una especie
   const toggleSelected = useCallback((ids, value) => {
@@ -184,27 +251,19 @@ export function AnimalListView() {
     });
   }, []);
 
-  const handleDeleteRow = useCallback(
-    (id) => {
-      setRowToDelete(id);
-      confirmDialog.onTrue();
-    },
-    [confirmDialog]
-  );
-
   // Solo cuenta lo seleccionado que sigue a la vista: al cambiar de filtro no
   // se borran ejemplares que ya no aparecen en pantalla
   const selectedVisible = useMemo(() => {
-    const ids = new Set(animals.map((a) => a.id));
+    const ids = new Set(visible.map((a) => a.id));
     return [...selected].filter((id) => ids.has(id));
-  }, [animals, selected]);
+  }, [visible, selected]);
 
-  const deleteIds = rowToDelete ? [rowToDelete] : selectedVisible;
+  const deleteIds = selectedVisible;
 
   const handleConfirmDelete = useCallback(async () => {
     // allSettled y no all: el backend rechaza los vendidos o los que están en
     // una venta, y con `all` un rechazo escondería los que sí se borraron
-    const results = await Promise.allSettled(deleteIds.map((id) => deleteAnimal(id)));
+    const results = await runInBatches(deleteIds, 5, (id) => deleteAnimal(id));
     const failed = results.filter((r) => r.status === 'rejected');
     const ok = results.length - failed.length;
 
@@ -219,12 +278,42 @@ export function AnimalListView() {
     }
 
     setSelected(new Set());
-    setRowToDelete(null);
     confirmDialog.onFalse();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowToDelete, selected, animalsMutate, confirmDialog]);
+  }, [selectedVisible, animalsMutate, confirmDialog]);
 
-  // Grupo/Género/Especie con búsqueda al teclear (ignora acentos); Estado como select
+  const renderSummary = () => (
+    <Box
+      sx={{
+        gap: 2,
+        mb: 3,
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+      }}
+    >
+      {PURPOSES.map((p) => (
+        <Card
+          key={p}
+          variant="outlined"
+          sx={{ borderColor: destination === p ? `${PURPOSE_COLORS[p]}.main` : undefined }}
+        >
+          <CardActionArea onClick={() => setDestination(p)} sx={{ p: 2.5 }}>
+            <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>
+              {PURPOSE_LABELS[p]}
+            </Typography>
+            <Typography variant="h3">{counts[p]}</Typography>
+            {p === 'sale' && (
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {counts.saleAvailable} disponibles · {counts.reserved} apartados
+              </Typography>
+            )}
+          </CardActionArea>
+        </Card>
+      ))}
+    </Box>
+  );
+
+  // Grupo/Género/Especie con búsqueda al teclear (ignora acentos)
   const renderFilters = () => (
     <Stack direction="row" spacing={2} sx={{ p: 2.5, flexWrap: 'wrap', gap: 2 }}>
       <Autocomplete
@@ -263,14 +352,6 @@ export function AnimalListView() {
         renderInput={(params) => <TextField {...params} label="Especie" />}
         sx={{ minWidth: 240 }}
       />
-      <TextField select size="small" label="Estado" value={statusFilter} onChange={handleFilter(setStatusFilter)} sx={{ minWidth: 160 }}>
-        <MenuItem value="">Todos</MenuItem>
-        {Object.entries(STATUS_LABELS).map(([value, label]) => (
-          <MenuItem key={value} value={value}>
-            {label}
-          </MenuItem>
-        ))}
-      </TextField>
     </Stack>
   );
 
@@ -280,10 +361,10 @@ export function AnimalListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Animales"
+          heading="Mi criadero"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Animales' },
+            { name: 'Mi criadero' },
           ]}
           action={
             <Stack direction="row" spacing={1.5}>
@@ -292,10 +373,7 @@ export function AnimalListView() {
                   variant="outlined"
                   color="error"
                   startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                  onClick={() => {
-                    setRowToDelete(null);
-                    confirmDialog.onTrue();
-                  }}
+                  onClick={confirmDialog.onTrue}
                 >
                   Eliminar ({selectedVisible.length})
                 </Button>
@@ -303,7 +381,7 @@ export function AnimalListView() {
               <Button
                 variant="outlined"
                 startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
-                onClick={() => printPriceList(grouped)}
+                onClick={() => printPriceList(groupBySpecies(animals))}
               >
                 Lista de precios
               </Button>
@@ -322,7 +400,20 @@ export function AnimalListView() {
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
+        {renderSummary()}
+
         <Card>
+          <Tabs
+            value={destination}
+            onChange={(_, value) => setDestination(value)}
+            variant="scrollable"
+            sx={{ px: 2.5, boxShadow: (theme) => `inset 0 -2px 0 0 ${theme.vars.palette.divider}` }}
+          >
+            {DESTINATIONS.map((d) => (
+              <Tab key={d.value} value={d.value} label={`${d.label} (${counts[d.value]})`} />
+            ))}
+          </Tabs>
+
           {renderFilters()}
 
           {isEmpty ? (
@@ -332,7 +423,7 @@ export function AnimalListView() {
                 description={animalsError.message}
                 sx={{ py: 10 }}
               />
-            ) : groupFilter || genusFilter || speciesFilter || statusFilter ? (
+            ) : groupFilter || genusFilter || speciesFilter || destination !== 'all' ? (
               <EmptyContent title="Sin animales con esos filtros" sx={{ py: 10 }} />
             ) : (
               <EmptyList
@@ -369,10 +460,10 @@ export function AnimalListView() {
                         canUpdate={canUpdate}
                         canDelete={canDelete}
                         canUpdateSpecies={canUpdateSpecies}
-                        onDelete={handleDeleteRow}
                         onPrintLabels={() => setLabelsFor(entry)}
                         selected={selected}
                         onToggleSelected={toggleSelected}
+                        onMoved={() => animalsMutate()}
                       />
                     ))}
                   </TableBody>
@@ -413,7 +504,25 @@ export function AnimalListView() {
 
 // ----------------------------------------------------------------------
 
-function SpeciesRows({ entry, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onDelete, onPrintLabels, selected, onToggleSelected }) {
+// «2 pie de cría», «5 en crianza», «3 en venta» (o «6 paquetes en venta (36)»)
+function speciesChips(species, animals) {
+  const c = countByPurpose(animals);
+  const chips = PURPOSES.filter((p) => c[p]).map((p) => ({
+    key: p,
+    color: PURPOSE_COLORS[p],
+    text:
+      p === 'sale' && species.sale_format === 'package'
+        ? `${plural(c.salePackages, 'paquete', 'paquetes')} en venta (${c.sale})`
+        : `${c[p]} ${PURPOSE_LABELS[p].toLowerCase()}`,
+  }));
+  const sold = animals.filter((a) => a.status === 'sold').length;
+  const deceased = animals.filter((a) => a.status === 'deceased').length;
+  if (sold) chips.push({ key: 'sold', color: 'default', text: plural(sold, 'vendido', 'vendidos') });
+  if (deceased) chips.push({ key: 'deceased', color: 'error', text: plural(deceased, 'baja', 'bajas') });
+  return chips;
+}
+
+function SpeciesRows({ entry, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
   const { species, animals } = entry;
   const { pathname, search } = useLocation();
 
@@ -423,20 +532,15 @@ function SpeciesRows({ entry, open, onToggle, canCreate, canUpdate, canDelete, c
   const allSelected = deletable.length > 0 && selectedHere === deletable.length;
 
   const photo = animals.find((a) => a.image || a.photos?.[0]);
-  const prices = animals.map((a) => a.price);
+  // Precio solo de los que están en venta (pie de cría y crianza no tienen)
+  const prices = animals.filter((a) => purposeOf(a) === 'sale').map((a) => a.price);
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
   const scientific = [species.genus?.name, species.name].filter(Boolean).join(' ');
   const format = saleFormatLabel(species);
 
-  // Cepas/paquetes: un registro puede valer N unidades — la cantidad real es el stock
-  const isBulk = species.sale_format && species.sale_format !== 'individual';
-  const totalUnits = animals.reduce((sum, a) => sum + (a.stock ?? 1), 0);
-
-  const statusCounts = animals.reduce((acc, a) => {
-    acc[a.status] = (acc[a.status] ?? 0) + 1;
-    return acc;
-  }, {});
+  const isBulk = isBulkSpecies(species);
+  const chips = speciesChips(species, animals);
 
   return (
     <>
@@ -477,27 +581,23 @@ function SpeciesRows({ entry, open, onToggle, canCreate, canUpdate, canDelete, c
         <TableCell>{species.genus?.group?.name ?? '—'}</TableCell>
 
         <TableCell>
-          <Stack direction="row" spacing={0.5}>
-            {isBulk && (
-              <Label variant="soft" color="info">
-                {totalUnits} unidad{totalUnits === 1 ? '' : 'es'}
-              </Label>
-            )}
-            {Object.entries(STATUS_LABELS).map(([status, label]) =>
-              statusCounts[status] ? (
-                <Label key={status} variant="soft" color={STATUS_COLORS[status]}>
-                  {statusCounts[status]} {label.toLowerCase()}
-                  {statusCounts[status] > 1 ? 's' : ''}
-                </Label>
-              ) : null
-            )}
+          <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+            {chips.length
+              ? chips.map((chip) => (
+                  <Label key={chip.key} variant="soft" color={chip.color}>
+                    {chip.text}
+                  </Label>
+                ))
+              : '—'}
           </Stack>
         </TableCell>
 
         <TableCell>
-          {minPrice === maxPrice
-            ? fCurrency(minPrice)
-            : `${fCurrency(minPrice)} – ${fCurrency(maxPrice)}`}
+          {!prices.length
+            ? '—'
+            : minPrice === maxPrice
+              ? fCurrency(minPrice)
+              : `${fCurrency(minPrice)} – ${fCurrency(maxPrice)}`}
         </TableCell>
 
         <TableCell>{format ?? '—'}</TableCell>
@@ -566,27 +666,26 @@ function SpeciesRows({ entry, open, onToggle, canCreate, canUpdate, canDelete, c
                       </TableCell>
                     )}
                     <TableCell>Código</TableCell>
-                    <TableCell>Morphs</TableCell>
+                    <TableCell>Morph</TableCell>
                     <TableCell>Sexo</TableCell>
-                    <TableCell>Nacimiento</TableCell>
-                    <TableCell>Precio</TableCell>
+                    <TableCell>Destino</TableCell>
                     <TableCell>Estado</TableCell>
-                    {isBulk && <TableCell>Stock</TableCell>}
-                    <TableCell>Doc. legal</TableCell>
+                    {isBulk && <TableCell>Cantidad</TableCell>}
+                    <TableCell>Precio</TableCell>
                     <TableCell align="right"> </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {animals.map((animal) => (
-                    <AnimalRow
+                    <CriaderoRow
                       key={animal.id}
                       animal={animal}
+                      species={species}
                       showStock={isBulk}
                       canUpdate={canUpdate}
-                      canDelete={canDelete}
-                      onDelete={onDelete}
                       isSelected={selected.has(animal.id)}
                       onToggleSelect={canDelete ? onToggleSelected : undefined}
+                      onMoved={onMoved}
                     />
                   ))}
                 </TableBody>
@@ -601,8 +700,82 @@ function SpeciesRows({ entry, open, onToggle, canCreate, canUpdate, canDelete, c
 
 // ----------------------------------------------------------------------
 
-// onToggleSelect es opcional: sin él no sale la casilla (la ficha de especie
-// reusa esta fila y ahí no hay borrado en lote)
+// Ejemplar en «Mi criadero»: acciones con texto (Mover a…, Editar, Anotar);
+// borrar va por la casilla y el botón «Eliminar (N)» de arriba
+function CriaderoRow({ animal, species, showStock, canUpdate, isSelected, onToggleSelect, onMoved }) {
+  const purpose = purposeOf(animal);
+  const empty = isEmptyBulk(animal);
+
+  return (
+    <TableRow hover selected={isSelected} sx={empty ? { '& td': { color: 'text.disabled' } } : undefined}>
+      {onToggleSelect && (
+        <TableCell padding="checkbox">
+          <Checkbox
+            size="small"
+            checked={isSelected}
+            disabled={isClosedStatus(animal.status)}
+            onChange={() => onToggleSelect([animal.id], !isSelected)}
+          />
+        </TableCell>
+      )}
+      <TableCell>
+        <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+          <Avatar
+            src={animal.image || animal.photos?.[0] || ''}
+            variant="rounded"
+            sx={{ width: 28, height: 28, bgcolor: 'background.default' }}
+          >
+            <Iconify icon="solar:camera-bold" width={14} />
+          </Avatar>
+          <Link
+            component={RouterLink}
+            href={paths.dashboard.animal.details(animal.id)}
+            color="inherit"
+            underline="hover"
+          >
+            {animal.code}
+          </Link>
+        </Box>
+      </TableCell>
+      <TableCell>{animal.morphs?.length ? animal.morphs.map((m) => m.name).join(', ') : '—'}</TableCell>
+      <TableCell>{SEX_LABELS[animal.sex] ?? animal.sex}</TableCell>
+      <TableCell>
+        <Label variant="soft" color={PURPOSE_COLORS[purpose]}>
+          {PURPOSE_LABELS[purpose]}
+        </Label>
+      </TableCell>
+      <TableCell>
+        <Label variant="soft" color={empty ? 'default' : (STATUS_COLORS[animal.status] ?? 'default')}>
+          {statusLabel(animal) ?? animal.status}
+        </Label>
+      </TableCell>
+      {showStock && <TableCell>{animal.stock ?? '—'}</TableCell>}
+      <TableCell>{purpose === 'sale' ? fCurrency(animal.price) : '—'}</TableCell>
+      <TableCell align="right">
+        <Stack direction="row" spacing={0.5} justifyContent="flex-end" sx={{ whiteSpace: 'nowrap' }}>
+          {canUpdate && <MoveAnimalMenu animal={animal} species={species} onMoved={onMoved} />}
+          {canUpdate && (
+            <Button size="small" component={RouterLink} href={paths.dashboard.animal.edit(animal.id)}>
+              Editar
+            </Button>
+          )}
+          <Button
+            size="small"
+            component={RouterLink}
+            href={`${paths.dashboard.animal.log}?species=${species.id}`}
+          >
+            Anotar
+          </Button>
+        </Stack>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+// Fila de la ficha de especie (species-detail-view). onToggleSelect es
+// opcional: sin él no sale la casilla
 export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onDelete, isSelected = false, onToggleSelect }) {
   const renderLegalDoc = () => {
     if (!animal.requires_legal_doc) return '—';
