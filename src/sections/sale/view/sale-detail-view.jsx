@@ -31,7 +31,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { SalePDFDownload } from '../sale-pdf';
 import { useAllProducts } from '../../product-batch/use-all-products';
-import { printTicket, buildTicketText, ticketWhatsAppUrl, useTicketTemplate } from '../print-ticket';
+import { useSaleTicket, buildTicketText, ticketWhatsAppUrl, useTicketTemplate } from '../print-ticket';
 
 // ----------------------------------------------------------------------
 
@@ -77,25 +77,13 @@ export function SaleDetailView({ currentSale }) {
   );
 
   const totalItems = saleDetails.reduce((acc, d) => {
-    const unitPrice = Number(d.unit_price ?? productPriceMap[d.product_id] ?? 0);
+    const unitPrice = Number(d.price_unit ?? productPriceMap[d.product_id] ?? 0);
     return acc + (Number(d.quantity) || 0) * unitPrice - (Number(d.discount ?? 0));
   }, 0);
 
   const totalPayments = salePayments.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
 
-  const ticketData = {
-    saleId,
-    date: currentSale?.created_at,
-    items: saleDetails.map((d) => ({
-      title: productMap[d.product_id] ?? `Producto #${d.product_id}`,
-      quantity: Number(d.quantity) || 0,
-      unitPrice: Number(d.unit_price ?? productPriceMap[d.product_id] ?? 0),
-      discount: Number(d.discount ?? 0),
-    })),
-    payments: salePayments,
-    business: ticketTemplate?.business_name,
-    footer: ticketTemplate?.footer_message,
-  };
+  const ticket = useSaleTicket(saleId);
 
   return (
     <DashboardContent>
@@ -111,16 +99,26 @@ export function SaleDetailView({ currentSale }) {
             <Button
               variant="outlined"
               startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
-              disabled={saleDetailsLoading || saleDetails.length === 0}
-              onClick={() => printTicket(ticketData)}
+              component={RouterLink}
+              href={saleId ? paths.dashboard.sale.ticket(saleId) : '#'}
             >
               Ticket
             </Button>
             <Button
               variant="outlined"
               startIcon={<Iconify icon="ic:baseline-whatsapp" />}
-              disabled={saleDetailsLoading || saleDetails.length === 0}
-              onClick={() => window.open(ticketWhatsAppUrl(buildTicketText(ticketData)), '_blank')}
+              disabled={!ticket}
+              onClick={() =>
+                window.open(
+                  ticketWhatsAppUrl(
+                    buildTicketText(ticket, {
+                      business: ticketTemplate?.business_name,
+                      footer: ticketTemplate?.footer_message,
+                    })
+                  ),
+                  '_blank'
+                )
+              }
             >
               WhatsApp
             </Button>
@@ -247,7 +245,7 @@ export function SaleDetailView({ currentSale }) {
                   </TableRow>
                 ) : (
                   saleDetails.map((detail) => {
-                    const unitPrice = Number(detail.unit_price ?? productPriceMap[detail.product_id] ?? 0);
+                    const unitPrice = Number(detail.price_unit ?? productPriceMap[detail.product_id] ?? 0);
                     const subtotal = (Number(detail.quantity) || 0) * unitPrice - (Number(detail.discount ?? 0));
                     return (
                       <TableRow key={detail.id}>

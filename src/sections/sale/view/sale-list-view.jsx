@@ -1,6 +1,7 @@
 import { useBoolean } from 'minimal-shared/hooks';
 import { useRef, useMemo, useState, useCallback } from 'react';
 
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -213,16 +214,28 @@ export function SaleListView() {
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Ventas' },
           ]}
-          action={canCreate && (
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.sale.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Nueva venta
-            </Button>
-          )}
+          action={
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Button
+                component={RouterLink}
+                href={paths.dashboard.sale.ticketTest}
+                variant="outlined"
+                startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
+              >
+                Imprimir prueba
+              </Button>
+              {canCreate && (
+                <Button
+                  component={RouterLink}
+                  href={paths.dashboard.sale.new}
+                  variant="contained"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                >
+                  Nueva venta
+                </Button>
+              )}
+            </Box>
+          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 

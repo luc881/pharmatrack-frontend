@@ -45,7 +45,6 @@ import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { printTicket, useTicketTemplate } from './print-ticket';
 
 // ----------------------------------------------------------------------
 
@@ -213,7 +212,6 @@ export function SaleCreateEditForm({
   const { branches } = useGetBranches();
   const { products, productsLoading } = useAllProducts();
   const productIdsWithStock = useProductIdsWithStock();
-  const ticketTemplate = useTicketTemplate();
   const blockedProducts = useBlockedAnimalProducts();
 
   const defaultValues = {
@@ -325,25 +323,9 @@ export function SaleCreateEditForm({
       // Completar la venta: DRAFT → COMPLETED (el backend recalcula totales y confirma lotes)
       await completeSale(saleId);
 
-      // Ticket térmico al momento (cancelable desde el diálogo de impresión)
-      printTicket({
-        saleId,
-        items: data.items.map((item) => {
-          const product = products.find((p) => p.id === Number(item.product_id));
-          return {
-            title: product?.title ?? `Producto #${item.product_id}`,
-            quantity: Number(item.quantity) || 0,
-            unitPrice: product?.price_retail ?? 0,
-            discount: Number(item.discount ?? 0),
-          };
-        }),
-        payments: data.payments,
-        business: ticketTemplate?.business_name,
-        footer: ticketTemplate?.footer_message,
-      });
-
       toast.success(currentSale ? 'Venta actualizada' : 'Venta registrada');
-      navigate(paths.dashboard.sale.root);
+      // El ticket se imprime solo al abrir (cancelable desde el diálogo de impresión)
+      navigate(`${paths.dashboard.sale.ticket(saleId)}?print=1`);
     } catch (error) {
       toast.error(error?.message || 'Error al guardar la venta');
     }

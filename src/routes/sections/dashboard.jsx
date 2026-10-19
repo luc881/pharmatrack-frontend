@@ -68,6 +68,7 @@ const SaleEditPage    = lazy(() => import('src/pages/dashboard/sale/edit'));
 const SaleSummaryPage  = lazy(() => import('src/pages/dashboard/sale/summary'));
 const SaleEmailTemplatePage = lazy(() => import('src/pages/dashboard/sale/email-template'));
 const SaleDetailsPage = lazy(() => import('src/pages/dashboard/sale/details'));
+const SaleTicketPage  = lazy(() => import('src/pages/dashboard/sale/ticket'));
 // Delivery
 const DeliveryListPage = lazy(() => import('src/pages/dashboard/delivery/list'));
 // Refund
@@ -190,6 +191,15 @@ const accountLayout = () => (
 );
 
 export const dashboardRoutes = [
+  // Ticket imprimible: sin el layout del dashboard para que en el rollo solo salga el ticket
+  ...['dashboard/sale/:id/ticket', 'dashboard/sale/ticket-prueba'].map((path) => ({
+    path,
+    element: (
+      <AuthGuard>
+        <Suspense fallback={<LoadingScreen />}>{guard(P.salesRead, <SaleTicketPage />)}</Suspense>
+      </AuthGuard>
+    ),
+  })),
   {
     path: 'dashboard',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,

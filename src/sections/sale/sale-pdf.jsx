@@ -193,7 +193,7 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
 
   const totalItems = saleDetails.reduce(
     (acc, d) =>
-      acc + (Number(d.quantity) || 0) * Number(d.unit_price ?? 0) - Number(d.discount ?? 0),
+      acc + (Number(d.quantity) || 0) * Number(d.price_unit ?? 0) - Number(d.discount ?? 0),
     0
   );
 
@@ -252,7 +252,7 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
         {/* Rows */}
         {saleDetails.map((d, i) => {
           const subtotal =
-            (Number(d.quantity) || 0) * Number(d.unit_price ?? 0) - Number(d.discount ?? 0);
+            (Number(d.quantity) || 0) * Number(d.price_unit ?? 0) - Number(d.discount ?? 0);
           const productName = productMap?.[d.product_id] ?? `Producto #${d.product_id}`;
           return (
             <View key={d.id} style={styles.tableRow}>
@@ -264,7 +264,7 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
                 ) : null}
               </View>
               <View style={styles.col3}><Text>{d.quantity}</Text></View>
-              <View style={styles.col4}><Text>{fCurrency(d.unit_price)}</Text></View>
+              <View style={styles.col4}><Text>{fCurrency(d.price_unit)}</Text></View>
               <View style={styles.col5}>
                 <Text>{d.discount ? fCurrency(d.discount) : '—'}</Text>
               </View>
