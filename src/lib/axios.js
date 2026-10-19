@@ -230,6 +230,7 @@ export const endpoints = {
     create: '/api/v1/animals',
     update: (id) => `/api/v1/animals/${id}`,
     delete: (id) => `/api/v1/animals/${id}`,
+    move: (id) => `/api/v1/animals/${id}/move`,
   },
   delivery: {
     list: '/api/v1/deliveries',

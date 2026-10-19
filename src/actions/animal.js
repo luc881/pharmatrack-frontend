@@ -68,6 +68,7 @@ export function useGetAnimals({
   genusId,
   status,
   groupId,
+  purpose,
 } = {}) {
   const params = {
     page,
@@ -75,6 +76,7 @@ export function useGetAnimals({
     ...(speciesId ? { species_id: speciesId } : {}),
     ...(genusId ? { genus_id: genusId } : {}),
     ...(status ? { status } : {}),
+    ...(purpose ? { purpose } : {}),
     // group_id incluye todo el subárbol del grupo
     ...(groupId ? { group_id: groupId } : {}),
   };
@@ -131,6 +133,9 @@ export function useGetSpecies(speciesId) {
 }
 
 // ----------------------------------------------------------------------
+
+export const moveAnimal = (id, data) =>
+  axiosInstance.post(endpoints.animal.move(id), data).then((r) => r.data);
 
 export const createAnimalGroup = (data) =>
   axiosInstance.post(endpoints.animalGroup.create, data).then((r) => r.data);
