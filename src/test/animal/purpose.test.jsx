@@ -69,7 +69,7 @@ describe('MoveAnimalDialog', () => {
         species_id: 1,
         status: 'available',
         purpose: 'growing',
-        stock: 10,
+        stock: 20,
         price: 0,
       },
       species: PACKAGE,
@@ -94,5 +94,47 @@ describe('MoveAnimalDialog', () => {
     });
     expect(screen.queryByLabelText(/¿Cuántos/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Precio de venta/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['sale', 'growing', /¿Cuántos paquetes\?/, 'Hay 3'],
+    ['growing', 'sale', /¿Cuántos paquetes\?/, 'Hay 1 paquete (10 animales)'],
+    ['growing', 'breeder', /¿Cuántos\?/, 'Hay 10'],
+  ])('paquete %s -> %s: etiqueta y «Hay N»', (from, target, label, hay) => {
+    renderDialog({
+      animal: {
+        id: 5,
+        species_id: 1,
+        status: 'available',
+        purpose: from,
+        stock: from === 'sale' ? 3 : 10,
+        price: 100,
+      },
+      species: PACKAGE,
+      target,
+    });
+    expect(screen.getByLabelText(label)).toBeInTheDocument();
+    expect(screen.getByText(hay)).toBeInTheDocument();
+  });
+
+  it('Todos manda quantity null', async () => {
+    let body = null;
+    server.use(
+      http.post(`${API}/animals/5/move`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json([]);
+      })
+    );
+    const onMoved = vi.fn();
+    renderDialog({
+      animal: { id: 5, species_id: 1, status: 'available', purpose: 'sale', stock: 3, price: 100 },
+      species: PACKAGE,
+      target: 'breeder',
+      onMoved,
+    });
+    fireEvent.click(screen.getByLabelText('Todos'));
+    fireEvent.click(screen.getByRole('button', { name: 'Mover' }));
+    await waitFor(() => expect(onMoved).toHaveBeenCalled());
+    expect(body).toEqual({ purpose: 'breeder', quantity: null });
   });
 });

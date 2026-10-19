@@ -31,9 +31,16 @@ export function MoveAnimalDialog({ animal, species, target, open, onClose, onMov
   // Un paquete se cuenta en paquetes si el origen o el destino es venta
   const inPackages =
     species?.sale_format === 'package' && (purposeOf(animal) === 'sale' || target === 'sale');
+  // Al pasar de no-venta a venta el stock está en animales: caben floor(stock / tamaño) paquetes
+  const fromAnimals = inPackages && purposeOf(animal) !== 'sale';
+  const max = fromAnimals
+    ? Math.floor(Number(animal.stock) / Number(species.package_size))
+    : Number(animal.stock);
   const needsPrice = target === 'sale' && Number(animal.price) === 0;
 
-  const invalid = (bulk && !all && !(Number(quantity) > 0)) || (needsPrice && !(Number(price) > 0));
+  const invalid =
+    (bulk && !all && !(Number(quantity) > 0 && Number(quantity) <= max)) ||
+    (needsPrice && !(Number(price) > 0));
 
   const handleMove = async () => {
     setSaving(true);
@@ -67,10 +74,14 @@ export function MoveAnimalDialog({ animal, species, target, open, onClose, onMov
                 disabled={all}
                 type="number"
                 label={inPackages ? '¿Cuántos paquetes?' : '¿Cuántos?'}
-                helperText={`Hay ${animal.stock}`}
+                helperText={
+                  fromAnimals
+                    ? `Hay ${max} ${max === 1 ? 'paquete' : 'paquetes'} (${animal.stock} animales)`
+                    : `Hay ${animal.stock}`
+                }
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                slotProps={{ htmlInput: { min: 1 } }}
+                slotProps={{ htmlInput: { min: 1, max } }}
               />
             </>
           )}
