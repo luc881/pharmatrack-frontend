@@ -90,7 +90,8 @@ export function countByPurpose(animals, speciesById = {}) {
     const species = speciesById[a.species_id] ?? a.species;
     const purpose = purposeOf(a);
     out[purpose] += animalUnits(a, species);
-    if (a.status === 'reserved') out.reserved += 1;
+    // apartados en la misma unidad que la tarjeta (animales, no registros)
+    if (a.status === 'reserved') out.reserved += animalUnits(a, species);
     if (purpose === 'sale' && species?.sale_format === 'package') {
       out.salePackages += Number(a.stock ?? 0);
     }

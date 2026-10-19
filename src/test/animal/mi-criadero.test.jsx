@@ -62,7 +62,7 @@ const animal = (code, purpose, status = 'available', extra = {}) => ({
 });
 
 const ANIMALS = [
-  animal('V-1', 'sale'),
+  animal('V-1', 'sale', 'available', { requires_legal_doc: true, legal_doc: null }),
   animal('V-2', 'sale'),
   animal('V-3', 'sale', 'reserved'),
   animal('B-1', 'breeder', 'available', { price: 0 }),
@@ -102,14 +102,18 @@ describe('Mi criadero', () => {
     renderView();
 
     expect(await screen.findByRole('button', { name: /En venta\s*3/ })).toBeInTheDocument();
-    expect(screen.getByText('2 disponibles · 1 apartados')).toBeInTheDocument();
+    expect(screen.getByText('2 disponibles · 1 apartado')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Pie de cría\s*2/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /En crianza\s*1/ })).toBeInTheDocument();
     // el filtro también lleva su conteo
     expect(screen.getByRole('tab', { name: 'Vendidos (1)' })).toBeInTheDocument();
+    // «Todo» mezclaría animales con registros: va sin número
+    expect(screen.getByRole('tab', { name: 'Todo' })).toBeInTheDocument();
     // renglón de la especie con un chip por destino
     expect(screen.getByText('3 en venta')).toBeInTheDocument();
     expect(screen.getByText('2 pie de cría')).toBeInTheDocument();
+    // pide documento y no tiene folio
+    expect(screen.getByText('1 doc. pendiente')).toBeInTheDocument();
   });
 
   it('filtrar por Pie de cría deja solo esos ejemplares', async () => {

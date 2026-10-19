@@ -124,6 +124,63 @@ describe('Formulario de animal: destino', () => {
     await waitFor(() => expect(body.sent).toBeDefined());
     expect(body.sent).not.toHaveProperty('purpose');
   });
+
+  it('al editar una cepa vacía sin tocar la cantidad no manda stock', async () => {
+    const body = {};
+    mockApi([capture('put', '/animals/7', body)]);
+    const COLONY = { ...GECKO, sale_format: 'colony' };
+    server.use(http.get(`${API}/species`, () => HttpResponse.json(page([COLONY]))));
+    const current = {
+      id: 7,
+      code: 'C-1',
+      purpose: 'sale',
+      status: 'available',
+      species_id: 1,
+      species: COLONY,
+      price: 200,
+      stock: 0,
+      morphs: [],
+      photos: [],
+    };
+    wrap(<AnimalCreateEditForm currentAnimal={current} />);
+
+    // un 0 reenviado marcaría «Vendido» el registro vacío
+    expect(await screen.findByLabelText(/¿Cuántas cepas en venta\?/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'C-1b' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => expect(body.sent).toBeDefined());
+    expect(body.sent).toMatchObject({ code: 'C-1b' });
+    expect(body.sent).not.toHaveProperty('stock');
+  });
+
+  it('fuera de venta la cantidad no habla de vender y el estado dice «Activo»', async () => {
+    mockApi();
+    const COLONY = { ...GECKO, sale_format: 'colony' };
+    server.use(http.get(`${API}/species`, () => HttpResponse.json(page([COLONY]))));
+    wrap(
+      <AnimalCreateEditForm
+        currentAnimal={{
+          id: 8,
+          code: 'G-1',
+          purpose: 'growing',
+          status: 'available',
+          species_id: 1,
+          species: COLONY,
+          price: 0,
+          stock: 12,
+          morphs: [],
+          photos: [],
+        }}
+      />
+    );
+
+    expect(await screen.findByText('Cuántos tienes en este destino')).toBeInTheDocument();
+    expect(screen.queryByText(/Se descuentan al vender/)).not.toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: /Estado/ }));
+    expect(await screen.findByRole('option', { name: 'Activo' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Reservado' })).not.toBeInTheDocument();
+  });
 });
 
 describe('Ficha del ejemplar', () => {

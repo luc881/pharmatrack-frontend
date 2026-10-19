@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { http, HttpResponse } from 'msw';
 import { it, vi, expect, describe } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
@@ -10,6 +11,7 @@ import { purposeOf, animalUnits, countByPurpose } from 'src/sections/animal/util
 import { server } from '../mocks/server';
 
 vi.mock('src/components/label', () => ({ Label: ({ children }) => children }));
+vi.mock('swr', async (importOriginal) => ({ ...(await importOriginal()), mutate: vi.fn() }));
 
 const API = 'https://api.opuntiaden.com/api/v1';
 const PACKAGE = { id: 1, sale_format: 'package', package_size: 6 };
@@ -47,7 +49,8 @@ describe('destino del animal', () => {
       sale: 24,
       breeder: 1,
       growing: 17,
-      reserved: 1,
+      // apartados en animales, como la tarjeta: 1 paquete de 6
+      reserved: 6,
       salePackages: 4,
     });
   });
@@ -136,5 +139,66 @@ describe('MoveAnimalDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mover' }));
     await waitFor(() => expect(onMoved).toHaveBeenCalled());
     expect(body).toEqual({ purpose: 'breeder', quantity: null });
+  });
+
+  it('al mover refresca las listas y la ficha en la caché global', async () => {
+    server.use(http.post(`${API}/animals/5/move`, () => HttpResponse.json([])));
+    mutate.mockClear();
+    const onMoved = vi.fn();
+    renderDialog({
+      animal: { id: 5, species_id: 2, status: 'available', purpose: 'sale', stock: 1, price: 100 },
+      species: INDIVIDUAL,
+      target: 'breeder',
+      onMoved,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Mover' }));
+    await waitFor(() => expect(onMoved).toHaveBeenCalled());
+    const listMatcher = mutate.mock.calls.find(([key]) => typeof key === 'function')?.[0];
+    expect(listMatcher(['/api/v1/animals', { params: {} }])).toBe(true);
+    expect(listMatcher(['/api/v1/species', { params: {} }])).toBe(false);
+    expect(mutate).toHaveBeenCalledWith('/api/v1/animals/5');
+  });
+
+  it('la cantidad debe ser entera', () => {
+    renderDialog({
+      animal: { id: 5, species_id: 1, status: 'available', purpose: 'sale', stock: 3, price: 100 },
+      species: PACKAGE,
+      target: 'breeder',
+    });
+    const qty = screen.getByLabelText(/¿Cuántos paquetes\?/);
+    fireEvent.change(qty, { target: { value: '1.5' } });
+    expect(screen.getByRole('button', { name: 'Mover' })).toBeDisabled();
+    fireEvent.change(qty, { target: { value: '2' } });
+    expect(screen.getByRole('button', { name: 'Mover' })).toBeEnabled();
+  });
+
+  it('a la venta muestra su precio y no lo manda si no se cambió', async () => {
+    let body = null;
+    server.use(
+      http.post(`${API}/animals/6/move`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json([]);
+      })
+    );
+    const onMoved = vi.fn();
+    renderDialog({
+      animal: {
+        id: 6,
+        species_id: 2,
+        status: 'available',
+        purpose: 'breeder',
+        stock: 1,
+        price: 450,
+      },
+      species: INDIVIDUAL,
+      target: 'sale',
+      onMoved,
+    });
+    const price = screen.getByLabelText(/Precio de venta/);
+    expect(price).toHaveValue(450);
+    expect(price).not.toBeRequired();
+    fireEvent.click(screen.getByRole('button', { name: 'Mover' }));
+    await waitFor(() => expect(onMoved).toHaveBeenCalled());
+    expect(body).toEqual({ purpose: 'sale' });
   });
 });

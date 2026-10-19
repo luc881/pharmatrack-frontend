@@ -48,10 +48,12 @@ import { useAuthContext } from 'src/auth/hooks';
 import { TaxonDialog } from '../taxon-dialog';
 import { AnimalRow } from './animal-list-view';
 import { HusbandryPlanCard } from '../husbandry-plan-card';
-import { saleFormatLabel, flattenGroupTree } from '../utils';
+import { purposeOf, saleFormatLabel, flattenGroupTree } from '../utils';
 import {
   STOCK,
   HUSBANDRY,
+  KeptCounts,
+  keptUnitsBy,
   ManageDialog,
   stockStateOf,
   availableUnits,
@@ -105,18 +107,20 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
   const [manage, setManage] = useState(null); // { row, kind } — cultivo de especie o morph
   const [toDelete, setToDelete] = useState(null); // { kind, id, name }
 
-  // Unidades disponibles por morph: un ejemplar puede tener varios morphs y su
+  // Unidades en venta por morph: un ejemplar puede tener varios morphs y su
   // stock cuenta para cada uno (mismo criterio que la vista de Taxonomía).
+  // Pie de cría y crianza no cuentan para el bajo stock; van aparte.
   const unitsByMorph = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      if (a.status !== 'available') return;
+      if (a.status !== 'available' || purposeOf(a) !== 'sale') return;
       (a.morphs ?? []).forEach((m) => {
         map[m.id] = (map[m.id] ?? 0) + (a.stock ?? 1);
       });
     });
     return map;
   }, [animals]);
+  const keptByMorph = useMemo(() => keptUnitsBy(animals, allSpecies, true), [animals, allSpecies]);
 
   const handleConfirmDelete = useCallback(async () => {
     const { kind, id } = toDelete;
@@ -178,6 +182,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
   const photo = animals.find((a) => a.image || a.photos?.[0]);
 
   const units = availableUnits(animals);
+  const kept = keptUnitsBy(animals, [species])[species.id];
   const threshold = species.low_stock_threshold ?? DEFAULT_LOW_STOCK;
   const stock = STOCK[stockStateOf(units, threshold)];
   const husbandry = HUSBANDRY[species.husbandry_status ?? 'active'] ?? HUSBANDRY.active;
@@ -331,7 +336,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                 }}
               >
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  Disponibles
+                  En venta
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -342,6 +347,8 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                   </Label>
                 </Box>
               </Box>
+              {kept?.breeder > 0 && <DetailRow label="Pie de cría" value={kept.breeder} />}
+              {kept?.growing > 0 && <DetailRow label="En crianza" value={kept.growing} />}
               <DetailRow
                 label="Umbral bajo stock"
                 value={species.low_stock_threshold ?? `Global (${DEFAULT_LOW_STOCK})`}
@@ -447,7 +454,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                     <TableRow>
                       <TableCell>Morph</TableCell>
                       <TableCell>Descripción</TableCell>
-                      <TableCell align="right">Disponibles</TableCell>
+                      <TableCell align="right">En venta</TableCell>
                       <TableCell>Stock</TableCell>
                       <TableCell>Cría</TableCell>
                       <TableCell align="right"> </TableCell>
@@ -466,7 +473,10 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                           <TableCell sx={{ color: 'text.secondary' }}>
                             {morph.description || '—'}
                           </TableCell>
-                          <TableCell align="right">{mUnits}</TableCell>
+                          <TableCell align="right">
+                            {mUnits}
+                            <KeptCounts kept={keptByMorph[morph.id]} />
+                          </TableCell>
                           <TableCell>
                             <Label variant="soft" color={mStock.color}>
                               {mStock.label}
@@ -528,7 +538,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                 <Typography variant="h6">Ejemplares</Typography>
                 <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.25 }}>
                   {animals.length} {animals.length === 1 ? 'registro' : 'registros'}
-                  {isBulk ? ` · ${units} unidades disponibles` : ''}
+                  {isBulk ? ` · ${units} unidades en venta` : ''}
                 </Typography>
               </Box>
               {canCreateAnimals && (
@@ -559,6 +569,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                       <TableCell>Morphs</TableCell>
                       <TableCell>Sexo</TableCell>
                       <TableCell>Nacimiento</TableCell>
+                      <TableCell>Destino</TableCell>
                       <TableCell>Precio</TableCell>
                       <TableCell>Estado</TableCell>
                       {isBulk && <TableCell>Stock</TableCell>}

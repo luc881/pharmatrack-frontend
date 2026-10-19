@@ -54,12 +54,14 @@ import {
 import { useAuthContext } from 'src/auth/hooks';
 
 import { AnimalCapAlert } from '../animal-cap-alert';
-import { speciesLabel, flattenGroupTree } from '../utils';
 import { TaxonDialog, TAXON_ACTIONS } from '../taxon-dialog';
+import { purposeOf, speciesLabel, flattenGroupTree } from '../utils';
 import {
   STOCK,
   StatCard,
   HUSBANDRY,
+  KeptCounts,
+  keptUnitsBy,
   ManageDialog,
   stockStateOf,
   DEFAULT_LOW_STOCK,
@@ -262,12 +264,13 @@ export function AnimalTaxonomyView() {
 
   // "Cultivos" dentro de la pestaña Especies: unidades disponibles derivadas del
   // inventario más el estado de stock/cría por especie. Mismo cálculo que la
-  // vista Cultivos, reutilizando sus helpers.
+  // vista Cultivos, reutilizando sus helpers. Bajo stock y Agotadas cuentan solo
+  // lo que está en venta; pie de cría y crianza van aparte, debajo del número.
   const { animals, animalsTotal } = useGetAnimals({ page: 1, pageSize: 500 });
   const availableBySpecies = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      if (a.status !== 'available' || !a.species_id) return;
+      if (a.status !== 'available' || !a.species_id || purposeOf(a) !== 'sale') return;
       map[a.species_id] = (map[a.species_id] ?? 0) + (a.stock ?? 1);
     });
     return map;
@@ -276,7 +279,7 @@ export function AnimalTaxonomyView() {
   const availableByMorph = useMemo(() => {
     const map = {};
     animals.forEach((a) => {
-      if (a.status !== 'available') return;
+      if (a.status !== 'available' || purposeOf(a) !== 'sale') return;
       (a.morphs ?? []).forEach((m) => {
         map[m.id] = (map[m.id] ?? 0) + (a.stock ?? 1);
       });
@@ -286,6 +289,9 @@ export function AnimalTaxonomyView() {
   // Unidades disponibles de una fila de la pestaña Especies (especie o morph)
   const rowUnits = (row) =>
     (row.__kind === 'morph' ? availableByMorph[row.id] : availableBySpecies[row.id]) ?? 0;
+  const keptBySpecies = useMemo(() => keptUnitsBy(animals, allSpecies), [animals, allSpecies]);
+  const keptByMorph = useMemo(() => keptUnitsBy(animals, allSpecies, true), [animals, allSpecies]);
+  const rowKept = (row) => (row.__kind === 'morph' ? keptByMorph[row.id] : keptBySpecies[row.id]);
   const cultivoCounts = useMemo(() => {
     const list = allSpecies.map((sp) => ({
       status: sp.husbandry_status ?? 'active',
@@ -709,12 +715,17 @@ export function AnimalTaxonomyView() {
         // Columnas de "Cultivos": aplican a especies y morphs (cría independiente)
         {
           field: 'units',
-          headerName: 'Disponibles',
-          width: 110,
+          headerName: 'En venta',
+          width: 130,
           align: 'right',
           headerAlign: 'right',
           sortable: false,
-          renderCell: (params) => rowUnits(params.row),
+          renderCell: (params) => (
+            <Box sx={{ lineHeight: 1.4, py: 0.5, textAlign: 'right' }}>
+              {rowUnits(params.row)}
+              <KeptCounts kept={rowKept(params.row)} />
+            </Box>
+          ),
         },
         {
           field: 'stock',

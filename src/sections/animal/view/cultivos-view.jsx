@@ -75,6 +75,38 @@ export const availableUnits = (animals) =>
     0
   );
 
+// Animales que no están en venta, por especie (o por morph): { [id]: { breeder, growing } }.
+// Un ejemplar con varios morphs cuenta para cada uno.
+export function keptUnitsBy(animals, allSpecies, byMorph = false) {
+  const speciesById = Object.fromEntries(allSpecies.map((sp) => [sp.id, sp]));
+  const map = {};
+  animals.forEach((a) => {
+    const purpose = purposeOf(a);
+    if (purpose === 'sale' || !a.species_id) return;
+    const units = animalUnits(a, speciesById[a.species_id] ?? a.species);
+    const ids = byMorph ? (a.morphs ?? []).map((m) => m.id) : [a.species_id];
+    ids.forEach((id) => {
+      (map[id] ??= { breeder: 0, growing: 0 })[purpose] += units;
+    });
+  });
+  return map;
+}
+
+// «Pie de cría: 2» / «En crianza: 5» bajo el número en venta (solo lo que hay)
+export function KeptCounts({ kept }) {
+  return ['breeder', 'growing'].map((purpose) =>
+    kept?.[purpose] ? (
+      <Typography
+        key={purpose}
+        variant="caption"
+        sx={{ display: 'block', color: 'text.secondary', lineHeight: 1.2 }}
+      >
+        {PURPOSE_LABELS[purpose]}: {kept[purpose]}
+      </Typography>
+    ) : null
+  );
+}
+
 export const stockStateOf = (units, threshold = DEFAULT_LOW_STOCK) =>
   units === 0 ? 'out' : units <= threshold ? 'low' : 'ok';
 
@@ -100,18 +132,7 @@ export function CultivosView() {
     return map;
   }, [animals]);
 
-  // Animales por especie que no están en venta: { [speciesId]: { breeder, growing } }
-  const keptBySpecies = useMemo(() => {
-    const speciesById = new Map(allSpecies.map((sp) => [sp.id, sp]));
-    const map = {};
-    animals.forEach((a) => {
-      const purpose = purposeOf(a);
-      if (purpose === 'sale' || !a.species_id) return;
-      const row = (map[a.species_id] ??= { breeder: 0, growing: 0 });
-      row[purpose] += animalUnits(a, speciesById.get(a.species_id));
-    });
-    return map;
-  }, [animals, allSpecies]);
+  const keptBySpecies = useMemo(() => keptUnitsBy(animals, allSpecies), [animals, allSpecies]);
 
   const [groupFilter, setGroupFilter] = useState('');
   const [genusFilter, setGenusFilter] = useState('');
@@ -294,17 +315,7 @@ export function CultivosView() {
                         <TableCell>{sp.genus?.group?.name ?? '—'}</TableCell>
                         <TableCell align="right">
                           {units}
-                          {['breeder', 'growing'].map((purpose) =>
-                            keptBySpecies[sp.id]?.[purpose] ? (
-                              <Typography
-                                key={purpose}
-                                variant="caption"
-                                sx={{ display: 'block', color: 'text.secondary' }}
-                              >
-                                {PURPOSE_LABELS[purpose]}: {keptBySpecies[sp.id][purpose]}
-                              </Typography>
-                            ) : null
-                          )}
+                          <KeptCounts kept={keptBySpecies[sp.id]} />
                         </TableCell>
                         <TableCell>
                           <Label variant="soft" color={STOCK[stockState].color}>

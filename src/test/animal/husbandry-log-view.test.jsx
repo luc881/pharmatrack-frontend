@@ -302,6 +302,8 @@ describe('HusbandryLogView', () => {
       animals: [
         { id: 1, code: 'RAU-001', sex: 'female', status: 'sold', stock: 0, morphs: [] },
         { id: 3, code: 'RAU-003', sex: 'male', status: 'available', stock: 1, price: 4500, morphs: [] },
+        // pie de cría: la API lo rechaza como reemplazo, no se ofrece
+        { id: 4, code: 'RAU-004', sex: 'male', status: 'available', stock: 1, purpose: 'breeder', morphs: [] },
       ],
       commitments: {
         status: 'sold',
@@ -327,6 +329,7 @@ describe('HusbandryLogView', () => {
     expect(screen.getByText(/entrega pendiente de Ana/)).toBeInTheDocument();
 
     fireEvent.mouseDown(screen.getByRole('combobox', { name: /lo cambias por otro/i }));
+    expect(screen.queryByRole('option', { name: /RAU-004/ })).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole('option', { name: /RAU-003 · Macho/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 

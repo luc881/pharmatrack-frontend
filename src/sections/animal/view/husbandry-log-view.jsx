@@ -631,8 +631,13 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
   const promised =
     commitments &&
     (commitments.status === 'reserved' || commitments.sale || commitments.deliveries.length > 0);
+  // Solo de venta: la API rechaza un pie de cría o uno en crianza como reemplazo
   const candidates = specimensOf(animals).filter(
-    (a) => a.status === 'available' && a.id !== form.animal_id && (a.stock ?? 1) > 0
+    (a) =>
+      a.status === 'available' &&
+      a.id !== form.animal_id &&
+      (a.stock ?? 1) > 0 &&
+      purposeOf(a) === 'sale'
   );
 
   // Suplemento con un switch: se registra el del plan (o «Suplemento» si no hay)

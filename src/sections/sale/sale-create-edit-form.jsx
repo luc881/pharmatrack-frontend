@@ -147,7 +147,13 @@ export function useBlockedAnimalProducts() {
       queries.map(([params, label]) =>
         axiosInstance
           .get(endpoints.animal.list, { params: { page: 1, page_size: 500, ...params } })
-          .then((r) => (r.data?.data ?? []).map((a) => [Number(a.product_id), label]))
+          .then((r) =>
+            (r.data?.data ?? [])
+              // Una API vieja ignora `purpose` y devolvería todo lo disponible:
+              // se vuelve a filtrar aquí para no bloquear lo que sí está en venta
+              .filter((a) => !params.purpose || (a.purpose ?? 'sale') === params.purpose)
+              .map((a) => [Number(a.product_id), label])
+          )
       )
     )
       .then((lists) => setBlocked(new Map(lists.flat())))

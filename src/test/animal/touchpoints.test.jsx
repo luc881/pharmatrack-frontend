@@ -5,8 +5,8 @@ import { render, screen, waitFor, fireEvent, renderHook } from '@testing-library
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 
-import { availableUnits } from 'src/sections/animal/view/cultivos-view';
 import { DeliveryListView } from 'src/sections/delivery/view/delivery-list-view';
+import { keptUnitsBy, availableUnits } from 'src/sections/animal/view/cultivos-view';
 import { scanBlockReason, useBlockedAnimalProducts } from 'src/sections/sale/sale-create-edit-form';
 
 import { server } from '../mocks/server';
@@ -30,14 +30,25 @@ describe('destino en los puntos de contacto', () => {
     expect(availableUnits(animals)).toBe(1);
   });
 
+  it('Cultivos: pie de cría y crianza van aparte, por especie y por morph', () => {
+    const species = [{ id: 1, sale_format: 'package', package_size: 6 }];
+    const animals = [
+      { species_id: 1, status: 'available', purpose: 'growing', stock: 17, morphs: [{ id: 9 }] },
+      { species_id: 1, status: 'available', purpose: 'breeder', stock: 4, morphs: [] },
+      { species_id: 1, status: 'available', purpose: 'sale', stock: 3, morphs: [{ id: 9 }] },
+    ];
+    expect(keptUnitsBy(animals, species)).toEqual({ 1: { breeder: 4, growing: 17 } });
+    expect(keptUnitsBy(animals, species, true)).toEqual({ 9: { breeder: 0, growing: 17 } });
+  });
+
   it('POS: un pie de cría y uno en crianza quedan bloqueados con su etiqueta', async () => {
     server.use(
       http.get(`${API}/animals`, ({ request }) => {
         const p = new URL(request.url).searchParams;
         if (p.get('purpose') === 'breeder')
-          return HttpResponse.json(page([{ id: 1, product_id: 11 }]));
+          return HttpResponse.json(page([{ id: 1, product_id: 11, purpose: 'breeder' }]));
         if (p.get('purpose') === 'growing')
-          return HttpResponse.json(page([{ id: 2, product_id: 12 }]));
+          return HttpResponse.json(page([{ id: 2, product_id: 12, purpose: 'growing' }]));
         return HttpResponse.json(page([]));
       })
     );
@@ -45,6 +56,28 @@ describe('destino en los puntos de contacto', () => {
     await waitFor(() => expect(result.current.size).toBe(2));
     expect(result.current.get(11)).toBe('Pie de cría');
     expect(result.current.get(12)).toBe('En crianza');
+  });
+
+  it('POS: con una API que ignora `purpose` no bloquea lo que está en venta', async () => {
+    // API vieja: devuelve todo lo disponible sin importar el filtro
+    server.use(
+      http.get(`${API}/animals`, ({ request }) => {
+        const p = new URL(request.url).searchParams;
+        if (p.get('status') !== 'available') return HttpResponse.json(page([]));
+        return HttpResponse.json(
+          page([
+            { id: 1, product_id: 11, purpose: 'breeder' },
+            { id: 3, product_id: 13, purpose: 'sale' },
+            { id: 4, product_id: 14 }, // sin purpose: era de venta
+          ])
+        );
+      })
+    );
+    const { result } = renderHook(() => useBlockedAnimalProducts());
+    await waitFor(() => expect(result.current.size).toBe(1));
+    expect(result.current.get(11)).toBe('Pie de cría');
+    expect(result.current.has(13)).toBe(false);
+    expect(result.current.has(14)).toBe(false);
   });
 
   it('Entregas pide solo animales en venta', async () => {

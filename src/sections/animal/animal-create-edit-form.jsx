@@ -172,7 +172,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
     setValue,
     getValues,
     handleSubmit,
-    formState: { isSubmitting },
+    formState: { isSubmitting, dirtyFields },
   } = methods;
 
   // Alta desde taxonomía: /animal/new?species_id=12&morph_id=44 llega con la
@@ -321,8 +321,11 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         // si se omite el código, el backend genera uno "AN-XXXXXXXX"
         ...(data.code ? { code: data.code } : {}),
         // solo las cepas/paquetes manejan stock; individuales quedan en 1
-        // (antes `|| 1` convertía un 0 en 1 y no había forma de agotar a mano)
-        ...(isBulk ? { stock: Number.isFinite(Number(data.stock)) ? Number(data.stock) : 1 } : {}),
+        // (antes `|| 1` convertía un 0 en 1 y no había forma de agotar a mano).
+        // Al editar va solo si se tocó: reenviar un 0 marcaría «Vendido» un registro vacío
+        ...(isBulk && (!isEdit || dirtyFields.stock)
+          ? { stock: Number.isFinite(Number(data.stock)) ? Number(data.stock) : 1 }
+          : {}),
         // "sold" lo asigna la venta y "deceased" la bitácora — nunca se manda desde aquí
         ...(isEdit && !isSold ? { status: data.status } : {}),
       };
@@ -645,9 +648,11 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 label={stockLabel(saleFormat, purpose)}
                 type="number"
                 helperText={
-                  isEdit
-                    ? 'Se descuentan al vender. Pon 0 si ya no tienes: se marca como agotado en el sitio.'
-                    : 'Unidades idénticas de esta cepa/paquete; se descuentan al vender'
+                  !isSale
+                    ? 'Cuántos tienes en este destino'
+                    : isEdit
+                      ? 'Se descuentan al vender. Pon 0 si ya no tienes: se marca como agotado en el sitio.'
+                      : 'Unidades idénticas de esta cepa/paquete; se descuentan al vender'
                 }
                 slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: isEdit ? 0 : 1 } }}
               />
@@ -736,8 +741,9 @@ export function AnimalCreateEditForm({ currentAnimal }) {
 
             {isEdit && !isSold && (
               <Field.Select name="status" label="Estado">
-                <MenuItem value="available">Disponible</MenuItem>
-                <MenuItem value="reserved">Reservado</MenuItem>
+                {/* apartar es de la venta; fuera de venta solo está activo */}
+                <MenuItem value="available">{isSale ? 'Disponible' : 'Activo'}</MenuItem>
+                {isSale && <MenuItem value="reserved">Reservado</MenuItem>}
               </Field.Select>
             )}
 

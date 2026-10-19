@@ -43,6 +43,7 @@ import { EmptyList, EmptyContent } from 'src/components/empty-content';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { AnimalCapAlert } from '../animal-cap-alert';
 import { QrLabelsDialog } from '../qr-labels-dialog';
 import { MoveAnimalMenu } from '../move-animal-dialog';
 import {
@@ -53,7 +54,6 @@ import {
   animalUnits,
   speciesLabel,
   STATUS_COLORS,
-  STATUS_LABELS,
   PURPOSE_COLORS,
   PURPOSE_LABELS,
   countByPurpose,
@@ -202,7 +202,7 @@ export function AnimalListView() {
 
   // ponytail: una sola página de 500 (máximo del backend) y agrupación en
   // memoria; paginar/agrupar en servidor cuando el criadero pase de 500
-  const { animals, animalsLoading, animalsError, animalsMutate } = useGetAnimals({
+  const { animals, animalsTotal, animalsLoading, animalsError, animalsMutate } = useGetAnimals({
     page: 1,
     pageSize: 500,
     groupId: groupFilter || undefined,
@@ -211,7 +211,7 @@ export function AnimalListView() {
   });
 
   // Tarjetas y conteos del filtro: en unidades (una colonia cuenta su stock);
-  // vendidos y bajas en registros. «Todo» es la suma.
+  // vendidos y bajas en registros. «Todo» va sin número: mezclaría las dos cosas.
   const counts = useMemo(() => {
     const byPurpose = countByPurpose(animals);
     const sold = animals.filter((a) => a.status === 'sold').length;
@@ -224,7 +224,6 @@ export function AnimalListView() {
       sold,
       deceased,
       saleAvailable,
-      all: byPurpose.sale + byPurpose.breeder + byPurpose.growing + sold + deceased,
     };
   }, [animals]);
 
@@ -304,7 +303,7 @@ export function AnimalListView() {
             <Typography variant="h3">{counts[p]}</Typography>
             {p === 'sale' && (
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {counts.saleAvailable} disponibles · {counts.reserved} apartados
+                {`${plural(counts.saleAvailable, 'disponible', 'disponibles')} · ${plural(counts.reserved, 'apartado', 'apartados')}`}
               </Typography>
             )}
           </CardActionArea>
@@ -400,6 +399,8 @@ export function AnimalListView() {
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
+        <AnimalCapAlert shown={animals.length} total={animalsTotal} sx={{ mb: 3 }} />
+
         {renderSummary()}
 
         <Card>
@@ -410,7 +411,11 @@ export function AnimalListView() {
             sx={{ px: 2.5, boxShadow: (theme) => `inset 0 -2px 0 0 ${theme.vars.palette.divider}` }}
           >
             {DESTINATIONS.map((d) => (
-              <Tab key={d.value} value={d.value} label={`${d.label} (${counts[d.value]})`} />
+              <Tab
+                key={d.value}
+                value={d.value}
+                label={d.value === 'all' ? d.label : `${d.label} (${counts[d.value]})`}
+              />
             ))}
           </Tabs>
 
@@ -519,6 +524,17 @@ function speciesChips(species, animals) {
   const deceased = animals.filter((a) => a.status === 'deceased').length;
   if (sold) chips.push({ key: 'sold', color: 'default', text: plural(sold, 'vendido', 'vendidos') });
   if (deceased) chips.push({ key: 'deceased', color: 'error', text: plural(deceased, 'baja', 'bajas') });
+  // Mismo criterio que el «Pendiente» de la ficha: pide documento y no tiene folio
+  const docPending = animals.filter(
+    (a) => !isClosedStatus(a.status) && a.requires_legal_doc && !a.legal_doc
+  ).length;
+  if (docPending) {
+    chips.push({
+      key: 'doc',
+      color: 'warning',
+      text: plural(docPending, 'doc. pendiente', 'doc. pendientes'),
+    });
+  }
   return chips;
 }
 
@@ -777,6 +793,7 @@ function CriaderoRow({ animal, species, showStock, canUpdate, isSelected, onTogg
 // Fila de la ficha de especie (species-detail-view). onToggleSelect es
 // opcional: sin él no sale la casilla
 export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onDelete, isSelected = false, onToggleSelect }) {
+  const purpose = purposeOf(animal);
   const renderLegalDoc = () => {
     if (!animal.requires_legal_doc) return '—';
     if (!animal.legal_doc) {
@@ -834,10 +851,15 @@ export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onD
       <TableCell>{animal.morphs?.length ? animal.morphs.map((m) => m.name).join(', ') : '—'}</TableCell>
       <TableCell>{SEX_LABELS[animal.sex] ?? animal.sex}</TableCell>
       <TableCell>{animal.birth_date ?? '—'}</TableCell>
-      <TableCell>{fCurrency(animal.price)}</TableCell>
+      <TableCell>
+        <Label variant="soft" color={PURPOSE_COLORS[purpose]}>
+          {PURPOSE_LABELS[purpose]}
+        </Label>
+      </TableCell>
+      <TableCell>{purpose === 'sale' ? fCurrency(animal.price) : '—'}</TableCell>
       <TableCell>
         <Label variant="soft" color={STATUS_COLORS[animal.status] ?? 'default'}>
-          {STATUS_LABELS[animal.status] ?? animal.status}
+          {statusLabel(animal) ?? animal.status}
         </Label>
       </TableCell>
       {showStock && <TableCell>{animal.stock ?? '—'}</TableCell>}

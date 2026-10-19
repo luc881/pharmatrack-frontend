@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { useState } from 'react';
 
 import Menu from '@mui/material/Menu';
@@ -13,6 +14,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
+import { endpoints } from 'src/lib/axios';
 import { moveAnimal } from 'src/actions/animal';
 
 import { toast } from 'src/components/snackbar';
@@ -24,7 +26,9 @@ import { PURPOSES, purposeOf, PURPOSE_HELP, PURPOSE_LABELS, moveBlockReason } fr
 export function MoveAnimalDialog({ animal, species, target, open, onClose, onMoved }) {
   const [all, setAll] = useState(false);
   const [quantity, setQuantity] = useState('');
-  const [price, setPrice] = useState('');
+  // Precio a la vista: nada sale a la venta con un precio que no se vio
+  const initialPrice = Number(animal.price) > 0 ? String(animal.price) : '';
+  const [price, setPrice] = useState(initialPrice);
   const [saving, setSaving] = useState(false);
 
   const bulk = species?.sale_format === 'package' || species?.sale_format === 'colony';
@@ -37,19 +41,25 @@ export function MoveAnimalDialog({ animal, species, target, open, onClose, onMov
     ? Math.floor(Number(animal.stock) / Number(species.package_size))
     : Number(animal.stock);
   const needsPrice = target === 'sale' && Number(animal.price) === 0;
+  // Solo se manda si lo tecleó o hacía falta: no pisa el precio de un hermano
+  const sendPrice = target === 'sale' && (needsPrice || price !== initialPrice);
 
+  const qty = Number(quantity);
   const invalid =
-    (bulk && !all && !(Number(quantity) > 0 && Number(quantity) <= max)) ||
-    (needsPrice && !(Number(price) > 0));
+    (bulk && !all && !(Number.isInteger(qty) && qty > 0 && qty <= max)) ||
+    (sendPrice && !(Number(price) > 0));
 
   const handleMove = async () => {
     setSaving(true);
     try {
       const data = { purpose: target };
       if (bulk) data.quantity = all ? null : Number(quantity);
-      if (needsPrice) data.price = Number(price);
+      if (sendPrice) data.price = Number(price);
       const moved = await moveAnimal(animal.id, data);
       toast.success(`Movido a ${PURPOSE_LABELS[target]}`);
+      // Las demás pantallas (listas, ficha, POS) leen la caché de SWR
+      mutate((key) => Array.isArray(key) && key[0] === endpoints.animal.list);
+      mutate(endpoints.animal.details(animal.id));
       onMoved?.(moved);
       onClose();
     } catch (error) {
@@ -81,13 +91,13 @@ export function MoveAnimalDialog({ animal, species, target, open, onClose, onMov
                 }
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                slotProps={{ htmlInput: { min: 1, max } }}
+                slotProps={{ htmlInput: { min: 1, max, step: 1 } }}
               />
             </>
           )}
-          {needsPrice && (
+          {target === 'sale' && (
             <TextField
-              required
+              required={needsPrice}
               type="number"
               label="Precio de venta"
               value={price}
