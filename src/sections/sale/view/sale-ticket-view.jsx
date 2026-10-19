@@ -24,19 +24,31 @@ import { SAMPLE_TICKET, useSaleTicket } from '../print-ticket';
 // ----------------------------------------------------------------------
 
 const WIDTH_KEY = 'ticketWidth';
+const OFFSET_KEY = 'ticketOffset';
+// Área imprimible de cada rollo (lo mismo que .od-ticket en sale-ticket.jsx)
+const PRINTABLE = { 58: 48, 80: 72 };
 
-const readWidth = () => {
+const read = (key) => {
   try {
-    return Number(localStorage.getItem(WIDTH_KEY)) === 58 ? 58 : 80;
+    return Number(localStorage.getItem(key)) || 0;
   } catch {
-    return 80;
+    return 0;
+  }
+};
+const save = (key, value) => {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    /* sin almacenamiento: solo dura esta visita */
   }
 };
 
 export function SaleTicketView({ saleId }) {
   const searchParams = useSearchParams();
   const autoPrint = searchParams.get('print') === '1';
-  const [width, setWidth] = useState(readWidth);
+  const [width, setWidth] = useState(() => (read(WIDTH_KEY) === 58 ? 58 : 80));
+  // ponytail: perilla de calibración; cada driver/cabezal trae unos mm de desfase propio
+  const [offset, setOffset] = useState(() => read(OFFSET_KEY));
   const printed = useRef(false);
 
   const saleTicket = useSaleTicket(saleId);
@@ -45,11 +57,13 @@ export function SaleTicketView({ saleId }) {
   const changeWidth = (_, value) => {
     if (!value) return;
     setWidth(value);
-    try {
-      localStorage.setItem(WIDTH_KEY, String(value));
-    } catch {
-      /* sin almacenamiento: solo dura esta visita */
-    }
+    save(WIDTH_KEY, value);
+  };
+
+  const nudge = (delta) => {
+    const next = Math.max(-8, Math.min(8, Math.round((offset + delta) * 10) / 10));
+    setOffset(next);
+    save(OFFSET_KEY, next);
   };
 
   // Si la fuente web tarda (sin internet), se imprime con la de respaldo
@@ -70,7 +84,12 @@ export function SaleTicketView({ saleId }) {
         '@media print': { minHeight: 0, bgcolor: '#fff', p: 0 },
       }}
     >
-      <style>{`@page { margin: 0; } @media print { html, body { width: ${width}mm; background: #fff; } }`}</style>
+      {/* La página mide justo lo imprimible: más ancha y el driver la recorre o la escala */}
+      <style>{`@page { margin: 0; }
+        @media print {
+          html, body { width: ${PRINTABLE[width]}mm; margin: 0; padding: 0; background: #fff; }
+          .od-ticket { margin: 0 !important; transform: translateX(${offset}mm); }
+        }`}</style>
 
       <Stack
         direction="row"
@@ -103,6 +122,18 @@ export function SaleTicketView({ saleId }) {
         >
           {saleId ? 'Imprimir ticket' : 'Imprimir prueba'}
         </Button>
+        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+          <Button size="small" variant="outlined" onClick={() => nudge(-0.5)}>
+            ← Izquierda
+          </Button>
+          <Typography variant="body2" sx={{ minWidth: 92, textAlign: 'center' }}>
+            Ajuste: {offset > 0 ? '+' : ''}
+            {offset} mm
+          </Typography>
+          <Button size="small" variant="outlined" onClick={() => nudge(0.5)}>
+            Derecha →
+          </Button>
+        </Stack>
         {saleId && (
           <Button
             component={RouterLink}
