@@ -94,7 +94,8 @@ export function printTicket({ saleId, date, items, payments, business, footer })
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Ticket #${saleId}</title><style>
     @page { margin: 0; }
-    body { width: 58mm; margin: 0; padding: 2mm 3mm; font: 12px/1.5 'Courier New', monospace; color: #000; }
+    /* rollo de 58mm = 48mm imprimibles (384 puntos); más ancho y la derecha se corta */
+    body { width: 48mm; margin: 0; padding: 2mm 0; font: 12px/1.5 'Courier New', monospace; color: #000; }
     .center { text-align: center; }
     .row { display: flex; justify-content: space-between; gap: 4px; }
     .item { word-break: break-word; }
