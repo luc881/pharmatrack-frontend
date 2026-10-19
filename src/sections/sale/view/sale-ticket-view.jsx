@@ -123,15 +123,15 @@ export function SaleTicketView({ saleId }) {
           {saleId ? 'Imprimir ticket' : 'Imprimir prueba'}
         </Button>
         <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-          <Button size="small" variant="outlined" onClick={() => nudge(-0.5)}>
-            ← Izquierda
+          <Button size="small" variant="outlined" onClick={() => nudge(-0.1)}>
+            ← 0.1 mm
           </Button>
           <Typography variant="body2" sx={{ minWidth: 92, textAlign: 'center' }}>
             Ajuste: {offset > 0 ? '+' : ''}
-            {offset} mm
+            {offset.toFixed(1)} mm
           </Typography>
-          <Button size="small" variant="outlined" onClick={() => nudge(0.5)}>
-            Derecha →
+          <Button size="small" variant="outlined" onClick={() => nudge(0.1)}>
+            0.1 mm →
           </Button>
         </Stack>
         {saleId && (
