@@ -7,6 +7,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
@@ -40,8 +41,14 @@ import { Field, FormLeaveGuard } from 'src/components/hook-form';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { TaxonDialog } from './taxon-dialog';
+import { MoveAnimalMenu } from './move-animal-dialog';
 import {
+  PURPOSES,
+  purposeOf,
   SEX_OPTIONS,
+  PURPOSE_HELP,
+  PURPOSE_LABELS,
+  PURPOSE_COLORS,
   isClosedStatus,
   saleFormatLabel,
   flattenGroupTree,
@@ -64,6 +71,7 @@ const schema = zod.object({
   description: zod.string().optional(),
   image: zod.string().optional(),
   status: zod.enum(['available', 'reserved']).optional(),
+  purpose: zod.enum(['sale', 'breeder', 'growing']),
   photos: zod.array(zod.string()),
   requires_legal_doc: zod.boolean(),
   legal_doc: zod.string().optional(),
@@ -72,6 +80,17 @@ const schema = zod.object({
   // 0 = ya no hay (agotado); el backend lo marca como vendido y el sitio dice "Agotado"
   stock: zod.number({ coerce: true }).int('Solo números enteros').min(0, 'No puede ser negativo').optional(),
 });
+
+// ¿Cuántos paquetes en venta? / ¿Cuántos en crianza? / ¿Cuántas cepas de pie de cría?
+const PURPOSE_SUFFIX = { sale: 'en venta', breeder: 'de pie de cría', growing: 'en crianza' };
+
+function stockLabel(saleFormat, purpose) {
+  if (saleFormat === 'colony') return `¿Cuántas cepas ${PURPOSE_SUFFIX[purpose]}?`;
+  if (saleFormat === 'package') {
+    return purpose === 'sale' ? '¿Cuántos paquetes en venta?' : `¿Cuántos ${PURPOSE_SUFFIX[purpose]}?`;
+  }
+  return 'Cantidad disponible';
+}
 
 // «+ Género nuevo» etc. a la vista junto a su selector (no un icono escondido)
 const NEW_BUTTON_SX = { height: 56, flexShrink: 0 };
@@ -117,6 +136,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       description: '',
       image: '',
       status: 'available',
+      purpose: 'sale',
       photos: [],
       requires_legal_doc: false,
       legal_doc: '',
@@ -136,6 +156,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           description: currentAnimal.description ?? '',
           image: currentAnimal.image ?? '',
           status: currentAnimal.status === 'reserved' ? 'reserved' : 'available',
+          purpose: purposeOf(currentAnimal),
           photos: currentAnimal.photos ?? [],
           requires_legal_doc: !!currentAnimal.requires_legal_doc,
           legal_doc: currentAnimal.legal_doc ?? '',
@@ -159,6 +180,11 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   // vez (el ref), para no pisar lo que el usuario cambie después.
   const [searchParams] = useSearchParams();
   const prefilledRef = useRef(false);
+  const urlPurpose = searchParams.get('purpose');
+  useEffect(() => {
+    if (!isEdit && PURPOSES.includes(urlPurpose)) setValue('purpose', urlPurpose);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, urlPurpose]);
   useEffect(() => {
     if (isEdit || prefilledRef.current) return;
     const sp = allSpecies.find((s) => s.id === Number(searchParams.get('species_id')));
@@ -171,6 +197,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, allSpecies, searchParams]);
 
+  const purpose = watch('purpose');
+  const isSale = purpose === 'sale';
   const speciesId = watch('species_id');
   const morphIds = watch('morphs');
   const { morphs: speciesMorphs, morphsMutate } = useAllMorphs(speciesId ? Number(speciesId) : undefined);
@@ -275,9 +303,10 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         species_id: Number(data.species_id),
         sex: isBulk ? 'unknown' : data.sex,
         birth_date: !isBulk && data.birth_date ? data.birth_date : null,
-        price: Number(data.price),
+        // sin venta no hay precio: el backend exige el campo, va en 0
+        price: isSale ? Number(data.price) : 0,
         compare_at_price:
-          data.compare_at_price !== '' && data.compare_at_price != null
+          isSale && data.compare_at_price !== '' && data.compare_at_price != null
             ? Number(data.compare_at_price)
             : null,
         price_cost: data.price_cost !== '' && data.price_cost != null ? Number(data.price_cost) : 0,
@@ -299,9 +328,10 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       };
 
       if (isEdit) {
+        // el destino se cambia con «Mover a…»; el PUT rechaza `purpose`
         await updateAnimal(currentAnimal.id, payload);
       } else {
-        await createAnimal(payload);
+        await createAnimal({ ...payload, purpose: data.purpose });
       }
 
       toast.success(isEdit ? 'Animal actualizado' : 'Animal registrado');
@@ -320,6 +350,57 @@ export function AnimalCreateEditForm({ currentAnimal }) {
     <FormProvider {...methods}>
       <FormLeaveGuard />
       <form onSubmit={onSubmit}>
+        <Card sx={{ p: 3, mb: 3 }}>
+          {isEdit ? (
+            <Box sx={{ gap: 1.5, display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+              <Typography variant="h6">Destino</Typography>
+              <Chip label={PURPOSE_LABELS[purposeOf(currentAnimal)]} color={PURPOSE_COLORS[purposeOf(currentAnimal)]} />
+              <MoveAnimalMenu
+                animal={currentAnimal}
+                species={selectedSpecies ?? currentAnimal.species}
+                onMoved={() => mutate(endpoints.animal.details(currentAnimal.id))}
+              />
+            </Box>
+          ) : (
+            <>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                ¿Para qué es?
+              </Typography>
+              <Box
+                role="radiogroup"
+                aria-label="¿Para qué es?"
+                sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' } }}
+              >
+                {PURPOSES.map((p) => (
+                  <Box
+                    key={p}
+                    component="button"
+                    type="button"
+                    role="radio"
+                    aria-checked={purpose === p}
+                    onClick={() => setValue('purpose', p, { shouldDirty: true })}
+                    sx={(theme) => ({
+                      p: 2,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: 1.5,
+                      font: 'inherit',
+                      color: 'text.primary',
+                      bgcolor: 'transparent',
+                      border: `solid 2px ${purpose === p ? theme.vars.palette.primary.main : theme.vars.palette.divider}`,
+                    })}
+                  >
+                    <Typography variant="subtitle1">{PURPOSE_LABELS[p]}</Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      {PURPOSE_HELP[p]}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </>
+          )}
+        </Card>
+
         <Card sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 3 }}>
             Información del animal
@@ -437,7 +518,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                       )}
                     </Box>
 
-                    {saleFormat !== 'individual' && (
+                    {saleFormat !== 'individual' && isSale && (
                       <Box>
                         <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                           Escalas de precio por cantidad
@@ -561,7 +642,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
             {isBulk && (
               <Field.Text
                 name="stock"
-                label={saleFormat === 'package' ? 'Paquetes disponibles' : saleFormat === 'colony' ? 'Cepas disponibles' : 'Cantidad disponible'}
+                label={stockLabel(saleFormat, purpose)}
                 type="number"
                 helperText={
                   isEdit
@@ -581,43 +662,47 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               />
             )}
 
-            <Field.Text
-              name="price"
-              label="Precio de venta *"
-              type="number"
-              helperText={
-                isBulk
-                  ? `Precio por ${selectedSpecies?.sale_format === 'package' ? `paquete de ${selectedSpecies.package_size}` : 'cepa'}`
-                  : ''
-              }
-              slotProps={{
-                inputLabel: { shrink: true },
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
+            {isSale && (
+              <>
+                <Field.Text
+                  name="price"
+                  label="Precio de venta *"
+                  type="number"
+                  helperText={
+                    isBulk
+                      ? `Precio por ${selectedSpecies?.sale_format === 'package' ? `paquete de ${selectedSpecies.package_size}` : 'cepa'}`
+                      : ''
+                  }
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
 
-            <Field.Text
-              name="compare_at_price"
-              label="Precio anterior (oferta)"
-              type="number"
-              helperText="Se muestra tachado en la tienda; vacío = sin oferta"
-              slotProps={{
-                inputLabel: { shrink: true },
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
+                <Field.Text
+                  name="compare_at_price"
+                  label="Precio anterior (oferta)"
+                  type="number"
+                  helperText="Se muestra tachado en la tienda; vacío = sin oferta"
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Box sx={{ typography: 'subtitle2', color: 'text.disabled' }}>$</Box>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              </>
+            )}
 
             <Field.Text
               name="price_cost"

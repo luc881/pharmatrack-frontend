@@ -1,3 +1,4 @@
+import { mutate } from 'swr';
 import { useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
@@ -14,15 +15,25 @@ import { RouterLink } from 'src/routes/components';
 
 import { fCurrency } from 'src/utils/format-number';
 
+import { endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
+import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { SEX_LABELS, STATUS_COLORS, STATUS_LABELS } from '../utils';
+import { MoveAnimalMenu } from '../move-animal-dialog';
+import {
+  purposeOf,
+  SEX_LABELS,
+  statusLabel,
+  STATUS_COLORS,
+  PURPOSE_LABELS,
+  PURPOSE_COLORS,
+} from '../utils';
 
 // ----------------------------------------------------------------------
 
@@ -37,7 +48,7 @@ function InfoRow({ label, children }) {
   );
 }
 
-export function AnimalDetailsView({ animal }) {
+export function AnimalDetailsView({ animal, animalError }) {
   const { user } = useAuthContext();
   const canUpdate = user?.permissions?.includes('animals.update');
 
@@ -47,6 +58,28 @@ export function AnimalDetailsView({ animal }) {
   }, [animal]);
 
   const [selected, setSelected] = useState(0);
+
+  // 404: el ejemplar se vendió y se borró, o el enlace es viejo. Cargando = en blanco.
+  if (!animal && animalError?.status === 404) {
+    return (
+      <DashboardContent>
+        <EmptyContent
+          title="Este ejemplar ya no existe"
+          action={
+            <Button
+              component={RouterLink}
+              href={paths.dashboard.animal.root}
+              variant="contained"
+              sx={{ mt: 3 }}
+            >
+              Ir a Mi criadero
+            </Button>
+          }
+          sx={{ py: 10 }}
+        />
+      </DashboardContent>
+    );
+  }
 
   if (!animal) return null;
 
@@ -150,14 +183,26 @@ export function AnimalDetailsView({ animal }) {
           <Stack spacing={2}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <Typography variant="h5">{animal.code}</Typography>
-              <Label variant="soft" color={STATUS_COLORS[animal.status] ?? 'default'}>
-                {STATUS_LABELS[animal.status] ?? animal.status}
+              <Label variant="soft" color={PURPOSE_COLORS[purposeOf(animal)]}>
+                {PURPOSE_LABELS[purposeOf(animal)]}
               </Label>
+              <Label variant="soft" color={STATUS_COLORS[animal.status] ?? 'default'}>
+                {statusLabel(animal) ?? animal.status}
+              </Label>
+              {canUpdate && (
+                <MoveAnimalMenu
+                  animal={animal}
+                  species={animal.species}
+                  onMoved={() => mutate(endpoints.animal.details(animal.id))}
+                />
+              )}
             </Box>
 
-            <Typography variant="h4" sx={{ color: 'primary.main' }}>
-              {fCurrency(animal.price)}
-            </Typography>
+            {purposeOf(animal) === 'sale' && (
+              <Typography variant="h4" sx={{ color: 'primary.main' }}>
+                {fCurrency(animal.price)}
+              </Typography>
+            )}
 
             <Divider sx={{ borderStyle: 'dashed' }} />
 

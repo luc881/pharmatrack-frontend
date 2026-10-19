@@ -41,7 +41,8 @@ axiosInstance.interceptors.response.use(
       error?.message ||
       'Something went wrong!';
     console.error('Axios error:', message);
-    return Promise.reject(new Error(message));
+    // el status viaja con el error para distinguir 404 de una caída de red
+    return Promise.reject(Object.assign(new Error(message), { status: error?.response?.status }));
   }
 );
 
