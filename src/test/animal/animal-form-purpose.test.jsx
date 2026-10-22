@@ -91,6 +91,45 @@ describe('Formulario de animal: destino', () => {
     expect(body.sent).toMatchObject({ purpose: 'breeder', price: 0, species_id: 1 });
   });
 
+  it('da de alta varios iguales: manda count y nunca un código manual', async () => {
+    const body = {};
+    mockApi([capture('post', '/animals', body)]);
+    wrap(<AnimalCreateEditForm />, '/new?species_id=1');
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Especie/)).toHaveValue('macularius — Gecko leopardo')
+    );
+    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'PH-1' } });
+    fireEvent.change(screen.getByLabelText(/¿Cuántos ejemplares iguales\?/), {
+      target: { value: '3' },
+    });
+    expect(screen.queryByLabelText('Código')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText(/Precio de venta/), { target: { value: '150' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar 3 animales' }));
+
+    await waitFor(() => expect(body.sent).toBeDefined());
+    expect(body.sent).toMatchObject({ count: 3, species_id: 1, price: 150 });
+    expect(body.sent).not.toHaveProperty('code');
+  });
+
+  it('«Guardar y agregar otro» se queda con la especie y limpia el código', async () => {
+    const body = {};
+    mockApi([capture('post', '/animals', body)]);
+    wrap(<AnimalCreateEditForm />, '/new?species_id=1');
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Especie/)).toHaveValue('macularius — Gecko leopardo')
+    );
+    fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'G-1' } });
+    fireEvent.change(screen.getByLabelText(/Precio de venta/), { target: { value: '900' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar y agregar otro' }));
+
+    await waitFor(() => expect(body.sent).toMatchObject({ code: 'G-1', price: 900 }));
+    await waitFor(() => expect(screen.getByLabelText('Código')).toHaveValue(''));
+    expect(screen.getByLabelText(/Especie/)).toHaveValue('macularius — Gecko leopardo');
+    expect(screen.getByLabelText(/Precio de venta/)).toHaveValue('900');
+  });
+
   it('preselecciona el destino desde ?purpose=growing', async () => {
     mockApi();
     wrap(<AnimalCreateEditForm />, '/new?purpose=growing');

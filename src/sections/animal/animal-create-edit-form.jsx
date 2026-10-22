@@ -79,6 +79,8 @@ const schema = zod.object({
   // Unidades idénticas (solo especies en cepa/paquete)
   // 0 = ya no hay (agotado); el backend lo marca como vendido y el sitio dice "Agotado"
   stock: zod.number({ coerce: true }).int('Solo números enteros').min(0, 'No puede ser negativo').optional(),
+  // Alta de varios individuales iguales (p. ej. Phyllium en terrario comunal)
+  count: zod.number({ coerce: true }).int('Solo números enteros').min(1, 'Mínimo 1').max(50, 'Máximo 50 a la vez'),
 });
 
 // ¿Cuántos paquetes en venta? / ¿Cuántos en crianza? / ¿Cuántas cepas de pie de cría?
@@ -142,6 +144,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       legal_doc: '',
       legal_doc_url: '',
       stock: 1,
+      count: 1,
     },
     values: currentAnimal
       ? {
@@ -162,12 +165,14 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           legal_doc: currentAnimal.legal_doc ?? '',
           legal_doc_url: currentAnimal.legal_doc_url ?? '',
           stock: currentAnimal.stock ?? 1,
+          count: 1,
         }
       : undefined,
   });
 
   const {
     watch,
+    reset,
     setError,
     setValue,
     getValues,
@@ -270,7 +275,12 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const removePhoto = (index) =>
     setValue('photos', getValues('photos').filter((_, i) => i !== index), { shouldDirty: true });
 
-  const onSubmit = handleSubmit(async (data) => {
+  // Varios iguales de una vez: solo al dar de alta individuales
+  const count = !isEdit && !isBulk ? Number(watch('count')) || 1 : 1;
+
+  // addAnother: «Guardar y agregar otro» se queda en el formulario con la
+  // especie, destino y precio puestos; solo limpia lo de cada ejemplar
+  const save = (addAnother) => handleSubmit(async (data) => {
     if (saleFormat === 'package' && !(Number(packageSize) >= 2)) {
       toast.error('Indica cuántos ejemplares trae el paquete (mínimo 2)');
       return;
@@ -318,8 +328,9 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         requires_legal_doc: legalDoc,
         legal_doc: legalDoc ? data.legal_doc || null : null,
         legal_doc_url: legalDoc ? data.legal_doc_url || null : null,
-        // si se omite el código, el backend genera uno "AN-XXXXXXXX"
-        ...(data.code ? { code: data.code } : {}),
+        // si se omite el código, el backend genera uno "AN-XXXXXXXX" (siempre, con varios)
+        ...(data.code && count === 1 ? { code: data.code } : {}),
+        ...(count > 1 ? { count } : {}),
         // solo las cepas/paquetes manejan stock; individuales quedan en 1
         // (antes `|| 1` convertía un 0 en 1 y no había forma de agotar a mano).
         // Al editar va solo si se tocó: reenviar un 0 marcaría «Vendido» un registro vacío
@@ -337,8 +348,28 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         await createAnimal({ ...payload, purpose: data.purpose });
       }
 
-      toast.success(isEdit ? 'Animal actualizado' : 'Animal registrado');
+      toast.success(
+        isEdit ? 'Animal actualizado' : count > 1 ? `${count} animales registrados` : 'Animal registrado'
+      );
       mutate((key) => Array.isArray(key) && key[0] === endpoints.animal.list);
+      if (addAnother) {
+        reset({
+          ...data,
+          sex: 'unknown',
+          birth_date: '',
+          code: '',
+          description: '',
+          image: '',
+          photos: [],
+          requires_legal_doc: false,
+          legal_doc: '',
+          legal_doc_url: '',
+          stock: 1,
+          count: 1,
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
       navigate(navState?.from ?? paths.dashboard.animal.root, {
         state: { expand: Number(data.species_id) },
       });
@@ -348,6 +379,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       }
     }
   });
+  const onSubmit = save(false);
 
   return (
     <FormProvider {...methods}>
@@ -642,6 +674,16 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               </Field.Select>
             )}
 
+            {!isEdit && !isBulk && (
+              <Field.Text
+                name="count"
+                label="¿Cuántos ejemplares iguales?"
+                type="number"
+                helperText="Para varios iguales que viven juntos (p. ej. Phyllium): se crea uno por cada uno, cada quien con su código"
+                slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: 1, max: 50 } }}
+              />
+            )}
+
             {isBulk && (
               <Field.Text
                 name="stock"
@@ -725,12 +767,14 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               }}
             />
 
-            <Field.Text
-              name="code"
-              label="Código"
-              helperText="Si se deja vacío se genera automáticamente"
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
+            {count === 1 && (
+              <Field.Text
+                name="code"
+                label="Código"
+                helperText="Si se deja vacío se genera automáticamente"
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+            )}
 
             {currentAnimal?.status === 'deceased' && (
               <Alert severity="error" sx={{ gridColumn: { sm: 'span 2' } }}>
@@ -867,9 +911,14 @@ export function AnimalCreateEditForm({ currentAnimal }) {
             </Box>
           </Box>
 
-          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+          <Box sx={{ mt: 3, gap: 1.5, display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {!isEdit && (
+              <Button variant="outlined" loading={isSubmitting} onClick={save(true)}>
+                Guardar y agregar otro
+              </Button>
+            )}
             <Button type="submit" variant="contained" loading={isSubmitting}>
-              {isEdit ? 'Guardar cambios' : 'Registrar animal'}
+              {isEdit ? 'Guardar cambios' : count > 1 ? `Registrar ${count} animales` : 'Registrar animal'}
             </Button>
           </Box>
         </Card>
