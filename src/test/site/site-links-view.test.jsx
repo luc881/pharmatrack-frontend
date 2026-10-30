@@ -11,7 +11,7 @@ import { server } from '../mocks/server';
 import { createWrapper } from '../utils';
 
 // ----------------------------------------------------------------------
-// Editor de /gracias y /links: carga el contenido, edita y guarda completo;
+// Editor de /links: carga el contenido, edita y guarda completo;
 // no deja guardar un enlace inválido.
 // ----------------------------------------------------------------------
 
@@ -23,8 +23,7 @@ const DATA = {
   events: [{ title: 'Animalia Otoño CDMX 2026', place: 'Tlatelolco', date: '2026-11-21', time: '', ends: '', url: '', url_label: 'Más información' }],
   guides: [{ name: 'Isópodos', url: '/articulos/x', sub: false }],
   pages: {
-    gracias: { label: 'Criadero', title: 'Gracias por tu compra', lead: '', footer: '', buttons: [{ label: 'Ver catálogo', url: '/catalogo', primary: true }] },
-    links: { label: 'Criadero', title: 'Historia natural', lead: '', footer: '', buttons: [] },
+    links: { label: 'Criadero', title: 'Historia natural', lead: '', footer: '', buttons: [{ label: 'Ver catálogo', url: '/catalogo', primary: true }] },
   },
 };
 
@@ -53,14 +52,13 @@ describe('SiteLinksView', () => {
     );
     renderView();
 
-    const title = await screen.findByDisplayValue('Gracias por tu compra');
-    fireEvent.change(title, { target: { value: 'Gracias, de verdad' } });
+    const title = await screen.findByDisplayValue('Historia natural');
+    fireEvent.change(title, { target: { value: 'Historia natural de CDMX' } });
     fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }));
 
     await waitFor(() => expect(saved).not.toBeNull());
-    expect(saved.pages.gracias.title).toBe('Gracias, de verdad');
+    expect(saved.pages.links.title).toBe('Historia natural de CDMX');
     expect(saved.events[0].title).toBe('Animalia Otoño CDMX 2026');
-    expect(saved.pages.links.title).toBe('Historia natural');
   });
 
   it('no manda al API un enlace inválido', async () => {

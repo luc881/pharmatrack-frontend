@@ -31,8 +31,8 @@ export async function updateSiteMedia(patch) {
 }
 
 // ----------------------------------------------------------------------
-// Contenido de /gracias (QR del sticker) y /links (bio de Instagram): eventos,
-// guías y los textos y botones de cada página. Se guarda completo.
+// Contenido de /links (bio de Instagram, QR del ticket): eventos, guías,
+// textos y botones. Se guarda completo.
 
 const LINK_PAGES_URL = '/api/v1/settings/link-pages';
 

@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
-import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
-import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
@@ -23,10 +21,8 @@ import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 // ----------------------------------------------------------------------
-// Contenido de las páginas tipo linktree del sitio:
-//   /gracias → QR del sticker que va con cada compra (la URL está impresa)
-//   /links   → enlace de la bio de Instagram
-// Los eventos y las guías salen en las dos; textos y botones son por página.
+// Contenido de /links, la página tipo linktree del sitio (bio de Instagram,
+// QR del ticket, tarjetas): eventos, guías, textos y botones.
 // Se guarda todo junto (PUT completo) y el sitio lo muestra en ~1 minuto.
 // ----------------------------------------------------------------------
 
@@ -37,10 +33,6 @@ const URL_OK = /^(\/[^/]|\/$|https?:\/\/|tel:|mailto:)/;
 const urlError = (url, required) =>
   !url ? (required ? 'Obligatorio' : '') : URL_OK.test(url) ? '' : 'Usa /ruta, https://…, tel: o mailto:';
 
-const PAGES = [
-  { key: 'gracias', label: 'Gracias (sticker)', path: '/gracias' },
-  { key: 'links', label: 'Links (Instagram)', path: '/links' },
-];
 
 const NEW_EVENT = { title: '', place: '', date: '', time: '', ends: '', url: '', url_label: 'Más información' };
 const NEW_GUIDE = { name: '', url: '', sub: false };
@@ -57,13 +49,11 @@ function firstError(d) {
     if (!g.name.trim()) return 'Una guía no tiene nombre.';
     if (urlError(g.url)) return `El enlace de la guía "${g.name}" no es válido.`;
   }
-  for (const p of PAGES) {
-    const page = d.pages[p.key];
-    if (!page.title.trim()) return `Falta el titular de ${p.label}.`;
-    for (const b of page.buttons) {
-      if (!b.label.trim()) return `Un botón de ${p.label} no tiene texto.`;
-      if (urlError(b.url, true)) return `El enlace de "${b.label}" (${p.label}) no es válido.`;
-    }
+  const page = d.pages.links;
+  if (!page.title.trim()) return 'Falta el titular de la página.';
+  for (const b of page.buttons) {
+    if (!b.label.trim()) return 'Un botón no tiene texto.';
+    if (urlError(b.url, true)) return `El enlace de "${b.label}" no es válido.`;
   }
   return null;
 }
@@ -82,7 +72,6 @@ const move = (list, i, dir) => {
 export function SiteLinksView() {
   const { linkPages, linkPagesLoading, linkPagesError, linkPagesMutate } = useGetLinkPages();
   const [draft, setDraft] = useState(null);
-  const [tab, setTab] = useState('gracias');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -140,17 +129,11 @@ export function SiteLinksView() {
       />
 
       <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-        Páginas tipo linktree del sitio:{' '}
-        {PAGES.map((p, i) => (
-          <span key={p.key}>
-            {i > 0 && ' y '}
-            <a href={`${SITE}${p.path}`} target="_blank" rel="noopener noreferrer">
-              {p.path}
-            </a>{' '}
-            ({p.key === 'gracias' ? 'QR del sticker' : 'bio de Instagram'})
-          </span>
-        ))}
-        . Los eventos y las guías salen en las dos. Los cambios aparecen en el sitio en aproximadamente un minuto.
+        Página tipo linktree del sitio:{' '}
+        <a href={`${SITE}/links`} target="_blank" rel="noopener noreferrer">
+          /links
+        </a>{' '}
+        (bio de Instagram, QR del ticket y tarjetas). Los cambios aparecen en el sitio en aproximadamente un minuto.
       </Typography>
 
       {linkPagesError ? (
@@ -240,12 +223,10 @@ export function SiteLinksView() {
 
           {/* Páginas */}
           <Card>
-            <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ px: 2.5, boxShadow: (theme) => `inset 0 -2px 0 0 ${theme.vars.palette.divider}` }}>
-              {PAGES.map((p) => (
-                <Tab key={p.key} value={p.key} label={p.label} />
-              ))}
-            </Tabs>
-            <PageEditor page={draft.pages[tab]} onChange={(patch) => setPage(tab, patch)} />
+            <Typography variant="h6" sx={{ px: 3, pt: 3 }}>
+              Página /links
+            </Typography>
+            <PageEditor page={draft.pages.links} onChange={(patch) => setPage('links', patch)} />
           </Card>
         </Stack>
       )}

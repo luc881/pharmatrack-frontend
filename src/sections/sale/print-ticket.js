@@ -40,7 +40,7 @@ export const fmtTicketDate = (iso) =>
 
 export const folio = (id) => `OD-${String(id).padStart(6, '0')}`;
 
-export const TICKET_URL = 'https://opuntiaden.com/gracias';
+export const TICKET_URL = 'https://opuntiaden.com/links?src=ticket';
 
 // Plantilla compartida (Ventas > Plantilla del ticket): nombre y despedida del WhatsApp
 export function useTicketTemplate() {

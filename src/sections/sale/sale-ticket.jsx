@@ -131,7 +131,7 @@ export function SaleTicket({ ticket, width = 80, onReady }) {
         <div>Escanea para ver la guía de cuidados</div>
         {/* SVG generado localmente por qrcode (sin datos del usuario) */}
         <div className="qr" dangerouslySetInnerHTML={{ __html: qr }} />
-        <div>opuntiaden.com/gracias</div>
+        <div>opuntiaden.com/links</div>
         <div className="small" style={{ marginTop: '1.5mm' }}>
           Este ticket no es un comprobante fiscal.
         </div>
