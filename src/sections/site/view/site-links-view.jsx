@@ -13,7 +13,7 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { paths } from 'src/routes/paths';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { updateLinkPages, useGetLinkPages } from 'src/actions/site';
+import { updateLinkPages, useGetLinkPages, updateSiteTicker, useGetSiteSettings } from 'src/actions/site';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -22,7 +22,8 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 // ----------------------------------------------------------------------
 // Contenido de /links, la página tipo linktree del sitio (bio de Instagram,
-// QR del ticket, tarjetas): eventos, guías, textos y botones.
+// QR del ticket, tarjetas): eventos, guías, textos y botones. Al final, la
+// cinta de novedades del sitio (otro ajuste, con su propio guardado).
 // Se guarda todo junto (PUT completo) y el sitio lo muestra en ~1 minuto.
 // ----------------------------------------------------------------------
 
@@ -228,6 +229,8 @@ export function SiteLinksView() {
             </Typography>
             <PageEditor page={draft.pages.links} onChange={(patch) => setPage('links', patch)} />
           </Card>
+
+          <TickerEditor />
         </Stack>
       )}
     </DashboardContent>
@@ -235,6 +238,70 @@ export function SiteLinksView() {
 }
 
 // ----------------------------------------------------------------------
+
+// Cinta de novedades que corre en el sitio (antes del pie y en la suscripción).
+// Vive en los ajustes del sitio, no en /links, así que se guarda aparte.
+const TICKER_MAX = 8;
+
+function TickerEditor() {
+  const { site, siteMutate } = useGetSiteSettings();
+  const [items, setItems] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (site) setItems(site.ticker ?? []);
+  }, [site]);
+
+  if (!items) return null;
+  const dirty = JSON.stringify(items) !== JSON.stringify(site.ticker ?? []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await siteMutate(await updateSiteTicker(items.map((t) => t.trim()).filter(Boolean)), { revalidate: false });
+      toast.success('Cinta guardada. El sitio la muestra en ~1 minuto.');
+    } catch (err) {
+      toast.error(err.message || 'No se pudo guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Section
+      title="Cinta de novedades"
+      hint={`Frases que corren en el sitio antes del pie y en la suscripción (hasta ${TICKER_MAX}, de 80 caracteres). Se guarda con su propio botón.`}
+      onAdd={() => setItems([...items, ''])}
+      addLabel="Agregar frase"
+      addDisabled={items.length >= TICKER_MAX}
+    >
+      {items.length === 0 && <Empty>Sin frases: la cinta no aparece en el sitio.</Empty>}
+      {items.map((t, i) => (
+        <Row
+          key={i}
+          inline
+          onUp={() => setItems(move(items, i, -1))}
+          onDown={() => setItems(move(items, i, 1))}
+          onRemove={() => setItems(removeAt(items, i))}
+        >
+          <TextField
+            size="small"
+            fullWidth
+            label={`Frase ${i + 1}`}
+            value={t}
+            onChange={(ev) => setItems(items.map((x, j) => (j === i ? ev.target.value : x)))}
+            slotProps={{ htmlInput: { maxLength: 80 } }}
+          />
+        </Row>
+      ))}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button variant="contained" onClick={save} disabled={!dirty || saving} startIcon={<Iconify icon="solar:check-circle-bold" />}>
+          {saving ? 'Guardando…' : 'Guardar cinta'}
+        </Button>
+      </Box>
+    </Section>
+  );
+}
 
 function PageEditor({ page, onChange }) {
   const setButtons = (buttons) => onChange({ buttons });
@@ -284,7 +351,7 @@ function PageEditor({ page, onChange }) {
   );
 }
 
-function Section({ title, hint, onAdd, addLabel, children }) {
+function Section({ title, hint, onAdd, addLabel, addDisabled = false, children }) {
   return (
     <Card sx={{ p: 2.5 }}>
       <Box sx={{ mb: 2, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
@@ -294,7 +361,7 @@ function Section({ title, hint, onAdd, addLabel, children }) {
             {hint}
           </Typography>
         </Box>
-        <Button size="small" variant="outlined" startIcon={<Iconify icon="mingcute:add-line" />} onClick={onAdd} sx={{ flexShrink: 0 }}>
+        <Button size="small" variant="outlined" startIcon={<Iconify icon="mingcute:add-line" />} onClick={onAdd} disabled={addDisabled} sx={{ flexShrink: 0 }}>
           {addLabel}
         </Button>
       </Box>

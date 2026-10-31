@@ -18,6 +18,7 @@ import { createWrapper } from '../utils';
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
 
 const URL = 'https://api.opuntiaden.com/api/v1/settings/link-pages';
+const SITE_URL = 'https://api.opuntiaden.com/api/v1/settings/site';
 
 const DATA = {
   events: [{ title: 'Animalia Otoño CDMX 2026', place: 'Tlatelolco', date: '2026-11-21', time: '', ends: '', url: '', url_label: 'Más información' }],
@@ -78,5 +79,27 @@ describe('SiteLinksView', () => {
     fireEvent.click(screen.getByRole('button', { name: /guardar cambios/i }));
     await new Promise((r) => setTimeout(r, 50));
     expect(put).not.toHaveBeenCalled();
+  });
+
+  it('edita la cinta de novedades y la guarda aparte (solo ticker)', async () => {
+    let saved = null;
+    server.use(
+      http.get(URL, () => HttpResponse.json(DATA)),
+      http.get(SITE_URL, () => HttpResponse.json({ ticker: ['Entrega en persona en CDMX'], media: {} })),
+      http.put(SITE_URL, async ({ request }) => {
+        saved = await request.json();
+        return HttpResponse.json({ ticker: saved.ticker, media: {} });
+      })
+    );
+    renderView();
+
+    const frase = await screen.findByDisplayValue('Entrega en persona en CDMX');
+    fireEvent.change(frase, { target: { value: 'Nueva camada de Cubaris' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar frase' }));
+    fireEvent.change(screen.getByLabelText('Frase 2'), { target: { value: 'Apartas con el 50%' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cinta' }));
+
+    await waitFor(() => expect(saved).not.toBeNull());
+    expect(saved).toEqual({ ticker: ['Nueva camada de Cubaris', 'Apartas con el 50%'] });
   });
 });

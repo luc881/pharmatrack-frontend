@@ -5,7 +5,7 @@ import axiosInstance, { fetcher } from 'src/lib/axios';
 
 // ----------------------------------------------------------------------
 // Ajustes del sitio publico. Es un solo blob JSON (app_settings key="site"):
-// switches de la home mas los nueve slots de media.
+// switches de la home, los nueve slots de media y la cinta de novedades.
 // ----------------------------------------------------------------------
 
 const SITE_URL = '/api/v1/settings/site';
@@ -27,6 +27,12 @@ export function useGetSiteSettings() {
 // El PUT es parcial: manda solo los slots que cambian y el backend los mezcla.
 export async function updateSiteMedia(patch) {
   const res = await axiosInstance.put(SITE_URL, { media: patch });
+  return res.data;
+}
+
+// Cinta de novedades del sitio: lista completa de frases (vacía = sin cinta)
+export async function updateSiteTicker(ticker) {
+  const res = await axiosInstance.put(SITE_URL, { ticker });
   return res.data;
 }
 
