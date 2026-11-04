@@ -16,10 +16,10 @@ import { logoClasses } from './classes';
 // ----------------------------------------------------------------------
 
 const SOURCES = {
-  full: `${CONFIG.assetsDir}/brand/assets/logo/sello-claro.svg`, // sello circular con texto
-  mark: `${CONFIG.assetsDir}/brand/assets/logo/isotipo-claro.svg`, // nopal en el anillo, sin texto
-  badge: `${CONFIG.assetsDir}/brand/assets/logo/isotipo-claro.svg`,
-  icon: `${CONFIG.assetsDir}/brand/assets/logo/isotipo-claro.svg`, // loaders y espacios chicos
+  full: `${CONFIG.brandDir}/logo/sello-claro.svg`, // sello circular con texto
+  mark: `${CONFIG.brandDir}/logo/isotipo-claro.svg`, // nopal en el anillo, sin texto
+  badge: `${CONFIG.brandDir}/logo/isotipo-claro.svg`,
+  icon: `${CONFIG.brandDir}/logo/isotipo-claro.svg`, // loaders y espacios chicos
 };
 
 export function Logo({

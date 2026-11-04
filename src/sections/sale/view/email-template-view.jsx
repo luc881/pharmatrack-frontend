@@ -20,9 +20,22 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 
 // ----------------------------------------------------------------------
-// Plantilla del correo de ticket: nombre del negocio, mensaje inicial y
-// despedida. El backend combina con defaults y arma el HTML.
+// Datos del negocio: lo que se imprime en el ticket, los PDF, el WhatsApp y
+// los correos. Cada instalación guarda los suyos (mientras no se guarden, el
+// API devuelve los de Opuntia Den y aquí se avisa).
 // ----------------------------------------------------------------------
+
+// [campo, etiqueta, ayuda]
+const TICKET_FIELDS = [
+  ['tagline', 'Línea bajo el nombre', 'Ej. «Criadero · CDMX · Entregas a convenir»'],
+  ['website', 'Sitio web', 'Como se lee en el ticket, sin https://'],
+  ['instagram', 'Instagram', '@usuario'],
+  ['phone', 'Teléfono', ''],
+  ['contact_email', 'Correo de contacto', 'Recibo de venta en PDF'],
+  ['folio_prefix', 'Prefijo del folio', 'OD → OD-000123. Letras y números, hasta 6. Vacío = solo el número'],
+  ['ticket_qr_url', 'URL del QR del ticket', 'Vacío = el ticket sale sin QR'],
+  ['ticket_logo_url', 'Logo del ticket (blanco y negro)', 'SVG o PNG. Vacío = sin logo'],
+];
 
 const URL = '/api/v1/settings/email-ticket';
 
@@ -61,9 +74,10 @@ export function EmailTemplateView() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await axiosInstance.put(URL, form);
+      const { saved: _saved, ...body } = form;
+      const res = await axiosInstance.put(URL, body);
       await mutate(res.data, { revalidate: false });
-      toast.success('Plantilla guardada');
+      toast.success('Datos guardados');
     } catch (error) {
       toast.error(error?.message || 'Error al guardar');
     } finally {
@@ -76,12 +90,8 @@ export function EmailTemplateView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Plantilla del ticket"
-        links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Ventas', href: paths.dashboard.sale.root },
-          { name: 'Plantilla del ticket' },
-        ]}
+        heading="Datos del negocio"
+        links={[{ name: 'Dashboard', href: paths.dashboard.root }, { name: 'Datos del negocio' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
@@ -92,12 +102,35 @@ export function EmailTemplateView() {
           </Typography>
         ) : (
           <Stack spacing={3}>
+            {data?.saved === false && (
+              <Alert severity="warning">
+                Todavía no se han guardado los datos de este negocio: el ticket y los correos
+                salen con los de ejemplo. Revísalos y guarda.
+              </Alert>
+            )}
             <TextField
               label="Nombre del negocio"
               value={form.business_name}
               onChange={set('business_name')}
-              helperText="Encabezado del ticket impreso, WhatsApp y correo"
+              helperText="Ticket, PDF, WhatsApp, correos y el cobro de Mercado Pago"
             />
+
+            {TICKET_FIELDS.map(([key, label, help]) => (
+              <TextField
+                key={key}
+                label={label}
+                value={form[key] ?? ''}
+                onChange={set(key)}
+                helperText={help || ' '}
+              />
+            ))}
+
+            <Divider sx={{ borderStyle: 'dashed' }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Correos
+              </Typography>
+            </Divider>
+
             <TextField
               label="Mensaje inicial (opcional)"
               value={form.intro_message}
@@ -127,7 +160,7 @@ export function EmailTemplateView() {
                 label="URL del logo"
                 value={form.logo_url ?? ''}
                 onChange={set('logo_url')}
-                helperText="Debe ser pública: los correos no pueden leer archivos del servidor. Vacío = solo el nombre."
+                helperText="Correos y PDF. PNG o JPG público (los correos no leen archivos del servidor). Vacío = solo el nombre."
               />
               <TextField
                 label="Color"

@@ -5,7 +5,11 @@ import packageJson from '../package.json';
 // ----------------------------------------------------------------------
 
 export const CONFIG = {
-  appName: 'Opuntia Den',
+  // Por instalación (Vercel/.env.local): nombre en pestañas, menú y login, y la
+  // carpeta con los logos y favicons (mismos nombres de archivo que
+  // public/brand/assets). Lo que se imprime (ticket, PDF) sale de «Datos del negocio».
+  appName: import.meta.env.VITE_APP_NAME || 'Opuntia Den',
+  brandDir: import.meta.env.VITE_BRAND_DIR || '/brand/assets',
   appVersion: packageJson.version,
   serverUrl: import.meta.env.VITE_SERVER_URL ?? '',
   assetsDir: import.meta.env.VITE_ASSETS_DIR ?? '',

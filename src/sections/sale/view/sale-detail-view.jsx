@@ -107,15 +107,10 @@ export function SaleDetailView({ currentSale }) {
             <Button
               variant="outlined"
               startIcon={<Iconify icon="ic:baseline-whatsapp" />}
-              disabled={!ticket}
+              disabled={!ticket || !ticketTemplate}
               onClick={() =>
                 window.open(
-                  ticketWhatsAppUrl(
-                    buildTicketText(ticket, {
-                      business: ticketTemplate?.business_name,
-                      footer: ticketTemplate?.footer_message,
-                    })
-                  ),
+                  ticketWhatsAppUrl(buildTicketText(ticket, ticketTemplate)),
                   '_blank'
                 )
               }
@@ -132,6 +127,7 @@ export function SaleDetailView({ currentSale }) {
             </Button>
             <SalePDFDownload
               sale={currentSale}
+              business={ticketTemplate}
               saleDetails={saleDetails}
               salePayments={salePayments}
               productMap={productMap}

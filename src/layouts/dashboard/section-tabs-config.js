@@ -80,7 +80,7 @@ export const SECTIONS = [
       { label: 'Usuarios', path: D.user.list, match: [D.user.root], allowedRoles: ['users.read'] },
       { label: 'Roles', path: D.role.root, allowedRoles: ['roles.read'] },
       { label: 'Sucursales', path: D.branch.root, allowedRoles: ['branches.read'] },
-      { label: 'Plantilla del ticket', path: D.sale.emailTemplate },
+      { label: 'Datos del negocio', path: D.sale.emailTemplate },
     ],
   },
 ];

@@ -5,6 +5,8 @@ import Typography from '@mui/material/Typography';
 
 import { RouterLink } from 'src/routes/components';
 
+import { CONFIG } from 'src/global-config';
+
 // ----------------------------------------------------------------------
 
 export function AuthSplitSection({
@@ -13,7 +15,7 @@ export function AuthSplitSection({
   methods,
   layoutQuery = 'md',
   title = 'Bienvenido',
-  subtitle = 'Sistema de gestión para Opuntia Den.',
+  subtitle = `Sistema de gestión para ${CONFIG.appName}.`,
   ...other
 }) {
   return (
@@ -45,8 +47,8 @@ export function AuthSplitSection({
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
           <Box
             component="img"
-            src="/brand/assets/logo/sello-oscuro.svg"
-            alt="Opuntia Den"
+            src={`${CONFIG.brandDir}/logo/sello-oscuro.svg`}
+            alt={CONFIG.appName}
             sx={{ width: 140, height: 140 }}
           />
         </Box>

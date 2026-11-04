@@ -3,7 +3,7 @@ import '@fontsource/playfair-display/400-italic.css';
 import QRCode from 'qrcode';
 import { useState, useEffect } from 'react';
 
-import { money, TICKET_URL, fmtTicketDate, ticketSubtotal } from './print-ticket';
+import { folio, money, qrLabel, fmtTicketDate, ticketSubtotal } from './print-ticket';
 
 // ----------------------------------------------------------------------
 // Ticket térmico (Opuntia_Den_Marca/8_Ticket/Ticket_ejemplo_80mm.pdf). Solo
@@ -47,17 +47,22 @@ function Row({ label, value, bold }) {
   );
 }
 
-export function SaleTicket({ ticket, width = 80, onReady }) {
+// business: «Datos del negocio» (useTicketTemplate). Sin logo o sin URL del
+// QR, esa parte no se imprime.
+export function SaleTicket({ ticket, business = {}, width = 80, onReady }) {
+  const b = business;
+  const qrUrl = b.ticket_qr_url;
   const [qr, setQr] = useState('');
   const [logoDone, setLogoDone] = useState(false);
 
   useEffect(() => {
-    QRCode.toString(TICKET_URL, { type: 'svg', errorCorrectionLevel: 'M', margin: 2 }).then(setQr);
-  }, []);
+    if (qrUrl) QRCode.toString(qrUrl, { type: 'svg', errorCorrectionLevel: 'M', margin: 2 }).then(setQr);
+  }, [qrUrl]);
 
+  const ready = (!qrUrl || qr) && (!b.ticket_logo_url || logoDone);
   useEffect(() => {
-    if (qr && logoDone) onReady?.();
-  }, [qr, logoDone, onReady]);
+    if (ready) onReady?.();
+  }, [ready, onReady]);
 
   const t = ticket;
   const subtotal = ticketSubtotal(t);
@@ -67,22 +72,26 @@ export function SaleTicket({ ticket, width = 80, onReady }) {
     <div className={`od-ticket${width === 58 ? ' od-ticket--58' : ''}`}>
       <style>{CSS}</style>
 
-      <img
-        className="logo"
-        src="/brand/ticket/ticket-logo.svg"
-        alt="Opuntia Den"
-        onLoad={() => setLogoDone(true)}
-        onError={() => setLogoDone(true)}
-      />
+      {b.ticket_logo_url && (
+        <img
+          className="logo"
+          src={b.ticket_logo_url}
+          alt={b.business_name ?? ''}
+          onLoad={() => setLogoDone(true)}
+          onError={() => setLogoDone(true)}
+        />
+      )}
       <div className="c">
-        <div className="brand">OPUNTIA DEN</div>
-        <div>Criadero · CDMX · Entregas a convenir</div>
-        <div>opuntiaden.com · @opuntia_den</div>
-        <div>Tel. 56 2157 8388</div>
+        {b.business_name && <div className="brand">{b.business_name.toUpperCase()}</div>}
+        {b.tagline && <div>{b.tagline}</div>}
+        {(b.website || b.instagram) && (
+          <div>{[b.website, b.instagram].filter(Boolean).join(' · ')}</div>
+        )}
+        {b.phone && <div>Tel. {b.phone}</div>}
       </div>
 
       <hr />
-      <Row label="Folio" value={t.folio} bold />
+      <Row label="Folio" value={folio(t.id, b.folio_prefix)} bold />
       <Row label="Fecha" value={fmtTicketDate(t.fecha)} />
       {t.cliente && <Row label="Cliente" value={t.cliente} />}
       {t.entrega && (
@@ -128,10 +137,14 @@ export function SaleTicket({ ticket, width = 80, onReady }) {
       <hr />
       <div className="c">
         <div className="serif thanks">Gracias por tu compra</div>
-        <div>Escanea para ver la guía de cuidados</div>
-        {/* SVG generado localmente por qrcode (sin datos del usuario) */}
-        <div className="qr" dangerouslySetInnerHTML={{ __html: qr }} />
-        <div>opuntiaden.com/links</div>
+        {qrUrl && (
+          <>
+            <div>Escanea para ver la guía de cuidados</div>
+            {/* SVG generado localmente por qrcode (sin datos del usuario) */}
+            <div className="qr" dangerouslySetInnerHTML={{ __html: qr }} />
+            <div>{qrLabel(qrUrl)}</div>
+          </>
+        )}
         <div className="small" style={{ marginTop: '1.5mm' }}>
           Este ticket no es un comprobante fiscal.
         </div>

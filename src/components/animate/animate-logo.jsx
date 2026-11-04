@@ -53,7 +53,7 @@ function BrandMark({ style }) {
   return (
     <img
       alt=""
-      src={`${CONFIG.assetsDir}/brand/assets/logo/isotipo-claro.svg`}
+      src={`${CONFIG.brandDir}/logo/isotipo-claro.svg`}
       style={{ objectFit: 'contain', ...style }}
     />
   );

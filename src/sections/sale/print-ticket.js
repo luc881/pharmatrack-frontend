@@ -38,14 +38,20 @@ const dateFmt = new Intl.DateTimeFormat('es-MX', {
 export const fmtTicketDate = (iso) =>
   dateFmt.format(new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`)).replace(',', '');
 
-export const folio = (id) => `OD-${String(id).padStart(6, '0')}`;
+// Prefijo de «Datos del negocio» (OD-000123); vacío = solo el número
+export const folio = (id, prefix) =>
+  `${prefix ? `${prefix}-` : ''}${String(id).padStart(6, '0')}`;
 
-export const TICKET_URL = 'https://opuntiaden.com/links?src=ticket';
+// opuntiaden.com/links?src=ticket → «opuntiaden.com/links» (lo que se lee bajo el QR)
+export const qrLabel = (url) => url.replace(/^https?:\/\/(www\.)?/, '').replace(/[?#].*$/, '');
 
-// Plantilla compartida (Ventas > Plantilla del ticket): nombre y despedida del WhatsApp
+// Datos del negocio (Ajustes > Datos del negocio): ticket, PDF, WhatsApp y correos.
+// Si el API no responde (p. ej. versión vieja en modo convención) devuelve {}
+// para que el ticket igual se imprima, sin encabezado.
+export const BUSINESS_URL = '/api/v1/settings/email-ticket';
 export function useTicketTemplate() {
-  const { data } = useSWR('/api/v1/settings/email-ticket', fetcher, swrOptions);
-  return data;
+  const { data, error } = useSWR(BUSINESS_URL, fetcher, swrOptions);
+  return data ?? (error ? {} : undefined);
 }
 
 // 'Gardabagusi "Argopuro"' → "Phyllium gardabagusi" + "Argopuro" (igual que care_sheets/orm.py)
@@ -130,7 +136,7 @@ export function useSaleTicket(saleId) {
     const pagado = salePayments.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
 
     return {
-      folio: folio(sale.id),
+      id: sale.id,
       fecha: sale.date_sale ?? sale.created_at,
       items,
       descuento: details.reduce((acc, d) => acc + Number(d.discount ?? 0), 0) || undefined,
@@ -144,7 +150,7 @@ export function useSaleTicket(saleId) {
 
 // Botón «Imprimir prueba»: el ticket de ejemplo del paquete de marca
 export const SAMPLE_TICKET = {
-  folio: 'OD-000123',
+  id: 123,
   fecha: new Date().toISOString(),
   cliente: 'Cliente de prueba',
   entrega: { metodo: 'A convenir', fecha: '25/10/2026' },
@@ -176,10 +182,10 @@ export const ticketSubtotal = (t) =>
   t.items.reduce((acc, it) => acc + it.cantidad * it.precio_unitario, 0);
 
 // Ticket en texto plano para compartir por WhatsApp o correo
-export function buildTicketText(t, { business, footer } = {}) {
+export function buildTicketText(t, tpl = {}) {
   const lines = [
-    `*${business || 'OPUNTIA DEN'}*`,
-    `Folio ${t.folio}`,
+    ...(tpl.business_name ? [`*${tpl.business_name.toUpperCase()}*`] : []),
+    `Folio ${folio(t.id, tpl.folio_prefix)}`,
     fmtTicketDate(t.fecha),
     '--------------------',
     ...t.items.flatMap((it) => [
@@ -191,8 +197,8 @@ export function buildTicketText(t, { business, footer } = {}) {
     `*TOTAL: ${money(t.total)} MXN*`,
     ...(t.metodo_pago ? [`Pago: ${t.metodo_pago}`] : []),
     '',
-    footer || 'Gracias por tu compra',
-    TICKET_URL,
+    tpl.footer_message || 'Gracias por tu compra',
+    ...(tpl.ticket_qr_url ? [tpl.ticket_qr_url] : []),
   ];
   return lines.join('\n');
 }

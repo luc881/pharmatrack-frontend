@@ -14,6 +14,7 @@ import { paths } from 'src/routes/paths';
 
 import { handleApiError } from 'src/utils/handle-api-error';
 
+import { CONFIG } from 'src/global-config';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { createArticle, updateArticle } from 'src/actions/articles';
 
@@ -207,7 +208,7 @@ export function ArticleCreateEditForm({ currentArticle }) {
               </Box>
             </Box>
 
-            <Field.Text name="author_name" label="Autor" placeholder="Opuntia Den" />
+            <Field.Text name="author_name" label="Autor" placeholder={CONFIG.appName} />
             <Field.Text name="author_role" label="Rol del autor" placeholder="Criadora" />
 
             <Field.Text

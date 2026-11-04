@@ -5,6 +5,7 @@ import { pdf, Page, Text, View, Font, Image, Document, StyleSheet } from '@react
 
 import axiosInstance, { endpoints } from 'src/lib/axios';
 
+import { BUSINESS_URL } from '../sale/print-ticket';
 import { fedLabel, ACTIVITIES, conditionText } from './husbandry';
 
 // ----------------------------------------------------------------------
@@ -62,7 +63,7 @@ const s = StyleSheet.create({
     color: C.ink,
   },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  logo: { width: 34, height: 34, marginRight: 10 },
+  logo: { width: 34, height: 34, marginRight: 10, objectFit: 'contain' },
   title: { fontSize: 18, fontWeight: 700 },
   subtitle: { fontSize: 9, color: C.muted, marginTop: 2 },
   generated: { marginLeft: 'auto', textAlign: 'right', fontSize: 8, color: C.muted },
@@ -225,7 +226,8 @@ function SpeciesTable({ group }) {
   );
 }
 
-function HusbandryLogDocument({ logs, scope, generatedAt }) {
+function HusbandryLogDocument({ logs, scope, generatedAt, business = {} }) {
+  const brand = (t) => [business.business_name, t].filter(Boolean).join(' · ');
   // Una sección por especie, en orden alfabético; dentro, lo más reciente arriba
   const bySpecies = new Map();
   logs.forEach((log) => {
@@ -254,13 +256,13 @@ function HusbandryLogDocument({ logs, scope, generatedAt }) {
   ];
 
   return (
-    <Document title={`Bitácora de manejo — ${scope}`} author="Opuntia Den">
+    <Document title={`Bitácora de manejo — ${scope}`} author={business.business_name}>
       <Page size="A4" orientation="landscape" style={s.page}>
         <View style={s.header}>
-          <Image style={s.logo} src="/brand/assets/favicon/favicon-192-claro.png" />
+          {business.logo_url ? <Image style={s.logo} src={business.logo_url} /> : null}
           <View>
             <Text style={s.title}>Bitácora de manejo</Text>
-            <Text style={s.subtitle}>Opuntia Den · {scope}</Text>
+            <Text style={s.subtitle}>{brand(scope)}</Text>
           </View>
           <Text style={s.generated}>Generado el {generatedAt}</Text>
         </View>
@@ -283,7 +285,7 @@ function HusbandryLogDocument({ logs, scope, generatedAt }) {
         {!logs.length && <Text style={{ color: C.muted }}>Sin entradas.</Text>}
 
         <View style={s.footer} fixed>
-          <Text>Opuntia Den · Bitácora de manejo · {scope}</Text>
+          <Text>{brand(`Bitácora de manejo · ${scope}`)}</Text>
           <Text
             style={{ marginLeft: 'auto' }}
             render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
@@ -321,10 +323,13 @@ const slug = (t) =>
 // speciesId / animal ({id, code}): el filtro del historial; scope: cómo se
 // describe en el PDF ("Todas las especies", "Gecko Gárgola", "Ejemplar RAU-001")
 export async function exportHusbandryLogPdf({ speciesId, animal, scope }) {
-  const logs = await fetchAllLogs({
-    ...(speciesId ? { species_id: speciesId } : {}),
-    ...(animal ? { animal_id: animal.id } : {}),
-  });
+  const [logs, business] = await Promise.all([
+    fetchAllLogs({
+      ...(speciesId ? { species_id: speciesId } : {}),
+      ...(animal ? { animal_id: animal.id } : {}),
+    }),
+    axiosInstance.get(BUSINESS_URL).then((r) => r.data, () => ({})),
+  ]);
   const today = new Date();
   const generatedAt = today.toLocaleDateString('es-MX', {
     day: 'numeric',
@@ -332,7 +337,7 @@ export async function exportHusbandryLogPdf({ speciesId, animal, scope }) {
     year: 'numeric',
   });
   const blob = await pdf(
-    <HusbandryLogDocument logs={logs} scope={scope} generatedAt={generatedAt} />
+    <HusbandryLogDocument logs={logs} scope={scope} generatedAt={generatedAt} business={business} />
   ).toBlob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

@@ -36,6 +36,8 @@ import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { CustomGridActionsCellItem } from 'src/components/custom-data-grid';
 
+import { useTicketTemplate } from 'src/sections/sale/print-ticket';
+
 import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
@@ -115,10 +117,11 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
   // dejar todo listo para que sólo des Enviar.
   const whatsapp = order.contact_phone?.replace(/\D/g, '');
   const waNumber = whatsapp?.length === 10 ? `52${whatsapp}` : whatsapp;
+  const business = useTicketTemplate()?.business_name;
   const waText =
     order.status === 'paid'
       ? `¡Hola! Recibimos tu pago del pedido ${order.code}. ¿En qué zona de CDMX y a qué hora te queda bien la entrega?`
-      : `¡Hola! Te escribimos de Opuntia Den por tu pedido ${order.code}.`;
+      : `¡Hola! Te escribimos${business ? ` de ${business}` : ''} por tu pedido ${order.code}.`;
   const isPickup = order.delivery_method === 'pickup';
   // Lo que se pega en la guía de la paquetería: destinatario, teléfono y domicilio
   const shippingLabel = [order.contact_name ?? order.customer_name, order.contact_phone, order.address]

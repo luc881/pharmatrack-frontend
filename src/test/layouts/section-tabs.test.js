@@ -13,7 +13,7 @@ describe('findSection', () => {
     expect(where('/dashboard/sale/summary')).toEqual(['ventas', 'Corte de caja', null]);
     expect(where('/dashboard/sale/42')).toEqual(['ventas', 'Historial', null]);
     // la plantilla del ticket vive en Ajustes aunque cuelgue de /sale
-    expect(where('/dashboard/sale/email-template')).toEqual(['ajustes', 'Plantilla del ticket', null]);
+    expect(where('/dashboard/sale/email-template')).toEqual(['ajustes', 'Datos del negocio', null]);
   });
 
   it('compara por segmento completo, no por texto', () => {

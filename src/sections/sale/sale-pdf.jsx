@@ -12,6 +12,8 @@ import axiosInstance, { endpoints } from 'src/lib/axios';
 
 import { Iconify } from 'src/components/iconify';
 
+import { BUSINESS_URL } from './print-ticket';
+
 // ----------------------------------------------------------------------
 
 export function SalePDFRowButton({ sale, productMap }) {
@@ -21,9 +23,10 @@ export function SalePDFRowButton({ sale, productMap }) {
     if (loading) return;
     setLoading(true);
     try {
-      const [detailsRes, paymentsRes] = await Promise.all([
+      const [detailsRes, paymentsRes, businessRes] = await Promise.all([
         axiosInstance.get(endpoints.saleDetail.list, { params: { sale_id: sale.id } }),
         axiosInstance.get(endpoints.salePayment.list, { params: { sale_id: sale.id } }),
+        axiosInstance.get(BUSINESS_URL).catch(() => ({ data: {} })),
       ]);
       const saleDetails = Array.isArray(detailsRes.data) ? detailsRes.data : (detailsRes.data?.data ?? []);
       const salePayments = Array.isArray(paymentsRes.data) ? paymentsRes.data : (paymentsRes.data?.data ?? []);
@@ -34,6 +37,7 @@ export function SalePDFRowButton({ sale, productMap }) {
           saleDetails={saleDetails}
           salePayments={salePayments}
           productMap={productMap}
+          business={businessRes.data}
         />
       ).toBlob();
 
@@ -78,8 +82,8 @@ const STATUS_LABELS = { completed: 'Completada', pending: 'Pendiente', cancelled
 
 // ----------------------------------------------------------------------
 
-export function SalePDFDownload({ sale, saleDetails, salePayments, productMap }) {
-  const ready = !!sale;
+export function SalePDFDownload({ sale, saleDetails, salePayments, productMap, business }) {
+  const ready = !!sale && !!business;
 
   const renderButton = (loading) => (
     <Tooltip title="Descargar PDF">
@@ -105,6 +109,7 @@ export function SalePDFDownload({ sale, saleDetails, salePayments, productMap })
           saleDetails={saleDetails}
           salePayments={salePayments}
           productMap={productMap}
+          business={business}
         />
       }
       fileName={`venta-${sale.id}.pdf`}
@@ -188,8 +193,9 @@ const useStyles = () =>
 
 // ----------------------------------------------------------------------
 
-function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
+function SalePdfDocument({ sale, saleDetails, salePayments, productMap, business }) {
   const styles = useStyles();
+  const b = business ?? {};
 
   const totalItems = saleDetails.reduce(
     (acc, d) =>
@@ -202,7 +208,10 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
   const renderHeader = () => (
     <View style={[styles.spaceBetween, styles.mb40]}>
       <View>
-        <Image source="/brand/assets/logo/isotipo-claro.png" style={{ width: 56, height: 56 }} />
+        {/* el logo de los correos: URL pública (PNG/JPG, react-pdf no lee SVG) */}
+        {b.logo_url ? (
+          <Image source={b.logo_url} style={{ width: 56, height: 56, objectFit: 'contain' }} />
+        ) : null}
       </View>
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={[styles.h3, styles.mb4]}>Recibo de Venta</Text>
@@ -220,8 +229,10 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
   const renderInfo = () => (
     <View style={[styles.spaceBetween, styles.mb40]}>
       <View style={{ width: '50%' }}>
-        <Text style={[styles.body1, styles.bold, styles.mb4]}>Opuntia Den</Text>
-        <Text style={[styles.body2, styles.secondary]}>opuntiaden@gmail.com</Text>
+        <Text style={[styles.body1, styles.bold, styles.mb4]}>{b.business_name}</Text>
+        {b.contact_email ? (
+          <Text style={[styles.body2, styles.secondary]}>{b.contact_email}</Text>
+        ) : null}
       </View>
       <View style={{ width: '50%', alignItems: 'flex-end' }}>
         <Text style={[styles.body1, styles.bold, styles.mb4]}>Información de venta</Text>
@@ -333,11 +344,9 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap }) {
   const renderFooter = () => (
     <View style={[styles.spaceBetween, styles.footer]} fixed>
       <Text style={[styles.body2, styles.secondary]}>
-        Generado el {fDate(new Date())} · Opuntia Den
+        Generado el {fDate(new Date())}{b.business_name ? ` · ${b.business_name}` : ''}
       </Text>
-      <Text style={[styles.body2, styles.secondary]}>
-        opuntiaden@gmail.com
-      </Text>
+      <Text style={[styles.body2, styles.secondary]}>{b.contact_email}</Text>
     </View>
   );
 

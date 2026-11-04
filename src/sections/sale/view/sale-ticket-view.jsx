@@ -19,7 +19,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { SaleTicket } from '../sale-ticket';
-import { SAMPLE_TICKET, useSaleTicket } from '../print-ticket';
+import { SAMPLE_TICKET, useSaleTicket, useTicketTemplate } from '../print-ticket';
 
 // ----------------------------------------------------------------------
 // Vista imprimible del ticket, fuera del layout del dashboard para que solo
@@ -86,8 +86,10 @@ export function SaleTicketView({ saleId }) {
   const printed = useRef(false);
 
   const saleTicket = useSaleTicket(saleId);
-  // El ticket espera al ajuste de la cuenta para no imprimir con el de fábrica
-  const ticket = settings && (saleId ? saleTicket : SAMPLE_TICKET);
+  const business = useTicketTemplate();
+  // El ticket espera al ajuste de la cuenta (para no imprimir con el de
+  // fábrica) y a los datos del negocio
+  const ticket = settings && business && (saleId ? saleTicket : SAMPLE_TICKET);
 
   const changeWidth = (_, value) => {
     if (!value) return;
@@ -206,7 +208,7 @@ export function SaleTicketView({ saleId }) {
         }}
       >
         {ticket ? (
-          <SaleTicket ticket={ticket} width={width} onReady={handleReady} />
+          <SaleTicket ticket={ticket} business={business} width={width} onReady={handleReady} />
         ) : (
           <Box sx={{ p: 6 }}>
             <CircularProgress />

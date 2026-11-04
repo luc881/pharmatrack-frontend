@@ -10,14 +10,32 @@ describe('ticket de venta', () => {
   });
 
   it('arma subtotal, descuento, total y el QR', async () => {
-    const { container } = render(<SaleTicket ticket={SAMPLE_TICKET} width={58} />);
+    const business = {
+      business_name: 'Otro Criadero',
+      instagram: '@otro',
+      folio_prefix: 'OC',
+      ticket_qr_url: 'https://otro.mx/links?src=ticket',
+    };
+    const { container } = render(
+      <SaleTicket ticket={SAMPLE_TICKET} business={business} width={58} />
+    );
 
-    expect(screen.getByText('OD-000123')).toBeInTheDocument();
+    expect(screen.getByText('OTRO CRIADERO')).toBeInTheDocument();
+    expect(screen.getByText('@otro')).toBeInTheDocument();
+    expect(screen.getByText('otro.mx/links')).toBeInTheDocument();
+    expect(screen.getByText('OC-000123')).toBeInTheDocument();
     expect(screen.getByText('$2,600.00')).toBeInTheDocument(); // 3 × 450 + 1 × 1,250
     expect(screen.getByText('−$100.00')).toBeInTheDocument();
     expect(screen.getByText('$2,650.00 MXN')).toBeInTheDocument();
     expect(screen.getByText('Phyllium gardabagusi')).toHaveClass('sci');
     expect(container.querySelector('.od-ticket--58')).not.toBeNull();
     await waitFor(() => expect(container.querySelector('.qr svg')).not.toBeNull());
+  });
+
+  it('sin datos del negocio no imprime encabezado ni QR', () => {
+    const { container } = render(<SaleTicket ticket={SAMPLE_TICKET} />);
+    expect(screen.getByText('000123')).toBeInTheDocument();
+    expect(container.querySelector('.brand')).toBeNull();
+    expect(container.querySelector('.qr')).toBeNull();
   });
 });
