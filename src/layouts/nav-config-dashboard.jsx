@@ -1,6 +1,6 @@
 import { paths } from 'src/routes/paths';
 
-import { CONFIG } from 'src/global-config';
+import { CONFIG, moduleOn } from 'src/global-config';
 
 import { SvgColor } from 'src/components/svg-color';
 
@@ -63,7 +63,7 @@ const ICONS = {
 const inSection = (key, except = []) => (pathname) =>
   !except.includes(pathname) && findSection(pathname)?.section.key === key;
 
-export const navData = [
+const allNavData = [
   /**
    * General
    */
@@ -84,13 +84,13 @@ export const navData = [
     items: [
       { title: 'Nueva venta', path: paths.dashboard.sale.new,  icon: ICONS.ecommerce, allowedRoles: ['sales.create'] },
       { title: 'Ventas',      path: paths.dashboard.sale.root, icon: ICONS.invoice, isActive: inSection('ventas', [paths.dashboard.sale.new]) },
-      { title: 'Pedidos web', path: paths.dashboard.order.root, icon: ICONS.order, allowedRoles: ['orders.read'] },
+      { title: 'Pedidos web', path: paths.dashboard.order.root, icon: ICONS.order, allowedRoles: ['orders.read'], module: 'pedidos' },
     ],
   },
   {
     subheader: 'Inventario',
     items: [
-      { title: 'Animales',  path: paths.dashboard.animal.root,   icon: ICONS.tour,    isActive: inSection('animales') },
+      { title: 'Animales',  path: paths.dashboard.animal.root,   icon: ICONS.tour,    isActive: inSection('animales'), module: 'animales' },
       { title: 'Productos', path: paths.dashboard.product.root,  icon: ICONS.product, isActive: inSection('productos') },
       {
         title: 'Compras',
@@ -109,6 +109,7 @@ export const navData = [
         path: paths.dashboard.article.root,
         icon: ICONS.file,
         allowedRoles: ['settings.update', 'articles.read'],
+        module: 'sitio',
         // las fichas son del área Sitio pero tienen su propia entrada
         isActive: (pathname) =>
           inSection('sitio')(pathname) && !pathname.startsWith(paths.dashboard.careSheet.root),
@@ -118,6 +119,7 @@ export const navData = [
         path: paths.dashboard.careSheet.root,
         icon: ICONS.course,
         allowedRoles: ['species.read'],
+        module: 'fichas',
         isActive: (pathname) => pathname.startsWith(paths.dashboard.careSheet.root),
       },
     ],
@@ -132,7 +134,12 @@ export const navData = [
         allowedRoles: ['users.read', 'roles.read', 'branches.read'],
         isActive: inSection('ajustes'),
       },
-      { title: 'Sensor ambiental', path: paths.dashboard.sensor, icon: ICONS.analytics, allowedRoles: ['branches.read'] },
+      { title: 'Sensor ambiental', path: paths.dashboard.sensor, icon: ICONS.analytics, allowedRoles: ['branches.read'], module: 'sensor' },
     ],
   },
 ];
+
+// Sin los módulos que esta instalación apaga (VITE_HIDE_MODULES)
+export const navData = allNavData
+  .map((section) => ({ ...section, items: section.items.filter((item) => moduleOn(item.module)) }))
+  .filter((section) => section.items.length);

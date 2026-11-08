@@ -1,5 +1,7 @@
 import { paths } from 'src/routes/paths';
 
+import { moduleOn } from 'src/global-config';
+
 // ----------------------------------------------------------------------
 // Áreas del dashboard: cada una es UNA entrada del menú lateral y sus páginas
 // se recorren con pestañas arriba del contenido (SectionTabs). Para mover una
@@ -15,7 +17,7 @@ import { paths } from 'src/routes/paths';
 
 const D = paths.dashboard;
 
-export const SECTIONS = [
+const ALL_SECTIONS = [
   {
     key: 'ventas',
     tabs: [
@@ -69,7 +71,7 @@ export const SECTIONS = [
     key: 'sitio',
     tabs: [
       { label: 'Artículos', path: D.article.root, allowedRoles: ['articles.read'] },
-      { label: 'Fichas de cuidados', path: D.careSheet.root, allowedRoles: ['species.read'] },
+      { label: 'Fichas de cuidados', path: D.careSheet.root, allowedRoles: ['species.read'], module: 'fichas' },
       { label: 'Fotos del sitio', path: D.site.media, allowedRoles: ['settings.update'] },
       { label: 'Links y eventos', path: D.site.links, allowedRoles: ['settings.update'] },
     ],
@@ -84,6 +86,13 @@ export const SECTIONS = [
     ],
   },
 ];
+
+// Sin los módulos apagados en esta instalación (VITE_HIDE_MODULES): el área
+// entera (key) o una pestaña suelta (module).
+export const SECTIONS = ALL_SECTIONS.filter((section) => moduleOn(section.key)).map((section) => ({
+  ...section,
+  tabs: section.tabs.filter((tab) => moduleOn(tab.module)),
+}));
 
 // ----------------------------------------------------------------------
 

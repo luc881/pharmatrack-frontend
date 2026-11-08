@@ -98,3 +98,15 @@ Each module follows this layout:
 Tests use Vitest + Testing Library + MSW. The MSW server is started globally in `src/test/setup.js`. Add request handlers in `src/test/mocks/handlers.js` for baseline mocks; add per-test handlers via `server.use(...)` inside individual test files.
 
 Path alias `src/` resolves to `./src/` in both Vite and Vitest configs.
+
+## Otra instalación (otro cliente)
+
+Mismo repo, otro proyecto de Vercel con su propio API. Todo lo que cambia por cliente son variables de entorno (Vite las fija al compilar: cambiar una pide Redeploy):
+
+- `VITE_SERVER_URL`: su API.
+- `VITE_APP_NAME`: nombre corto en pestañas, menú y login.
+- `VITE_BRAND_DIR`: su carpeta en `public/brand/<cliente>/`, con los mismos nombres de archivo que `public/brand/assets` (`logo/isotipo-claro.svg`, `logo/sello-claro.svg`, `logo/sello-oscuro.svg`, y en `favicon/`: `favicon.svg`, `favicon.ico`, `favicon-32.png`, `favicon-192.png`, `favicon-512.png`, `apple-touch-icon.png`, `site.webmanifest` con sus rutas). «claro» = para fondo claro; «oscuro» = para fondo oscuro (el panel del login).
+- `VITE_HIDE_MODULES`: módulos que no usa, separados por coma: `animales`, `pedidos`, `sitio`, `fichas`, `sensor` (ver `moduleOn` en `src/global-config.js`). Solo los quita del menú, las pestañas, el buscador y el inicio; las rutas las siguen protegiendo los permisos.
+- `VITE_CLOUDINARY_*`: su cuenta de Cloudinary.
+
+Lo impreso (ticket, PDF, correos) sale de Ajustes → «Datos del negocio», en su base de datos. Ejemplo: Clínica Veterinaria Patitas usa `/brand/vetpatitas`.

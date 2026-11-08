@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { moduleOn } from 'src/global-config';
 import { useHusbandryStatus } from 'src/actions/animal';
 import { useGetDeliveries, changeDeliveryStatus } from 'src/actions/delivery';
 
@@ -143,7 +144,7 @@ function PlanDue() {
 
 export function TodayCard({ permissions }) {
   const showDeliveries = permissions.includes('sales.read');
-  const showPlan = permissions.includes('animals.read');
+  const showPlan = permissions.includes('animals.read') && moduleOn('animales');
   if (!showDeliveries && !showPlan) return null;
 
   return (

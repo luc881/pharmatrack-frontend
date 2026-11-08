@@ -10,6 +10,10 @@ export const CONFIG = {
   // public/brand/assets). Lo que se imprime (ticket, PDF) sale de «Datos del negocio».
   appName: import.meta.env.VITE_APP_NAME || 'Opuntia Den',
   brandDir: import.meta.env.VITE_BRAND_DIR || '/brand/assets',
+  // Módulos que esta instalación no usa, separados por coma (claves en moduleOn, abajo).
+  // Solo los saca del menú, las pestañas, el buscador y el inicio; los permisos
+  // siguen siendo los que protegen las rutas.
+  hiddenModules: (import.meta.env.VITE_HIDE_MODULES ?? '').split(',').map((m) => m.trim()),
   appVersion: packageJson.version,
   serverUrl: import.meta.env.VITE_SERVER_URL ?? '',
   assetsDir: import.meta.env.VITE_ASSETS_DIR ?? '',
@@ -58,3 +62,6 @@ export const CONFIG = {
     key: import.meta.env.VITE_SUPABASE_ANON_KEY ?? '',
   },
 };
+
+// Claves válidas en VITE_HIDE_MODULES: animales, pedidos, sitio, fichas, sensor
+export const moduleOn = (key) => !CONFIG.hiddenModules.includes(key);
