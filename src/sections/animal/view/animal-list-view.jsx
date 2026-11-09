@@ -30,6 +30,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { fCurrency } from 'src/utils/format-number';
 
+import { moduleOn } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteAnimal, useAllGenera, useGetAnimals, useAllSpecies, useAnimalGroupTree } from 'src/actions/animal';
 
@@ -775,13 +776,15 @@ function CriaderoRow({ animal, species, showStock, canUpdate, isSelected, onTogg
               Editar
             </Button>
           )}
-          <Button
-            size="small"
-            component={RouterLink}
-            href={`${paths.dashboard.animal.log}?species=${species.id}`}
-          >
-            Anotar
-          </Button>
+          {moduleOn('bitacora') && (
+            <Button
+              size="small"
+              component={RouterLink}
+              href={`${paths.dashboard.animal.log}?species=${species.id}`}
+            >
+              Anotar
+            </Button>
+          )}
         </Stack>
       </TableCell>
     </TableRow>

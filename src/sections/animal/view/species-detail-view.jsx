@@ -22,6 +22,7 @@ import TableContainer from '@mui/material/TableContainer';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { moduleOn } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   updateMorph,
@@ -369,7 +370,9 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
               )}
             </Card>
 
-            <HusbandryPlanCard species={species} canEdit={canUpdateSpecies} onSaved={onMutate} />
+            {moduleOn('bitacora') && (
+              <HusbandryPlanCard species={species} canEdit={canUpdateSpecies} onSaved={onMutate} />
+            )}
           </Stack>
         </Grid>
 

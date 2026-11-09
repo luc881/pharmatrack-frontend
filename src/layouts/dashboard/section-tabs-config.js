@@ -32,7 +32,7 @@ const ALL_SECTIONS = [
     tabs: [
       { label: 'Mi criadero', path: D.animal.root },
       { label: 'Hoja de inventario', path: D.animal.sheet },
-      { label: 'Bitácora de manejo', path: D.animal.log },
+      { label: 'Bitácora de manejo', path: D.animal.log, module: 'bitacora' },
       { label: 'Taxonomía y cultivos', path: D.animal.taxonomy, match: [`${D.animal.root}/species`] },
     ],
   },

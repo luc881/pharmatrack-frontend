@@ -63,5 +63,6 @@ export const CONFIG = {
   },
 };
 
-// Claves válidas en VITE_HIDE_MODULES: animales, pedidos, sitio, fichas, sensor
+// Claves válidas en VITE_HIDE_MODULES: animales, bitacora (plan de manejo), pedidos,
+// sitio, fichas, sensor
 export const moduleOn = (key) => !CONFIG.hiddenModules.includes(key);

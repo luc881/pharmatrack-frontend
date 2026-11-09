@@ -83,7 +83,7 @@ function QuickActions({ permissions }) {
   const allActions = [
     { title: 'Nueva venta',      description: 'Registrar venta',              icon: 'solar:cart-plus-bold-duotone',                   color: 'primary',   href: paths.dashboard.sale.new,           permission: null },
     { title: 'Entregas',         description: 'Pendientes y cambios',         icon: 'solar:truck-bold-duotone',                       color: 'info',      href: paths.dashboard.delivery.root,      permission: 'sales.read' },
-    { title: 'Bitácora',         description: 'Alimentación y manejo',        icon: 'solar:notebook-bold-duotone',                    color: 'success',   href: paths.dashboard.animal.log,         permission: 'animals.read', module: 'animales' },
+    { title: 'Bitácora',         description: 'Alimentación y manejo',        icon: 'solar:notebook-bold-duotone',                    color: 'success',   href: paths.dashboard.animal.log,         permission: 'animals.read', module: 'bitacora' },
     { title: 'Ver ventas',       description: 'Historial de ventas',          icon: 'solar:bill-list-bold-duotone',                   color: 'info',      href: paths.dashboard.sale.root,          permission: null },
     { title: 'Ver productos',    description: 'Catálogo de productos',        icon: 'solar:pills-bold-duotone',                       color: 'success',   href: paths.dashboard.product.root,       permission: null },
     { title: 'Ver lotes',        description: 'Stock y fechas de vencimiento',icon: 'solar:box-bold-duotone',                         color: 'warning',   href: paths.dashboard.productBatch.root,  permission: null },
@@ -98,7 +98,7 @@ function QuickActions({ permissions }) {
     { title: 'Ver usuarios',     description: 'Gestión de equipo',            icon: 'solar:users-group-rounded-bold-duotone',         color: 'primary',   href: paths.dashboard.user.root,          permission: 'users.read' },
   ];
 
-  const actions = allActions.filter((a) => can(a.permission) && moduleOn(a.module));
+  const actions = allActions.filter((a) => can(a.permission) && moduleOn(a.module) && (a.module !== 'bitacora' || moduleOn('animales')));
 
   return (
     <Box>

@@ -144,7 +144,7 @@ function PlanDue() {
 
 export function TodayCard({ permissions }) {
   const showDeliveries = permissions.includes('sales.read');
-  const showPlan = permissions.includes('animals.read') && moduleOn('animales');
+  const showPlan = permissions.includes('animals.read') && moduleOn('animales') && moduleOn('bitacora');
   if (!showDeliveries && !showPlan) return null;
 
   return (
