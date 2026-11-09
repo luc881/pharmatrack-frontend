@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { mutate } from 'swr';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -25,9 +26,11 @@ import { useRouter } from 'src/routes/hooks';
 
 import { handleApiError } from 'src/utils/handle-api-error';
 
+import { endpoints } from 'src/lib/axios';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { useAllIngredients } from 'src/actions/ingredient';
 import { createProductBrand } from 'src/actions/product-brand';
+import { createProductBatch } from 'src/actions/product-batch';
 import { useAllProductMasters } from 'src/actions/product-master';
 import { createProductCategory } from 'src/actions/product-category';
 import { createProduct, updateProduct, useGetProductBrands, useGetProductCategories } from 'src/actions/product';
@@ -110,6 +113,10 @@ const ProductSchema = z.object({
   warranty_days: z.coerce.number().nullable(),
   is_active: z.boolean(),
   image: z.string().nullable(),
+  // Existencias iniciales (solo al crear): no van al producto, se registran como su primer lote
+  stock_quantity: z.coerce.number().int().min(0, { error: 'No puede ser negativa' }).optional(),
+  lot_code: z.string().optional(),
+  expiration_date: z.string().optional(),
 });
 
 // ----------------------------------------------------------------------
@@ -185,6 +192,9 @@ export function ProductCreateEditForm({ currentProduct }) {
     warranty_days: null,
     is_active: true,
     image: null,
+    stock_quantity: '',
+    lot_code: '',
+    expiration_date: '',
   };
 
   const methods = useForm({
@@ -211,6 +221,7 @@ export function ProductCreateEditForm({ currentProduct }) {
   } = methods;
 
   const allowWarranty = watch('allow_warranty');
+  const tracksBatches = watch('tracks_batches');
 
   useEffect(() => {
     if (currentProduct?.id) {
@@ -271,7 +282,7 @@ export function ProductCreateEditForm({ currentProduct }) {
     if (urlInput.trim()) handleUpload(urlInput.trim());
   }, [urlInput, handleUpload]);
 
-  const onSubmit = handleSubmit(async (data) => {
+  const onSubmit = handleSubmit(async ({ stock_quantity, lot_code, expiration_date, ...data }) => {
     // Limpiar campos nulos opcionales
     const payload = {
       ...data,
@@ -296,7 +307,22 @@ export function ProductCreateEditForm({ currentProduct }) {
         toast.success('Producto actualizado');
         router.back();
       } else {
-        await createProduct(payload);
+        const created = await createProduct(payload);
+        if (data.tracks_batches && stock_quantity > 0) {
+          try {
+            await createProductBatch({
+              product_id: created.id,
+              quantity: stock_quantity,
+              lot_code: lot_code || null,
+              expiration_date: expiration_date || null,
+              purchase_price: payload.price_cost,
+            });
+            mutate((key) => Array.isArray(key) && key[0] === endpoints.productBatch.list);
+          } catch {
+            // El producto ya existe: no se pierde, solo falta su lote
+            toast.warning('Producto creado, pero no se registró el lote. Agrégalo desde Lotes.');
+          }
+        }
         toast.success('Producto creado');
         reset();
         router.push(paths.dashboard.product.root);
@@ -526,6 +552,40 @@ export function ProductCreateEditForm({ currentProduct }) {
             sx={{ alignItems: 'flex-start' }}
           />
 
+          {/* Al crear: el primer lote desde aquí, sin pasar después por Lotes */}
+          {!currentProduct && tracksBatches && (
+            <Box
+              sx={{
+                rowGap: 3,
+                columnGap: 2,
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(3, 1fr)' },
+              }}
+            >
+              <Field.Text
+                name="stock_quantity"
+                label="Existencias iniciales"
+                type="number"
+                placeholder="0"
+                helperText="Vacío = sin existencias por ahora"
+                slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: 0, step: 1 } }}
+              />
+              <Field.Text
+                name="lot_code"
+                label="Código de lote"
+                helperText="Opcional"
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <Field.Text
+                name="expiration_date"
+                label="Caducidad"
+                type="date"
+                helperText="Opcional"
+                slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: new Date().toLocaleDateString('en-CA') } }}
+              />
+            </Box>
+          )}
+
           <Divider sx={{ borderStyle: 'dashed' }} />
 
           <Field.Switch
@@ -574,6 +634,7 @@ export function ProductCreateEditForm({ currentProduct }) {
         <Stack spacing={3} sx={{ p: 3 }}>
           <Box
             sx={{
+              rowGap: 3,
               columnGap: 2,
               display: 'grid',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)' },
