@@ -6,6 +6,8 @@ import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import { iconButtonClasses } from '@mui/material/IconButton';
 
+import { moduleOn } from 'src/global-config';
+
 import { Logo } from 'src/components/logo';
 import { useSettingsContext } from 'src/components/settings';
 
@@ -125,7 +127,7 @@ export function DashboardLayout({ sx, cssVars, children, slotProps, layoutQuery 
           <HeaderClock />
 
           {/** @slot Sensor status */}
-          <SensorStatusChip />
+          {moduleOn('sensor') && <SensorStatusChip />}
 
           {/** @slot Notifications popover */}
           <NotificationsDrawer />
