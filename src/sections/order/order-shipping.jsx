@@ -67,6 +67,13 @@ const DECLARED_VALUE_FIELD = {
   number: true,
 };
 
+// Días del estimado de Envia («2-4 días» → 2, «Día siguiente» → 1); sin dato, al final
+const fastest = (rate) => {
+  const text = rate.delivery_estimate ?? '';
+  if (/siguiente|next/i.test(text)) return 1;
+  return Number(text.match(/\d+/)?.[0] ?? Infinity);
+};
+
 const REQUIRED = ['name', 'phone', 'street', 'postal_code', 'city', 'state'];
 
 function Fields({ fields, values, onChange }) {
@@ -127,6 +134,7 @@ export function ShippingDialog({ order, onClose, onUpdated }) {
   });
   const [rates, setRates] = useState(null);
   const [chosen, setChosen] = useState(null);
+  const [bySpeed, setBySpeed] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Cambiar dirección o paquete invalida la cotización: el precio ya no aplica
@@ -227,10 +235,17 @@ export function ShippingDialog({ order, onClose, onUpdated }) {
 
         {rates?.length > 0 && (
           <Stack spacing={1}>
-            <Typography variant="overline" sx={{ color: 'text.secondary' }}>
-              Elige paquetería
-            </Typography>
-            {rates.map((rate) => {
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+              <Typography variant="overline" sx={{ flexGrow: 1, color: 'text.secondary' }}>
+                Elige paquetería
+              </Typography>
+              <Button size="small" color="inherit" onClick={() => setBySpeed(!bySpeed)}>
+                {bySpeed ? 'Ordenar por precio' : 'Ordenar por rapidez'}
+              </Button>
+            </Box>
+            {/* el API las manda de la más barata a la más cara; el orden estable
+                deja la más barata primero entre las igual de rápidas */}
+            {(bySpeed ? [...rates].sort((a, b) => fastest(a) - fastest(b)) : rates).map((rate) => {
               const active = chosen === rate;
               return (
                 <Box
