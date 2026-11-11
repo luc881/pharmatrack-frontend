@@ -40,6 +40,8 @@ import { useTicketTemplate } from 'src/sections/sale/print-ticket';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { OrderShipping } from '../order-shipping';
+
 // ----------------------------------------------------------------------
 
 export const ORDER_STATUS = {
@@ -93,7 +95,7 @@ function ShippingToggle() {
 
 // ----------------------------------------------------------------------
 
-function OrderDialog({ order, onClose, onSaved, canUpdate }) {
+function OrderDialog({ order, onClose, onSaved, onUpdated, canUpdate }) {
   const [status, setStatus] = useState(order.status);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -195,6 +197,8 @@ function OrderDialog({ order, onClose, onSaved, canUpdate }) {
               Pídesela por WhatsApp antes de cotizar.
             </Alert>
           ))}
+
+        {!isPickup && <OrderShipping order={order} canUpdate={canUpdate} onUpdated={onUpdated} />}
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
@@ -430,6 +434,10 @@ export function OrderListView() {
           canUpdate={canUpdate}
           onClose={() => setSelected(null)}
           onSaved={handleSaved}
+          onUpdated={async (updated) => {
+            setSelected(updated);
+            await ordersMutate();
+          }}
         />
       )}
     </>

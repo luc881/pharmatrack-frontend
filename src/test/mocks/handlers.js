@@ -8,6 +8,14 @@ import { http, HttpResponse } from 'msw';
 const BASE = 'https://api.opuntiaden.com';
 
 export const handlers = [
+  // Iconos que no están registrados offline: Iconify los pide a su API. En CI
+  // (con internet) la respuesta llegaba cuando el test ya había terminado y
+  // tumbaba la corrida con «window is not defined». Aquí se contestan al
+  // instante con 404: el icono queda vacío y nada sale a la red.
+  http.get(/^https:\/\/api\.(iconify\.design|simplesvg\.com|unisvg\.com)\//, () =>
+    new HttpResponse(null, { status: 404 })
+  ),
+
   // Auth — login exitoso
   http.post(`${BASE}/api/v1/auth/token`, () =>
     HttpResponse.json({

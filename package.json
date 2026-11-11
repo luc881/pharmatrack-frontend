@@ -49,6 +49,7 @@
     "@mui/x-data-grid": "^8.22.0",
     "@mui/x-date-pickers": "^8.22.0",
     "@react-pdf/renderer": "^4.3.1",
+    "@sentry/react": "^11.12.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "apexcharts": "^5.3.6",

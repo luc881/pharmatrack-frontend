@@ -269,6 +269,8 @@ export const endpoints = {
     list: '/api/v1/orders',
     details: (id) => `/api/v1/orders/${id}`,
     update: (id) => `/api/v1/orders/${id}`,
+    shippingRates: (id) => `/api/v1/orders/${id}/shipping/rates`,
+    shippingLabel: (id) => `/api/v1/orders/${id}/shipping/label`,
   },
   stats: {
     dashboard: '/api/v1/stats/dashboard',
