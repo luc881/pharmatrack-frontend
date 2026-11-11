@@ -45,3 +45,23 @@ export const quoteOrderShipping = (id, data) =>
 
 export const createOrderShippingLabel = (id, data) =>
   axiosInstance.post(endpoints.order.shippingLabel(id), data).then((r) => r.data);
+
+// Envíos sueltos: guías sin pedido del sitio (una venta por WhatsApp, un regalo)
+export function useGetShipments() {
+  const { data, isLoading, mutate } = useSWR(
+    `${endpoints.shipment.list}?page_size=100`,
+    fetcher,
+    swrOptions
+  );
+
+  return useMemo(
+    () => ({ shipments: data?.data ?? [], shipmentsLoading: isLoading, shipmentsMutate: mutate }),
+    [data, isLoading, mutate]
+  );
+}
+
+export const quoteShipment = (data) =>
+  axiosInstance.post(endpoints.shipment.rates, data).then((r) => r.data);
+
+export const createShipment = (data) =>
+  axiosInstance.post(endpoints.shipment.list, data).then((r) => r.data);

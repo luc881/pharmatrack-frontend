@@ -27,7 +27,7 @@ import { fCurrency } from 'src/utils/format-number';
 
 import axiosInstance, { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { useGetOrders, updateOrderStatus } from 'src/actions/order';
+import { useGetOrders, useGetShipments, updateOrderStatus } from 'src/actions/order';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -40,7 +40,7 @@ import { useTicketTemplate } from 'src/sections/sale/print-ticket';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { OrderShipping } from '../order-shipping';
+import { OrderShipping, ShippingDialog } from '../order-shipping';
 
 // ----------------------------------------------------------------------
 
@@ -52,9 +52,64 @@ export const ORDER_STATUS = {
   cancelled: { label: 'Cancelado', color: 'error' },
 };
 
+const SHIPMENTS_TAB = 'shipments';
+
 const TABS = [
   { value: '', label: 'Todos' },
   ...Object.entries(ORDER_STATUS).map(([value, { label }]) => ({ value, label })),
+  // No es un estado: son las guías que no salieron de un pedido del sitio
+  { value: SHIPMENTS_TAB, label: 'Envíos sueltos' },
+];
+
+const SHIPMENT_COLUMNS = [
+  { field: 'created_at', headerName: 'Fecha', width: 160, valueGetter: (v) => fDateTime(v) },
+  {
+    field: 'recipient_name',
+    headerName: 'Destinatario',
+    flex: 1,
+    minWidth: 220,
+    valueGetter: (v, row) => `${v} ${row.note ?? ''} ${row.address}`,
+    renderCell: ({ row }) => (
+      <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <Typography variant="body2" noWrap sx={{ lineHeight: 1.4 }}>
+          {row.recipient_name}
+          {row.note ? ` · ${row.note}` : ''}
+        </Typography>
+        <Typography variant="caption" noWrap sx={{ color: 'text.secondary', lineHeight: 1.4 }}>
+          {row.address}
+        </Typography>
+      </Box>
+    ),
+  },
+  {
+    field: 'tracking_number',
+    headerName: 'Guía',
+    width: 200,
+    valueGetter: (v, row) => `${(row.carrier ?? '').toUpperCase()} ${v ?? ''}`.trim(),
+  },
+  { field: 'cost', headerName: 'Costo', width: 100, valueGetter: (v) => (v == null ? '—' : fCurrency(v)) },
+  {
+    field: 'label_url',
+    headerName: ' ',
+    width: 220,
+    sortable: false,
+    filterable: false,
+    disableColumnMenu: true,
+    renderCell: ({ row }) => (
+      <>
+        {row.label_url && (
+          <Button size="small" href={row.label_url} target="_blank" rel="noopener">
+            Imprimir guía
+          </Button>
+        )}
+        {row.tracking_url && (
+          <Button size="small" color="inherit" href={row.tracking_url} target="_blank" rel="noopener">
+            Rastrear
+          </Button>
+        )}
+      </>
+    ),
+  },
 ];
 
 // ----------------------------------------------------------------------
@@ -291,7 +346,13 @@ export function OrderListView() {
   const [tab, setTab] = useState('');
   const [selected, setSelected] = useState(null);
 
-  const { orders, ordersLoading, ordersMutate } = useGetOrders({ status: tab || undefined });
+  const onShipments = tab === SHIPMENTS_TAB;
+  const [newShipment, setNewShipment] = useState(false);
+
+  const { orders, ordersLoading, ordersMutate } = useGetOrders({
+    status: onShipments ? undefined : tab || undefined,
+  });
+  const { shipments, shipmentsLoading, shipmentsMutate } = useGetShipments();
 
   const handleSaved = useCallback(async () => {
     await ordersMutate();
@@ -384,7 +445,20 @@ export function OrderListView() {
         <CustomBreadcrumbs
           heading="Pedidos"
           links={[{ name: 'Dashboard', href: paths.dashboard.root }, { name: 'Pedidos' }]}
-          action={canUpdate && <ShippingToggle />}
+          action={
+            canUpdate && (
+              <Box sx={{ gap: 2, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                <ShippingToggle />
+                <Button
+                  variant="contained"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                  onClick={() => setNewShipment(true)}
+                >
+                  Envío nuevo
+                </Button>
+              </Box>
+            )
+          }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
@@ -405,28 +479,42 @@ export function OrderListView() {
 
           <DataGrid
             disableRowSelectionOnClick
-            rows={orders}
-            columns={columns}
-            loading={ordersLoading}
-            onRowClick={(params) => setSelected(params.row)}
+            rows={onShipments ? shipments : orders}
+            columns={onShipments ? SHIPMENT_COLUMNS : columns}
+            loading={onShipments ? shipmentsLoading : ordersLoading}
+            onRowClick={onShipments ? undefined : (params) => setSelected(params.row)}
             pageSizeOptions={[25, 50]}
             initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
             slots={{
               noRowsOverlay: () => (
                 <EmptyContent
-                  title="Sin pedidos"
-                  description="Aquí aparecen los pedidos que hacen los clientes desde el sitio público."
+                  title={onShipments ? 'Sin envíos sueltos' : 'Sin pedidos'}
+                  description={
+                    onShipments
+                      ? 'Con «Envío nuevo» generas una guía sin pedido del sitio: una venta por WhatsApp, un regalo.'
+                      : 'Aquí aparecen los pedidos que hacen los clientes desde el sitio público.'
+                  }
                 />
               ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
             }}
             sx={{
               [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' },
-              [`& .${gridClasses.row}`]: { cursor: 'pointer' },
+              [`& .${gridClasses.row}`]: { cursor: onShipments ? 'default' : 'pointer' },
             }}
           />
         </Card>
       </DashboardContent>
+
+      {newShipment && (
+        <ShippingDialog
+          onClose={() => setNewShipment(false)}
+          onUpdated={async () => {
+            await shipmentsMutate();
+            setTab(SHIPMENTS_TAB);
+          }}
+        />
+      )}
 
       {selected && (
         <OrderDialog

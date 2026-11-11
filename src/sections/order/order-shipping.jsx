@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -14,7 +14,12 @@ import DialogContent from '@mui/material/DialogContent';
 
 import { fCurrency } from 'src/utils/format-number';
 
-import { quoteOrderShipping, createOrderShippingLabel } from 'src/actions/order';
+import {
+  quoteShipment,
+  createShipment,
+  quoteOrderShipping,
+  createOrderShippingLabel,
+} from 'src/actions/order';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -54,6 +59,14 @@ const PACKAGE_FIELDS = [
   { name: 'height', label: 'Alto (cm)', width: 3, number: true },
 ];
 
+// En un pedido el valor declarado es su total; en un envío suelto se captura
+const DECLARED_VALUE_FIELD = {
+  name: 'declared_value',
+  label: 'Valor declarado ($)',
+  width: 4,
+  number: true,
+};
+
 const REQUIRED = ['name', 'phone', 'street', 'postal_code', 'city', 'state'];
 
 function Fields({ fields, values, onChange }) {
@@ -81,11 +94,19 @@ function Fields({ fields, values, onChange }) {
   );
 }
 
-function ShippingDialog({ order, onClose, onUpdated }) {
-  const address = order.customer_address ?? {};
+// Sin `order` es un envío suelto: no sale de un pedido del sitio (una venta
+// por WhatsApp, un regalo) y no depende de «Aceptar envíos».
+export function ShippingDialog({ order, onClose, onUpdated }) {
+  const address = order?.customer_address ?? {};
+  // Envío suelto: la clave nace con el formulario, así dos clics en «Generar
+  // guía» (o un reintento tras un error de red) no compran dos guías
+  const shipmentKey = useRef(
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+  const [note, setNote] = useState('');
   const [destination, setDestination] = useState({
-    name: order.contact_name ?? order.customer_name ?? '',
-    phone: (order.contact_phone ?? '').replace(/\D/g, '').slice(-10),
+    name: order?.contact_name ?? order?.customer_name ?? '',
+    phone: (order?.contact_phone ?? '').replace(/\D/g, '').slice(-10),
     street: address.street ?? '',
     number: [address.ext_number, address.int_number && `Int. ${address.int_number}`]
       .filter(Boolean)
@@ -97,11 +118,12 @@ function ShippingDialog({ order, onClose, onUpdated }) {
     reference: address.address_notes ?? '',
   });
   const [pack, setPack] = useState({
-    content: order.items.map((item) => item.title).join(', ').slice(0, 100),
+    content: order?.items.map((item) => item.title).join(', ').slice(0, 100) ?? '',
     weight: '',
     length: '',
     width: '',
     height: '',
+    declared_value: '',
   });
   const [rates, setRates] = useState(null);
   const [chosen, setChosen] = useState(null);
@@ -124,7 +146,7 @@ function ShippingDialog({ order, onClose, onUpdated }) {
       length: Number(pack.length),
       width: Number(pack.width),
       height: Number(pack.height),
-      declared_value: Number(order.total) || 0,
+      declared_value: Number(order ? order.total : pack.declared_value) || 0,
     },
   });
 
@@ -136,7 +158,7 @@ function ShippingDialog({ order, onClose, onUpdated }) {
   const handleQuote = async () => {
     setBusy(true);
     try {
-      const res = await quoteOrderShipping(order.id, body());
+      const res = await (order ? quoteOrderShipping(order.id, body()) : quoteShipment(body()));
       setRates(res.rates);
       setChosen(null);
     } catch (error) {
@@ -149,11 +171,10 @@ function ShippingDialog({ order, onClose, onUpdated }) {
   const handleLabel = async () => {
     setBusy(true);
     try {
-      const updated = await createOrderShippingLabel(order.id, {
-        ...body(),
-        carrier: chosen.carrier,
-        service: chosen.service,
-      });
+      const data = { ...body(), carrier: chosen.carrier, service: chosen.service };
+      const updated = await (order
+        ? createOrderShippingLabel(order.id, data)
+        : createShipment({ ...data, idempotency_key: shipmentKey.current, note: note.trim() || null }));
       toast.success(`Guía ${updated.tracking_number} generada`);
       await onUpdated(updated);
       onClose();
@@ -166,9 +187,23 @@ function ShippingDialog({ order, onClose, onUpdated }) {
 
   return (
     <Dialog open fullWidth maxWidth="md" onClose={busy ? undefined : onClose}>
-      <DialogTitle>Envío del pedido {order.code ?? `#${order.id}`}</DialogTitle>
+      <DialogTitle>
+        {order ? `Envío del pedido ${order.code ?? `#${order.id}`}` : 'Envío nuevo'}
+      </DialogTitle>
 
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+        {!order && (
+          <TextField
+            size="small"
+            label="¿De qué es este envío?"
+            placeholder="Pedido por WhatsApp de Juan"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            slotProps={{ htmlInput: { maxLength: 250 } }}
+            sx={{ mt: 1 }}
+          />
+        )}
+
         <Typography variant="overline" sx={{ color: 'text.secondary' }}>
           Destino
         </Typography>
@@ -177,7 +212,11 @@ function ShippingDialog({ order, onClose, onUpdated }) {
         <Typography variant="overline" sx={{ color: 'text.secondary' }}>
           Paquete ya empacado
         </Typography>
-        <Fields fields={PACKAGE_FIELDS} values={pack} onChange={edit(setPack)} />
+        <Fields
+          fields={order ? PACKAGE_FIELDS : [...PACKAGE_FIELDS, DECLARED_VALUE_FIELD]}
+          values={pack}
+          onChange={edit(setPack)}
+        />
 
         {rates?.length === 0 && (
           <Alert severity="warning">
