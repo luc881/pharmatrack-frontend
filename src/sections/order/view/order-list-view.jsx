@@ -27,7 +27,12 @@ import { fCurrency } from 'src/utils/format-number';
 
 import axiosInstance, { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { useGetOrders, useGetShipments, updateOrderStatus } from 'src/actions/order';
+import {
+  useGetOrders,
+  useGetShipments,
+  updateOrderStatus,
+  setCustomerBlocked,
+} from 'src/actions/order';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -154,6 +159,20 @@ function OrderDialog({ order, onClose, onSaved, onUpdated, canUpdate }) {
   const [status, setStatus] = useState(order.status);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [blocking, setBlocking] = useState(false);
+
+  const handleBlock = async () => {
+    setBlocking(true);
+    try {
+      const { blocked } = await setCustomerBlocked(order.customer_id, !order.customer_blocked);
+      toast.success(blocked ? 'Cliente bloqueado: ya no puede hacer pedidos' : 'Cliente desbloqueado');
+      await onUpdated({ ...order, customer_blocked: blocked });
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo cambiar el bloqueo');
+    } finally {
+      setBlocking(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -202,6 +221,22 @@ function OrderDialog({ order, onClose, onSaved, onUpdated, canUpdate }) {
             <Label variant="soft" color={isPickup ? 'info' : 'default'}>
               {isPickup ? 'Entrega en CDMX' : 'Envío a domicilio'}
             </Label>
+            {order.customer_blocked && (
+              <Label variant="soft" color="error">
+                Cliente bloqueado
+              </Label>
+            )}
+            {canUpdate && order.customer_id && (
+              <Button
+                size="small"
+                color={order.customer_blocked ? 'inherit' : 'error'}
+                loading={blocking}
+                onClick={handleBlock}
+                sx={{ ml: 'auto' }}
+              >
+                {order.customer_blocked ? 'Desbloquear cliente' : 'Bloquear cliente'}
+              </Button>
+            )}
           </Box>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {order.customer_email}

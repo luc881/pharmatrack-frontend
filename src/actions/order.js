@@ -39,6 +39,10 @@ export function useGetOrders({ page = 1, pageSize = 100, status } = {}) {
 export const updateOrderStatus = (id, status) =>
   axiosInstance.put(endpoints.order.update(id), { status }).then((r) => r.data);
 
+// Una cuenta bloqueada puede entrar y ver sus pedidos, pero no hacer nuevos
+export const setCustomerBlocked = (customerId, blocked) =>
+  axiosInstance.put(endpoints.order.blockCustomer(customerId), { blocked }).then((r) => r.data);
+
 // Guía de envío (Envia.com): cotizar con todas las paqueterías y generar la guía
 export const quoteOrderShipping = (id, data) =>
   axiosInstance.post(endpoints.order.shippingRates(id), data).then((r) => r.data);
