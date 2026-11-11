@@ -9,6 +9,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
@@ -125,37 +126,46 @@ const REQUIRED = ['name', 'phone', 'street', 'postal_code', 'city', 'state'];
 function Fields({ fields, values, onChange, suggestions = {} }) {
   return (
     <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)' }}>
-      {fields.map((field) => (
-        <TextField
-          key={field.name}
-          size="small"
-          select={!!field.options}
-          label={field.label}
-          value={values[field.name]}
-          type={field.number ? 'number' : 'text'}
-          onChange={(e) => onChange(field.name, e.target.value)}
-          // sugerencias nativas (<datalist>): se elige de la lista o se escribe otra cosa
-          slotProps={
-            suggestions[field.name]?.length
-              ? { htmlInput: { list: `shipping-${field.name}`, autoComplete: 'off' } }
-              : undefined
-          }
-          sx={{ gridColumn: { xs: 'span 12', sm: `span ${field.width}` } }}
-        >
-          {field.options?.map((option) => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
-        </TextField>
-      ))}
-      {Object.entries(suggestions).map(([name, options]) => (
-        <datalist key={name} id={`shipping-${name}`}>
-          {options.map((option) => (
-            <option key={option} value={option} />
-          ))}
-        </datalist>
-      ))}
+      {fields.map((field) => {
+        const sx = { gridColumn: { xs: 'span 12', sm: `span ${field.width}` } };
+
+        // Campo con sugerencias: se elige de la lista (filtra al escribir) o
+        // se escribe otra cosa
+        if (suggestions[field.name]) {
+          return (
+            <Autocomplete
+              key={field.name}
+              freeSolo
+              openOnFocus
+              size="small"
+              options={suggestions[field.name]}
+              inputValue={values[field.name]}
+              onInputChange={(_, value) => onChange(field.name, value)}
+              renderInput={(params) => <TextField {...params} label={field.label} />}
+              sx={sx}
+            />
+          );
+        }
+
+        return (
+          <TextField
+            key={field.name}
+            size="small"
+            select={!!field.options}
+            label={field.label}
+            value={values[field.name]}
+            type={field.number ? 'number' : 'text'}
+            onChange={(e) => onChange(field.name, e.target.value)}
+            sx={sx}
+          >
+            {field.options?.map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </TextField>
+        );
+      })}
     </Box>
   );
 }
