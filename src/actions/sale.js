@@ -117,8 +117,9 @@ export function useGetSaleBatchUsagesBySale(saleId) {
 
 // ----------------------------------------------------------------------
 
-export const createSale = (data) =>
-  axiosInstance.post(endpoints.sale.create, data).then((r) => r.data);
+// Venta completa (líneas, pagos y stock) en una transacción
+export const checkoutSale = (data) =>
+  axiosInstance.post(endpoints.sale.checkout, data).then((r) => r.data);
 
 export const updateSale = (id, data) =>
   axiosInstance.put(endpoints.sale.update(id), data).then((r) => r.data);

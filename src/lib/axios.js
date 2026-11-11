@@ -139,6 +139,7 @@ export const endpoints = {
     update: (id) => `/api/v1/sales/${id}`,
     delete: (id) => `/api/v1/sales/${id}`,
     complete: (id) => `/api/v1/sales/${id}/complete`,
+    checkout: '/api/v1/sales/checkout',
     summary: '/api/v1/sales/summary',
   },
   saleDetail: {

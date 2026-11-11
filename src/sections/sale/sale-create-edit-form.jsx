@@ -28,8 +28,8 @@ import { paths } from 'src/routes/paths';
 import axiosInstance, { endpoints } from 'src/lib/axios';
 import { createProductBatch } from 'src/actions/product-batch';
 import {
-  createSale,
   updateSale,
+  checkoutSale,
   completeSale,
   useGetBranches,
   createSaleDetail,
@@ -292,18 +292,36 @@ export function SaleCreateEditForm({
     });
   }, [currentSale, currentDetails, currentPayments, methods]);
 
+  // Una llave por formulario abierto. randomUUID solo existe en https/localhost;
+  // por IP en el hotspot (modo convención) se usa el respaldo.
+  const checkoutKey = useRef(
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+
   const onSubmit = handleSubmit(async (data) => {
     try {
       const salePayload = {
-        user_id: user.id,
         branch_id: Number(data.branch_id),
         description: data.description || null,
       };
+      const lines = data.items.map((item) => ({
+        product_id: Number(item.product_id),
+        quantity: Number(item.quantity),
+        discount: Number(item.discount ?? 0),
+        description: item.description || null,
+      }));
+      const pays = data.payments.map((payment) => ({
+        method_payment: payment.method_payment,
+        amount: Number(payment.amount),
+        transaction_number: payment.transaction_number || null,
+        bank: payment.bank || null,
+      }));
 
       let saleId;
       if (currentSale) {
-        await updateSale(currentSale.id, salePayload);
+        // Editar un borrador sigue por pasos (borra y recrea líneas y pagos)
         saleId = currentSale.id;
+        await updateSale(saleId, { ...salePayload, user_id: user.id });
         // Batch usages: best-effort — el endpoint puede no existir en el backend todavía
         if (currentBatchUsages.length > 0) {
           await Promise.allSettled(currentBatchUsages.map((u) => deleteSaleBatchUsage(u.id)));
@@ -312,37 +330,21 @@ export function SaleCreateEditForm({
           ...currentDetails.map((d) => deleteSaleDetail(d.id)),
           ...currentPayments.map((p) => deleteSalePayment(p.id)),
         ]);
+        await Promise.all(lines.map((line) => createSaleDetail({ sale_id: saleId, ...line })));
+        await Promise.all(pays.map((pay) => createSalePayment({ sale_id: saleId, ...pay })));
+        // DRAFT → COMPLETED (el backend recalcula totales y confirma lotes)
+        await completeSale(saleId);
       } else {
-        const created = await createSale(salePayload);
+        // Venta nueva: una sola petición, todo o nada. La llave hace que un
+        // reintento (doble clic, respuesta perdida) devuelva la misma venta.
+        const created = await checkoutSale({
+          ...salePayload,
+          items: lines,
+          payments: pays,
+          idempotency_key: checkoutKey.current,
+        });
         saleId = created.id;
       }
-
-      await Promise.all(
-        data.items.map((item) =>
-          createSaleDetail({
-            sale_id: saleId,
-            product_id: Number(item.product_id),
-            quantity: Number(item.quantity),
-            discount: Number(item.discount ?? 0),
-            description: item.description || null,
-          })
-        )
-      );
-
-      await Promise.all(
-        data.payments.map((payment) =>
-          createSalePayment({
-            sale_id: saleId,
-            method_payment: payment.method_payment,
-            amount: Number(payment.amount),
-            transaction_number: payment.transaction_number || null,
-            bank: payment.bank || null,
-          })
-        )
-      );
-
-      // Completar la venta: DRAFT → COMPLETED (el backend recalcula totales y confirma lotes)
-      await completeSale(saleId);
 
       toast.success(currentSale ? 'Venta actualizada' : 'Venta registrada');
       // El ticket se imprime solo al abrir (cancelable desde el diálogo de impresión)
