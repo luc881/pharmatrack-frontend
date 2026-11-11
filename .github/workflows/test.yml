@@ -18,10 +18,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: 'npm'
+          cache: 'yarn'
 
       - name: Instalar dependencias
-        run: npm ci
+        run: yarn install --frozen-lockfile
 
       - name: Correr tests
-        run: npx vitest run
+        run: yarn vitest run
