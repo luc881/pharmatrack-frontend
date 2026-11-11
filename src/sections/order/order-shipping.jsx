@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -44,10 +44,11 @@ const DESTINATION_FIELDS = [
   { name: 'phone', label: 'Teléfono (10 dígitos)', width: 5 },
   { name: 'street', label: 'Calle', width: 6 },
   { name: 'number', label: 'Número', width: 2 },
+  // el CP va antes de colonia, municipio y estado porque los llena
+  { name: 'postal_code', label: 'Código postal', width: 4 },
   { name: 'district', label: 'Colonia', width: 4 },
-  { name: 'postal_code', label: 'CP', width: 2 },
-  { name: 'city', label: 'Ciudad o municipio', width: 5 },
-  { name: 'state', label: 'Estado', width: 5, options: MX_STATES },
+  { name: 'city', label: 'Ciudad o municipio', width: 4 },
+  { name: 'state', label: 'Estado', width: 4, options: MX_STATES },
   { name: 'reference', label: 'Referencias', width: 12 },
 ];
 
@@ -74,9 +75,54 @@ const fastest = (rate) => {
   return Number(text.match(/\d+/)?.[0] ?? Infinity);
 };
 
+const plain = (text) =>
+  text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+
+// Envia escribe los estados a su manera («Ciudad de Mexico», «México»,
+// «Coahuila de Zaragoza»); aquí se pasan a los nombres de MX_STATES
+export function matchState(name) {
+  const wanted = plain(name ?? '');
+  if (wanted === 'mexico') return 'Estado de México';
+  return (
+    MX_STATES.find((state) => plain(state) === wanted) ??
+    // el más largo primero: «Baja California Sur» antes que «Baja California»
+    [...MX_STATES]
+      .sort((a, b) => b.length - a.length)
+      .find((state) => wanted.startsWith(plain(state))) ??
+    ''
+  );
+}
+
+// Código postal → colonias, municipio y estado. Catálogo público de Envia.com
+// (sin token, se consulta directo desde el navegador). Si falla, se captura a mano.
+async function lookupPostalCode(postalCode) {
+  try {
+    const res = await fetch(`https://geocodes.envia.com/zipcode/MX/${postalCode}`);
+    const [found] = await res.json();
+    if (!found) return null;
+    return {
+      suburbs: found.suburbs ?? [],
+      city: found.regions?.region_2 || found.locality || '',
+      state: matchState(found.state?.name),
+    };
+  } catch {
+    return null;
+  }
+}
+
+const DELIVERY_OPTIONS = [
+  { value: 1, label: 'Día siguiente' },
+  { value: 2, label: 'Hasta 2 días' },
+  { value: 3, label: 'Hasta 3 días' },
+  { value: 5, label: 'Hasta 5 días' },
+];
+
 const REQUIRED = ['name', 'phone', 'street', 'postal_code', 'city', 'state'];
 
-function Fields({ fields, values, onChange }) {
+function Fields({ fields, values, onChange, suggestions = {} }) {
   return (
     <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)' }}>
       {fields.map((field) => (
@@ -88,6 +134,12 @@ function Fields({ fields, values, onChange }) {
           value={values[field.name]}
           type={field.number ? 'number' : 'text'}
           onChange={(e) => onChange(field.name, e.target.value)}
+          // sugerencias nativas (<datalist>): se elige de la lista o se escribe otra cosa
+          slotProps={
+            suggestions[field.name]?.length
+              ? { htmlInput: { list: `shipping-${field.name}`, autoComplete: 'off' } }
+              : undefined
+          }
           sx={{ gridColumn: { xs: 'span 12', sm: `span ${field.width}` } }}
         >
           {field.options?.map((option) => (
@@ -96,6 +148,13 @@ function Fields({ fields, values, onChange }) {
             </MenuItem>
           ))}
         </TextField>
+      ))}
+      {Object.entries(suggestions).map(([name, options]) => (
+        <datalist key={name} id={`shipping-${name}`}>
+          {options.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
       ))}
     </Box>
   );
@@ -135,6 +194,38 @@ export function ShippingDialog({ order, onClose, onUpdated }) {
   const [rates, setRates] = useState(null);
   const [chosen, setChosen] = useState(null);
   const [bySpeed, setBySpeed] = useState(false);
+  const [carrierFilter, setCarrierFilter] = useState('');
+  const [maxDays, setMaxDays] = useState('');
+  const [suburbs, setSuburbs] = useState([]);
+
+  // Con el CP completo: lista de colonias, y si lo acaba de escribir quien
+  // captura (`fill`), también municipio y estado. En un pedido que ya trae
+  // dirección solo se cargan las sugerencias, sin pisar lo que puso el cliente.
+  const applyPostalCode = async (postalCode, fill) => {
+    if (!/^\d{5}$/.test(postalCode)) {
+      setSuburbs([]);
+      return;
+    }
+    const found = await lookupPostalCode(postalCode);
+    setSuburbs(found?.suburbs ?? []);
+    if (!found || !fill) return;
+    setDestination((prev) =>
+      prev.postal_code !== postalCode
+        ? prev // ya escribió otro CP mientras llegaba la respuesta
+        : {
+            ...prev,
+            city: found.city || prev.city,
+            state: found.state || prev.state,
+            district: found.suburbs.length === 1 ? found.suburbs[0] : prev.district,
+          }
+    );
+  };
+
+  useEffect(() => {
+    applyPostalCode(destination.postal_code, false);
+    // solo al abrir: después lo dispara el cambio del campo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [busy, setBusy] = useState(false);
 
   // Cambiar dirección o paquete invalida la cotización: el precio ya no aplica
@@ -169,6 +260,8 @@ export function ShippingDialog({ order, onClose, onUpdated }) {
       const res = await (order ? quoteOrderShipping(order.id, body()) : quoteShipment(body()));
       setRates(res.rates);
       setChosen(null);
+      setCarrierFilter('');
+      setMaxDays('');
     } catch (error) {
       toast.error(error?.message || 'No se pudo cotizar');
     } finally {
@@ -193,6 +286,18 @@ export function ShippingDialog({ order, onClose, onUpdated }) {
     }
   };
 
+  // El API las manda de la más barata a la más cara; el orden estable deja la
+  // más barata primero entre las igual de rápidas
+  const shown = (bySpeed ? [...(rates ?? [])].sort((a, b) => fastest(a) - fastest(b)) : rates ?? [])
+    .filter((rate) => !carrierFilter || rate.carrier === carrierFilter)
+    .filter((rate) => !maxDays || fastest(rate) <= maxDays);
+
+  // Filtrar suelta la elección: no se genera una guía que ya no está a la vista
+  const filter = (setter) => (e) => {
+    setter(e.target.value);
+    setChosen(null);
+  };
+
   return (
     <Dialog open fullWidth maxWidth="md" onClose={busy ? undefined : onClose}>
       <DialogTitle>
@@ -215,7 +320,15 @@ export function ShippingDialog({ order, onClose, onUpdated }) {
         <Typography variant="overline" sx={{ color: 'text.secondary' }}>
           Destino
         </Typography>
-        <Fields fields={DESTINATION_FIELDS} values={destination} onChange={edit(setDestination)} />
+        <Fields
+          fields={DESTINATION_FIELDS}
+          values={destination}
+          suggestions={{ district: suburbs }}
+          onChange={(name, value) => {
+            edit(setDestination)(name, value);
+            if (name === 'postal_code') applyPostalCode(value, true);
+          }}
+        />
 
         <Typography variant="overline" sx={{ color: 'text.secondary' }}>
           Paquete ya empacado
@@ -235,17 +348,48 @@ export function ShippingDialog({ order, onClose, onUpdated }) {
 
         {rates?.length > 0 && (
           <Stack spacing={1}>
-            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ gap: 1.5, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
               <Typography variant="overline" sx={{ flexGrow: 1, color: 'text.secondary' }}>
                 Elige paquetería
               </Typography>
+              <TextField
+                select
+                size="small"
+                label="Paquetería"
+                value={carrierFilter}
+                onChange={filter(setCarrierFilter)}
+                sx={{ minWidth: 170 }}
+              >
+                <MenuItem value="">Todas</MenuItem>
+                {[...new Set(rates.map((rate) => rate.carrier))].sort().map((carrier) => (
+                  <MenuItem key={carrier} value={carrier} sx={{ textTransform: 'uppercase' }}>
+                    {carrier}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                size="small"
+                label="Entrega"
+                value={maxDays}
+                onChange={filter(setMaxDays)}
+                sx={{ minWidth: 170 }}
+              >
+                <MenuItem value="">Cualquier tiempo</MenuItem>
+                {DELIVERY_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
               <Button size="small" color="inherit" onClick={() => setBySpeed(!bySpeed)}>
                 {bySpeed ? 'Ordenar por precio' : 'Ordenar por rapidez'}
               </Button>
             </Box>
-            {/* el API las manda de la más barata a la más cara; el orden estable
-                deja la más barata primero entre las igual de rápidas */}
-            {(bySpeed ? [...rates].sort((a, b) => fastest(a) - fastest(b)) : rates).map((rate) => {
+            {shown.length === 0 && (
+              <Alert severity="info">Ninguna opción cumple esos filtros.</Alert>
+            )}
+            {shown.map((rate) => {
               const active = chosen === rate;
               return (
                 <Box
