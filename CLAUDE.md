@@ -108,6 +108,9 @@ Path alias `src/` resolves to `./src/` in both Vite and Vitest configs.
 - Cada venta lleva su `idempotency_key`: reintentar la subida nunca duplica. Lo que el servidor rechaza queda «por revisar» en el equipo.
 - El cálculo del total (`quick-sale-math.js`) debe dar lo mismo que `build_sale_detail` + `recalc_sale_totals` del API.
 - Las fotos las guarda «Preparar» en el caché `quick-sale-images`; el service worker solo lo lee (no guarda las demás imágenes del dashboard).
+- Productos de último momento («+ Producto nuevo»): viven en `kv['provisionals']` con id `local:<client_key>`; `upload` los da de alta (`POST /products/provisional`, idempotente) antes de subir la venta y cambia el id local por el real. En el equipo que lo creó siempre se usa el id local, aunque el catálogo ya lo traiga. Se revisan en Productos → «Por revisar».
+- Productos con `needs_prep` («Se prepara al momento»): el ticket local añade una segunda página con el talón de orden (`prep-order.jsx`); el corte entre ambos lo hace el driver («cortar por página»).
+- `consignor_id` (proveedor dueño; null = propio) alimenta «Por dueño» en Corte de caja (`GET /sales/report/by-owner`).
 - Sin iconos de Iconify en esa pantalla: los no registrados se piden a internet.
 - El service worker (`vite-plugin-pwa` en `vite.config.js`) solo existe en el build: se prueba con `yarn build && yarn preview`, no con `yarn dev`. Una versión nueva entra al cerrar y volver a abrir la app, o al tocar «Actualizar» en el aviso (`main.jsx`); nunca recarga sola.
 - Ojo al probar con `yarn preview`: el service worker queda registrado en `localhost:3030` y después le sirve el build viejo a `yarn dev` (mismo origen). Al terminar, en DevTools → Application → Service Workers → «Unregister» y «Clear site data».

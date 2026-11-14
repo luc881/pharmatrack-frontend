@@ -12,6 +12,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import Collapse from '@mui/material/Collapse';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
@@ -27,6 +28,7 @@ import { useRouter } from 'src/routes/hooks';
 import { handleApiError } from 'src/utils/handle-api-error';
 
 import { endpoints } from 'src/lib/axios';
+import { useGetSuppliers } from 'src/actions/supplier';
 import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { useAllIngredients } from 'src/actions/ingredient';
 import { createProductBrand } from 'src/actions/product-brand';
@@ -110,6 +112,8 @@ const ProductSchema = z.object({
   tracks_batches: z.boolean(),
   show_online: z.boolean(),
   quick_sale: z.boolean(),
+  needs_prep: z.boolean(),
+  consignor_id: z.coerce.number().nullable(),
   allow_warranty: z.boolean(),
   warranty_days: z.coerce.number().nullable(),
   is_active: z.boolean(),
@@ -134,6 +138,7 @@ export function ProductCreateEditForm({ currentProduct }) {
 
   const { categories, categoriesLoading, categoriesMutate } = useGetProductCategories();
   const { brands, brandsLoading, brandsMutate } = useGetProductBrands();
+  const { suppliers } = useGetSuppliers({ pageSize: 100 });
   const { allIngredients } = useAllIngredients();
   const { allProductMasters } = useAllProductMasters();
 
@@ -190,6 +195,8 @@ export function ProductCreateEditForm({ currentProduct }) {
     tracks_batches: true,
     show_online: false,
     quick_sale: false,
+    needs_prep: false,
+    consignor_id: '',
     allow_warranty: false,
     warranty_days: null,
     is_active: true,
@@ -206,6 +213,8 @@ export function ProductCreateEditForm({ currentProduct }) {
       ? {
           ...currentProduct,
           brand_id: currentProduct.brand_id ?? '',
+          consignor_id: currentProduct.consignor_id ?? '',
+          needs_prep: currentProduct.needs_prep ?? false,
           product_category_id: currentProduct.product_category_id ?? '',
           base_unit_name: currentProduct.base_unit_name ?? null,
           units_per_base: currentProduct.units_per_base ?? null,
@@ -289,6 +298,7 @@ export function ProductCreateEditForm({ currentProduct }) {
     const payload = {
       ...data,
       brand_id: data.brand_id || null,
+      consignor_id: data.consignor_id || null,
       product_category_id: data.product_category_id || null,
       price_cost: data.price_cost || null,
       compare_at_price: data.compare_at_price || null,
@@ -617,6 +627,34 @@ export function ProductCreateEditForm({ currentProduct }) {
             }
             sx={{ alignItems: 'flex-start' }}
           />
+
+          <Field.Switch
+            name="needs_prep"
+            label={
+              <Box>
+                <Typography variant="subtitle2">Se prepara al momento</Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  En la venta rápida imprime, después del ticket, un talón de orden para quien lo
+                  prepara (bebidas, postres).
+                </Typography>
+              </Box>
+            }
+            sx={{ alignItems: 'flex-start' }}
+          />
+
+          <Field.Select
+            name="consignor_id"
+            label="De quién es"
+            helperText="Para el corte por dueño cuando vendes productos de alguien más. Se elige de Proveedores."
+            slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+          >
+            <MenuItem value="">Propio</MenuItem>
+            {suppliers.map((s) => (
+              <MenuItem key={s.id} value={s.id}>
+                {s.name}
+              </MenuItem>
+            ))}
+          </Field.Select>
 
           <Divider sx={{ borderStyle: 'dashed' }} />
 

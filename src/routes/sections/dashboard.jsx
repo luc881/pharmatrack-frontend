@@ -33,6 +33,7 @@ const RoleCreatePage = lazy(() => import('src/pages/dashboard/role/new'));
 const RoleEditPage   = lazy(() => import('src/pages/dashboard/role/edit'));
 // Product
 const ProductListPage    = lazy(() => import('src/pages/dashboard/product/list'));
+const ProductProvisionalPage = lazy(() => import('src/pages/dashboard/product/provisional'));
 const ProductDetailsPage = lazy(() => import('src/pages/dashboard/product/details'));
 const ProductCreatePage  = lazy(() => import('src/pages/dashboard/product/new'));
 const ProductEditPage    = lazy(() => import('src/pages/dashboard/product/edit'));
@@ -260,6 +261,7 @@ export const dashboardRoutes = [
           { path: 'list',     element: <ProductListPage /> },
           { path: ':id',      element: <ProductDetailsPage /> },
           { path: 'new',      element: guard(P.productsCreate, <ProductCreatePage />) },
+          { path: 'provisional', element: guard(P.productsUpdate, <ProductProvisionalPage />) },
           { path: ':id/edit', element: guard(P.productsUpdate, <ProductEditPage />) },
         ],
       },

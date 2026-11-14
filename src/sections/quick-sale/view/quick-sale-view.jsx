@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
@@ -25,6 +25,7 @@ import { QuickSaleGrid } from '../quick-sale-grid';
 import { getKV, setKV } from '../quick-sale-store';
 import { QuickSalePicker } from '../quick-sale-picker';
 import { QuickSaleStatus } from '../quick-sale-status';
+import { QuickSaleNewProduct } from '../quick-sale-new-product';
 import {
   retrySale,
   syncQueue,
@@ -32,7 +33,10 @@ import {
   enqueueSale,
   discardSale,
   exportBackup,
+  addProvisional,
   prepareOffline,
+  provisionalItem,
+  removeProvisional,
 } from '../quick-sale-sync';
 
 // ----------------------------------------------------------------------
@@ -50,6 +54,13 @@ function useOnline() {
   }, []);
   return online;
 }
+
+// «Decoración» y «decoracion» son lo mismo al buscar
+const plain = (text) =>
+  String(text ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 
 // ----------------------------------------------------------------------
 
@@ -69,6 +80,9 @@ export function QuickSaleView() {
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [shell, setShell] = useState(true);
   const [picking, setPicking] = useState(false);
+  const [query, setQuery] = useState('');
+  // null = cerrado; si no, el nombre con el que abre «Producto nuevo»
+  const [creating, setCreating] = useState(null);
   const [charging, setCharging] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -188,11 +202,16 @@ export function QuickSaleView() {
       if (!sale) return false;
       saleKey.current = crypto.randomUUID();
       quick.clear();
+      setQuery('');
       await reload();
       // La venta ya está a salvo en el equipo; subirla no detiene la fila
       sync().then((result) => result.synced > 0 && prepare());
-      if (prefs.printTicket) {
-        router.push(`${paths.dashboard.quickSale.ticket(key)}?print=1`);
+      // Lo que se prepara imprime su orden aunque el ticket esté apagado
+      const hasOrder = sale.lines.some((line) => line.needs_prep);
+      if (prefs.printTicket || hasOrder) {
+        router.push(
+          `${paths.dashboard.quickSale.ticket(key)}?print=1${prefs.printTicket ? '' : '&only=order'}`
+        );
       } else {
         toast.success(`Venta ${sale.folio} guardada`);
       }
@@ -220,6 +239,31 @@ export function QuickSaleView() {
     await reload();
   };
 
+  const createProduct = async (values) => {
+    const provisional = await addProvisional(values);
+    await reload();
+    quick.add(provisionalItem(provisional));
+    setCreating(null);
+    setQuery('');
+  };
+
+  const removeProduct = async (item) => {
+    const removed = await removeProvisional(item.client_key);
+    if (!removed) toast.error('Ese producto ya tiene ventas; no se puede quitar');
+    await reload();
+  };
+
+  // Cada palabra escrita debe estar en el nombre o la categoría
+  const words = useMemo(() => plain(query).split(/\s+/).filter(Boolean), [query]);
+  const found = useMemo(
+    () =>
+      (quick.items ?? []).filter((item) => {
+        const text = plain(`${item.title} ${item.category ?? ''}`);
+        return words.every((word) => text.includes(word));
+      }),
+    [quick.items, words]
+  );
+
   if (!quick.ready) return <LoadingScreen />;
 
   if (quick.failed) {
@@ -237,6 +281,13 @@ export function QuickSaleView() {
     <Button variant="outlined" disabled={!online} onClick={() => setPicking(true)}>
       + Agregar productos
     </Button>
+  );
+
+  // Los que aún se pueden quitar: sin subir y sin ventas en este equipo
+  const removable = quick.provisionals.filter(
+    (p) =>
+      !p.server_id &&
+      !quick.sales.some((s) => s.lines.some((line) => line.product_id === `local:${p.client_key}`))
   );
 
   const empty =
@@ -289,6 +340,9 @@ export function QuickSaleView() {
             </TextField>
           )}
           {addButton}
+          <Button variant="outlined" onClick={() => setCreating('')}>
+            + Producto nuevo
+          </Button>
           <Button color="inherit" onClick={() => router.push(paths.dashboard.sale.root)}>
             Ver ventas
           </Button>
@@ -322,7 +376,28 @@ export function QuickSaleView() {
         }}
       >
         {quick.items?.length ? (
-          <QuickSaleGrid items={quick.items} stockOf={quick.stockOf} onAdd={quick.add} />
+          <Stack spacing={2}>
+            <TextField
+              type="search"
+              size="small"
+              label="Buscar producto"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              fullWidth
+            />
+            {found.length ? (
+              <QuickSaleGrid items={found} stockOf={quick.stockOf} onAdd={quick.add} />
+            ) : (
+              <Stack spacing={2} sx={{ py: 6, alignItems: 'center', textAlign: 'center' }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Nada con «{query.trim()}»
+                </Typography>
+                <Button variant="contained" onClick={() => setCreating(query.trim())}>
+                  + Producto nuevo «{query.trim()}»
+                </Button>
+              </Stack>
+            )}
+          </Stack>
         ) : (
           <Stack spacing={2} sx={{ py: 8, alignItems: 'center', textAlign: 'center' }}>
             {empty}
@@ -339,6 +414,17 @@ export function QuickSaleView() {
           />
         </Box>
       </Box>
+
+      {creating !== null && (
+        <QuickSaleNewProduct
+          initialTitle={creating}
+          suppliers={quick.suppliers}
+          removable={removable}
+          onCreate={createProduct}
+          onRemove={removeProduct}
+          onClose={() => setCreating(null)}
+        />
+      )}
 
       {picking && (
         <QuickSalePicker

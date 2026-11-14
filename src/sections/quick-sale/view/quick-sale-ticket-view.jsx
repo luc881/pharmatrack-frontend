@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { PAYMENT_LABELS } from 'src/sections/sale/print-ticket';
 import { TicketPrintPage } from 'src/sections/sale/view/sale-ticket-view';
 
+import { PrepOrder, prepLines } from '../prep-order';
 import { getKV, listSales } from '../quick-sale-store';
 
 // ----------------------------------------------------------------------
@@ -22,7 +23,10 @@ const DEFAULTS = { width: 80, offset: 0 };
 // El rollo y el ajuste se calibran en Ventas → «Imprimir prueba».
 export function QuickSaleTicketView({ saleKey }) {
   const router = useRouter();
-  const autoPrint = useSearchParams().get('print') === '1';
+  const params = useSearchParams();
+  const autoPrint = params.get('print') === '1';
+  // ?only=order: se cobró con «Imprimir ticket» apagado y solo sale la orden
+  const onlyOrder = params.get('only') === 'order';
   const [data, setData] = useState(); // undefined = leyendo; null = no está
 
   useEffect(() => {
@@ -77,8 +81,13 @@ export function QuickSaleTicketView({ saleKey }) {
     pagado: sale.payment.amount,
   };
 
+  const hasOrder = prepLines(sale).length > 0;
+  const hideTicket = onlyOrder && hasOrder;
+
   return (
     <TicketPrintPage
+      hideTicket={hideTicket}
+      extra={hasOrder ? <PrepOrder sale={sale} width={width} after={!hideTicket} /> : null}
       ticket={ticket}
       business={context?.business ?? {}}
       width={width}

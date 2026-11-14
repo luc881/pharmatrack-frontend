@@ -24,6 +24,8 @@ import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { SaleOwnerCut } from '../sale-owner-cut';
+
 // ----------------------------------------------------------------------
 // Corte de caja: totales de ventas completadas en un rango (default: hoy),
 // top de productos y desglose por método de pago. Imprimible.
@@ -176,6 +178,8 @@ export function SaleSummaryView() {
               )}
             </Card>
           </Box>
+
+          <SaleOwnerCut from={dateFrom} to={dateTo} />
         </Stack>
       )}
     </DashboardContent>

@@ -85,6 +85,7 @@ export const endpoints = {
     toggleOnline: (id) => `/api/v1/products/${id}/toggle-online`,
     toggleQuickSale: (id) => `/api/v1/products/${id}/toggle-quick-sale`,
     quickSale: '/api/v1/products/quick-sale',
+    provisional: '/api/v1/products/provisional',
   },
   supplier: {
     list: '/api/v1/suppliers',
@@ -143,6 +144,7 @@ export const endpoints = {
     complete: (id) => `/api/v1/sales/${id}/complete`,
     checkout: '/api/v1/sales/checkout',
     summary: '/api/v1/sales/summary',
+    byOwner: '/api/v1/sales/report/by-owner',
   },
   saleDetail: {
     list: '/api/v1/saledetails',

@@ -40,6 +40,8 @@ const ALL_SECTIONS = [
     key: 'productos',
     tabs: [
       { label: 'Productos', path: D.product.root },
+      // Creados al vuelo en la venta rápida («+ Producto nuevo»)
+      { label: 'Por revisar', path: D.product.provisional, allowedRoles: ['products.update'] },
       { label: 'Stock y lotes', path: D.productBatch.root },
       {
         label: 'Categorías y marcas',

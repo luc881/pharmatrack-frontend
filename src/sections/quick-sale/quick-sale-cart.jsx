@@ -18,7 +18,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { fCurrency } from 'src/utils/format-number';
 
-import { lineTotals } from './quick-sale-math';
+import { toNumber, lineTotals } from './quick-sale-math';
 
 // ----------------------------------------------------------------------
 
@@ -27,9 +27,6 @@ export const METHODS = [
   { value: 'card', label: 'Tarjeta' },
   { value: 'transfer', label: 'Transferencia' },
 ];
-
-// «100,50» y «100.50» valen lo mismo
-const toNumber = (text) => Number(String(text).trim().replace(',', '.'));
 
 const stepSx = { minWidth: 48, minHeight: 48, px: 0, fontSize: 22, lineHeight: 1 };
 

@@ -49,6 +49,8 @@ export function buildLocalSale({ key, folio, soldAt, branchId, method, cart, ite
         discount: line.discount,
         price_retail: item.price_retail,
         tax_percentage: item.tax_percentage ?? null,
+        // para el talón de orden
+        needs_prep: Boolean(item.needs_prep),
         // para apartar el stock de los componentes mientras no se suba
         components: item.components.map(({ product_id, quantity }) => ({ product_id, quantity })),
         ticketItem: buildTicketItem(item, line.quantity, line.discount),
@@ -57,6 +59,105 @@ export function buildLocalSale({ key, folio, soldAt, branchId, method, cart, ite
     payment: { method_payment: method, amount: totals.total },
     totals,
   };
+}
+
+// ----------------------------------------------------------------------
+// Productos de último momento: se crean en el equipo (sin red) y se dan de
+// alta en el sistema al subir su primera venta. En este equipo su id es
+// siempre `local:<client_key>`; al subir se cambia por el id real.
+// ----------------------------------------------------------------------
+
+const LOCAL = 'local:';
+export const localId = (clientKey) => `${LOCAL}${clientKey}`;
+const isLocal = (productId) => String(productId).startsWith(LOCAL);
+
+const getProvisionals = async () => (await getKV('provisionals')) ?? [];
+
+export async function addProvisional({
+  title,
+  price_retail,
+  needs_prep = false,
+  consignor_id = null,
+}) {
+  const provisional = {
+    client_key: crypto.randomUUID(),
+    title,
+    price_retail,
+    needs_prep,
+    consignor_id,
+  };
+  await setKV('provisionals', [...(await getProvisionals()), provisional]);
+  return provisional;
+}
+
+// Con la misma forma que un producto del catálogo de la venta rápida
+export const provisionalItem = (p) => ({
+  id: localId(p.client_key),
+  title: p.title,
+  image: null,
+  category: 'De último momento',
+  price_retail: p.price_retail,
+  tax_percentage: null,
+  max_discount: null,
+  stock: null,
+  is_bundle: false,
+  components: [],
+  blocked_reason: null,
+  animal: null,
+  needs_prep: p.needs_prep,
+  provisional: true,
+  client_key: p.client_key,
+  consignor_id: p.consignor_id,
+});
+
+const usedLocally = (sales, clientKey) =>
+  sales.some((s) => s.lines.some((line) => line.product_id === localId(clientKey)));
+
+// Solo se quita lo que nunca se vendió ni se subió (un error de dedo)
+export async function removeProvisional(clientKey) {
+  const [list, sales] = await Promise.all([getProvisionals(), listSales()]);
+  const target = list.find((p) => p.client_key === clientKey);
+  if (!target || target.server_id || usedLocally(sales, clientKey)) return false;
+  await setKV(
+    'provisionals',
+    list.filter((p) => p !== target)
+  );
+  return true;
+}
+
+// Id del sistema para una línea `local:`; lo da de alta si aún no existe.
+// La misma client_key en cada intento: repetir no lo duplica. Los errores
+// salen con su status para que `upload` los trate igual que los de la venta.
+async function serverIdOf(productId) {
+  const clientKey = productId.slice(LOCAL.length);
+  const list = await getProvisionals();
+  const target = list.find((p) => p.client_key === clientKey);
+  if (!target) {
+    throw Object.assign(new Error('Un producto nuevo de esta venta ya no está en este equipo'), {
+      status: 400,
+    });
+  }
+  if (target.server_id) return target.server_id;
+  try {
+    const { data } = await axiosInstance.post(endpoints.product.provisional, {
+      client_key: target.client_key,
+      title: target.title,
+      price_retail: target.price_retail,
+      needs_prep: target.needs_prep,
+      consignor_id: target.consignor_id,
+    });
+    await setKV(
+      'provisionals',
+      (await getProvisionals()).map((p) =>
+        p.client_key === clientKey ? { ...p, server_id: data.id } : p
+      )
+    );
+    return data.id;
+  } catch (error) {
+    throw Object.assign(new Error(`No se pudo dar de alta «${target.title}»: ${error.message}`), {
+      status: error.status,
+    });
+  }
 }
 
 // ----------------------------------------------------------------------
@@ -92,10 +193,12 @@ export async function prepareOffline({ branchId, user }) {
   // momento no viene restado en él (ver usage en quick-sale-math.js)
   const requestedAt = new Date().toISOString();
   // Si el catálogo no baja, se lanza el error sin tocar lo ya guardado
-  const [catalog, business, ticketSettings, previous] = await Promise.all([
+  const [catalog, business, ticketSettings, suppliers, previous] = await Promise.all([
     axiosInstance.get(endpoints.product.quickSale).then((res) => res.data),
     optional(BUSINESS_URL),
     optional(TICKET_SETTINGS_URL),
+    // los dueños posibles de un producto nuevo («De quién es»)
+    optional(`${endpoints.supplier.list}?page_size=100`),
     getKV('context'),
   ]);
 
@@ -112,6 +215,10 @@ export async function prepareOffline({ branchId, user }) {
     // al abrir la pantalla la sucursal puede no haber cargado todavía
     branchId: branchId ?? previous?.branchId ?? null,
     user: user ?? previous?.user ?? null,
+    suppliers:
+      suppliers?.data?.filter((s) => s.is_active !== false).map(({ id, name }) => ({ id, name })) ??
+      previous?.suppliers ??
+      [],
   });
 
   // Las fotos (y el logo del ticket) van a un caché propio, que el service
@@ -139,6 +246,21 @@ export async function prepareOffline({ branchId, user }) {
       .filter((s) => s.status === 'synced' && new Date(s.sold_at).getTime() < cutoff)
       .map((s) => deleteSale(s.idempotency_key))
   );
+
+  // Un provisional que ya se revisó en el sistema (se conservó o se desechó)
+  // deja de ser un botón aparte en este equipo, salvo que aún tenga ventas
+  // sin subir
+  const locals = await getProvisionals();
+  if (locals.length) {
+    const live = new Set(catalog.filter((item) => item.provisional).map((item) => item.client_key));
+    const waiting = sales.filter((s) => s.status !== 'synced');
+    await setKV(
+      'provisionals',
+      locals.filter(
+        (p) => !p.server_id || live.has(p.client_key) || usedLocally(waiting, p.client_key)
+      )
+    );
+  }
 
   return { count: catalog.length, fetchedAt };
 }
@@ -175,16 +297,21 @@ async function upload(sale, { timeout, retried = false }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
+    // Los productos de último momento se dan de alta antes que la venta
+    const items = [];
+    for (const { product_id, quantity, discount } of sale.lines) {
+      items.push({
+        product_id: isLocal(product_id) ? await serverIdOf(product_id) : product_id,
+        quantity,
+        discount,
+      });
+    }
     const { data: res } = await axiosInstance.post(
       endpoints.sale.checkout,
       {
         branch_id: sale.branch_id,
         description: `Venta rápida · ${sale.folio}`,
-        items: sale.lines.map(({ product_id, quantity, discount }) => ({
-          product_id,
-          quantity,
-          discount,
-        })),
+        items,
         // un pago debe ser mayor a cero: la venta de $0 (100 % de descuento) va sin él
         payments: sale.payment.amount > 0 ? [sale.payment] : [],
         // la misma llave en cada intento: el servidor devuelve la venta ya

@@ -177,7 +177,19 @@ export function SaleTicketView({ saleId }) {
 // La hoja imprimible: controles arriba (no salen en el rollo) y el ticket.
 // La usan el ticket de una venta guardada y el de la venta rápida, que se
 // arma con los datos del dispositivo.
-export function TicketPrintPage({ ticket, business, width, offset, autoPrint, controls, hint }) {
+// extra: lo que se imprime después del ticket (el talón de orden de la venta
+// rápida); hideTicket: solo eso.
+export function TicketPrintPage({
+  ticket,
+  business,
+  width,
+  offset,
+  autoPrint,
+  controls,
+  hint,
+  extra,
+  hideTicket = false,
+}) {
   const printed = useRef(false);
 
   // Si la fuente web tarda (sin internet), se imprime con la de respaldo
@@ -188,6 +200,11 @@ export function TicketPrintPage({ ticket, business, width, offset, autoPrint, co
       window.print()
     );
   }, [autoPrint]);
+
+  // Sin ticket no hay quien avise que ya se puede imprimir
+  useEffect(() => {
+    if (hideTicket) handleReady();
+  }, [hideTicket, handleReady]);
 
   return (
     <Box
@@ -232,13 +249,15 @@ export function TicketPrintPage({ ticket, business, width, offset, autoPrint, co
           '@media print': { boxShadow: 'none', p: 0, m: 0 },
         }}
       >
-        {ticket ? (
-          <SaleTicket ticket={ticket} business={business} width={width} onReady={handleReady} />
-        ) : (
-          <Box sx={{ p: 6 }}>
-            <CircularProgress />
-          </Box>
-        )}
+        {!hideTicket &&
+          (ticket ? (
+            <SaleTicket ticket={ticket} business={business} width={width} onReady={handleReady} />
+          ) : (
+            <Box sx={{ p: 6 }}>
+              <CircularProgress />
+            </Box>
+          ))}
+        {extra}
       </Box>
     </Box>
   );

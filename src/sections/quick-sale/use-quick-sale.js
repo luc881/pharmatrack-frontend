@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { fCurrency } from 'src/utils/format-number';
 
+import { provisionalItem } from './quick-sale-sync';
 import { getKV, listSales } from './quick-sale-store';
 import { usage, stockOf, cartTotals, maxDiscount, spreadDiscount } from './quick-sale-math';
 
@@ -15,16 +16,35 @@ export function useQuickSale() {
     fetchedAt: null,
     requestedAt: null,
     sales: [],
+    provisionals: [],
+    suppliers: [],
     failed: false,
   });
   const [rawCart, setCart] = useState([]);
 
   const reload = useCallback(async () => {
     try {
-      const [catalog, sales] = await Promise.all([getKV('catalog'), listSales()]);
+      const [catalog, sales, saved, context] = await Promise.all([
+        getKV('catalog'),
+        listSales(),
+        getKV('provisionals'),
+        getKV('context'),
+      ]);
+      // Los productos de último momento de este equipo van siempre con su id
+      // local, aunque el catálogo ya los traiga dados de alta
+      const provisionals = saved ?? [];
+      const local = new Set(provisionals.map((p) => p.client_key));
       setState({
         ready: true,
-        items: catalog?.items ?? null,
+        provisionals,
+        suppliers: context?.suppliers ?? [],
+        items:
+          catalog || provisionals.length
+            ? [
+                ...(catalog?.items ?? []).filter((item) => !local.has(item.client_key)),
+                ...provisionals.map(provisionalItem),
+              ]
+            : null,
         fetchedAt: catalog?.fetchedAt ?? null,
         requestedAt: catalog?.requestedAt ?? null,
         sales,
@@ -159,6 +179,8 @@ export function useQuickSale() {
   return {
     ready: state.ready,
     failed: state.failed,
+    provisionals: state.provisionals,
+    suppliers: state.suppliers,
     items,
     itemsById,
     fetchedAt: state.fetchedAt,

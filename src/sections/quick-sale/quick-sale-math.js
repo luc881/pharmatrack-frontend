@@ -3,6 +3,9 @@
 // precio × cantidad − descuento; impuesto sobre ese subtotal; total = suma.
 // Todo en centavos enteros para no arrastrar errores de punto flotante.
 
+// «100,50» y «100.50» valen lo mismo
+export const toNumber = (text) => Number(String(text).trim().replace(',', '.'));
+
 const cents = (value) => Math.round(Number(value || 0) * 100);
 const pesos = (c) => c / 100;
 
