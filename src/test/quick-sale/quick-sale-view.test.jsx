@@ -1,0 +1,159 @@
+import { SWRConfig } from 'swr';
+import { http, HttpResponse } from 'msw';
+import { MemoryRouter } from 'react-router';
+import { IDBFactory } from 'fake-indexeddb';
+import userEvent from '@testing-library/user-event';
+import { it, vi, expect, describe, beforeEach } from 'vitest';
+import { render, screen, within, waitFor } from '@testing-library/react';
+
+import { QuickSaleView } from 'src/sections/quick-sale/view/quick-sale-view';
+
+import { server } from '../mocks/server';
+
+// El layout importa el tema completo (CSS de data-grid), que vitest no carga
+vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
+
+const BASE = 'https://api.opuntiaden.com';
+
+const cueva = {
+  id: 1,
+  title: 'Cueva de resina',
+  image: null,
+  category: 'Decoración',
+  price_retail: '80.00',
+  tax_percentage: null,
+  max_discount: 10,
+  stock: 8,
+  is_bundle: false,
+  components: [],
+  blocked_reason: null,
+  animal: null,
+};
+const musgo = {
+  ...cueva,
+  id: 2,
+  title: 'Musgo',
+  price_retail: '60.00',
+  stock: 0,
+  max_discount: null,
+};
+const pack = {
+  ...cueva,
+  id: 3,
+  title: '3 cuevas',
+  price_retail: '200.00',
+  stock: null,
+  max_discount: null,
+  is_bundle: true,
+  components: [{ product_id: 1, quantity: 3, stock: 8 }],
+};
+
+let checkouts;
+
+function mount(items = [cueva, musgo, pack]) {
+  checkouts = [];
+  server.use(
+    http.get(`${BASE}/api/v1/products/quick-sale`, () => HttpResponse.json(items)),
+    http.get(`${BASE}/api/v1/branches`, () => HttpResponse.json([{ id: 7, name: 'Matriz' }])),
+    http.get(`${BASE}/api/v1/settings/email-ticket`, () => HttpResponse.json({})),
+    http.get(`${BASE}/api/v1/settings/ticket-print`, () =>
+      HttpResponse.json({ width: 58, offset: 0, saved: true })
+    ),
+    http.post(`${BASE}/api/v1/sales/checkout`, async ({ request }) => {
+      const body = await request.json();
+      checkouts.push(body);
+      return HttpResponse.json({ id: 501, total: body.payments[0].amount }, { status: 201 });
+    })
+  );
+  return render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <MemoryRouter>
+        <QuickSaleView />
+      </MemoryRouter>
+    </SWRConfig>
+  );
+}
+
+const product = (name) => screen.findByRole('button', { name: new RegExp(`^Agregar ${name}`) });
+const cart = () => within(screen.getByRole('region', { name: 'Cuenta' }));
+
+describe('venta rápida: pantalla', () => {
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+  });
+
+  it('cada toque suma uno y actualiza el total', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await product('Cueva de resina'));
+    await user.click(await product('Cueva de resina'));
+
+    expect(cart().getByText('2×')).toBeInTheDocument();
+    expect(cart().getByTestId('total')).toHaveTextContent('$160');
+  });
+
+  it('un producto agotado no se puede tocar', async () => {
+    mount();
+    expect(await product('Musgo')).toBeDisabled();
+    expect(screen.getByText('Agotado')).toBeInTheDocument();
+  });
+
+  it('un descuento arriba del tope no se aplica', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await product('Cueva de resina'));
+    await user.click(cart().getByRole('button', { name: 'Descuento' }));
+
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.type(dialog.getByLabelText('Descuento'), '20');
+    await user.click(dialog.getByRole('button', { name: 'Aplicar' }));
+
+    expect(await dialog.findByText(/descuento máximo/i)).toBeInTheDocument();
+    // con el diálogo abierto la cuenta queda oculta para lectores de pantalla
+    expect(screen.getByTestId('total')).toHaveTextContent('$80');
+  });
+
+  it('cobrar manda la venta y deja la cuenta vacía', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await product('Cueva de resina'));
+    await user.click(await product('3 cuevas'));
+    await user.click(screen.getByRole('checkbox', { name: 'Imprimir ticket' }));
+    await user.click(cart().getByRole('button', { name: /^Cobrar/ }));
+
+    await waitFor(() => expect(checkouts).toHaveLength(1));
+    expect(checkouts[0]).toMatchObject({
+      branch_id: 7,
+      items: [
+        { product_id: 1, quantity: 1, discount: 0 },
+        { product_id: 3, quantity: 1, discount: 0 },
+      ],
+      payments: [{ method_payment: 'cash', amount: 280 }],
+    });
+    expect(checkouts[0].idempotency_key).toMatch(/^[0-9a-f-]{36}$/);
+    await waitFor(() =>
+      expect(cart().getByText('Toca un producto para empezar')).toBeInTheDocument()
+    );
+  });
+
+  it('dos toques seguidos en cobrar hacen una sola venta', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await product('Cueva de resina'));
+    await user.click(screen.getByRole('checkbox', { name: 'Imprimir ticket' }));
+    await user.dblClick(cart().getByRole('button', { name: /^Cobrar/ }));
+
+    await waitFor(() =>
+      expect(cart().getByText('Toca un producto para empezar')).toBeInTheDocument()
+    );
+    expect(checkouts).toHaveLength(1);
+  });
+
+  it('sin productos marcados invita a agregarlos', async () => {
+    mount([]);
+    expect(await screen.findByText(/Aún no hay productos/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: '+ Agregar productos' }).length).toBeGreaterThan(
+      0
+    );
+  });
+});

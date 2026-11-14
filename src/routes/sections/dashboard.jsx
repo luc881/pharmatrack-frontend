@@ -69,6 +69,7 @@ const SaleSummaryPage  = lazy(() => import('src/pages/dashboard/sale/summary'));
 const SaleEmailTemplatePage = lazy(() => import('src/pages/dashboard/sale/email-template'));
 const SaleDetailsPage = lazy(() => import('src/pages/dashboard/sale/details'));
 const SaleTicketPage  = lazy(() => import('src/pages/dashboard/sale/ticket'));
+const QuickSalePage   = lazy(() => import('src/pages/dashboard/quick-sale'));
 // Delivery
 const DeliveryListPage = lazy(() => import('src/pages/dashboard/delivery/list'));
 // Refund
@@ -157,6 +158,7 @@ const P = {
   articlesRead:   ['articles.read'],
   ordersRead:     ['orders.read'],
   salesRead:      ['sales.read'],
+  salesCreate:    ['sales.create'],
   articlesCreate: ['articles.create'],
   articlesUpdate: ['articles.update'],
   // Sitio publico
@@ -318,6 +320,7 @@ export const dashboardRoutes = [
       },
 
       { path: 'delivery', element: guard(P.salesRead, <DeliveryListPage />) },
+      { path: 'quick-sale', element: guard(P.salesCreate, <QuickSalePage />) },
       // ── Sales ───────────────────────────────────────────────────────
       {
         path: 'sale',

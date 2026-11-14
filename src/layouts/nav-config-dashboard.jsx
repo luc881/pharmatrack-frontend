@@ -82,6 +82,7 @@ const allNavData = [
   {
     subheader: 'Vender',
     items: [
+      { title: 'Venta rápida', path: paths.dashboard.quickSale.root, icon: ICONS.ecommerce, allowedRoles: ['sales.create'] },
       { title: 'Nueva venta', path: paths.dashboard.sale.new,  icon: ICONS.ecommerce, allowedRoles: ['sales.create'] },
       { title: 'Ventas',      path: paths.dashboard.sale.root, icon: ICONS.invoice, isActive: inSection('ventas', [paths.dashboard.sale.new]) },
       { title: 'Pedidos web', path: paths.dashboard.order.root, icon: ICONS.order, allowedRoles: ['orders.read'], module: 'pedidos' },

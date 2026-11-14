@@ -87,6 +87,10 @@ export const paths = {
       ticket: (id) => `${ROOTS.DASHBOARD}/sale/${id}/ticket`,
       ticketTest: `${ROOTS.DASHBOARD}/sale/ticket-prueba`,
     },
+    quickSale: {
+      root: `${ROOTS.DASHBOARD}/quick-sale`,
+      ticket: (key) => `${ROOTS.DASHBOARD}/quick-sale/ticket/${key}`,
+    },
     delivery: {
       root: `${ROOTS.DASHBOARD}/delivery`,
     },

@@ -78,7 +78,9 @@ describe('venta rápida: cálculo', () => {
   });
 
   it('una venta por revisar también aparta stock', () => {
-    const used = usage([{ status: 'review', lines: [{ product_id: 1, quantity: 2, components: [] }] }]);
+    const used = usage([
+      { status: 'review', lines: [{ product_id: 1, quantity: 2, components: [] }] },
+    ]);
     expect(stockOf(cueva, used)).toBe(6);
   });
 
