@@ -111,6 +111,9 @@ export const deleteProduct = (id) =>
 export const toggleProductOnline = (id) =>
   axiosInstance.patch(endpoints.product.toggleOnline(id)).then((res) => res.data);
 
+export const toggleProductQuickSale = (id) =>
+  axiosInstance.patch(endpoints.product.toggleQuickSale(id)).then((res) => res.data);
+
 // ----------------------------------------------------------------------
 // Paquetes (bundles)
 
