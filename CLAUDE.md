@@ -99,6 +99,18 @@ Tests use Vitest + Testing Library + MSW. The MSW server is started globally in 
 
 Path alias `src/` resolves to `./src/` in both Vite and Vitest configs.
 
+## Venta rápida sin internet
+
+`/dashboard/quick-sale` (`src/sections/quick-sale/`) vende con botones los productos marcados con `quick_sale` y funciona sin red:
+
+- La pantalla **siempre** lee el catálogo guardado en el equipo y **siempre** cobra contra una cola local (IndexedDB, `quick-sale-store.js`); subir las ventas (`syncQueue` en `quick-sale-sync.js`) es un paso aparte que corre solo cuando hay red. No hay un camino «con internet» distinto.
+- El stock local no se guarda: es el del catálogo descargado menos las ventas del equipo que el servidor aún no registra (`usage` + `stockOf` en `quick-sale-math.js`).
+- Cada venta lleva su `idempotency_key`: reintentar la subida nunca duplica. Lo que el servidor rechaza queda «por revisar» en el equipo.
+- El cálculo del total (`quick-sale-math.js`) debe dar lo mismo que `build_sale_detail` + `recalc_sale_totals` del API.
+- Sin iconos de Iconify en esa pantalla: los no registrados se piden a internet.
+- El service worker (`vite-plugin-pwa` en `vite.config.js`) solo existe en el build: se prueba con `yarn build && yarn preview`, no con `yarn dev`. Una versión nueva entra al cerrar y volver a abrir la app; nunca recarga sola.
+- Sin red y con el token caducado, la sesión se mantiene con el usuario guardado al «Preparar» (`user.offline`, en `src/auth/context/jwt/`).
+
 ## Otra instalación (otro cliente)
 
 Mismo repo, otro proyecto de Vercel con su propio API. Todo lo que cambia por cliente son variables de entorno (Vite las fija al compilar: cambiar una pide Redeploy):

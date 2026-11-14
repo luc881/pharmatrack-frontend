@@ -89,11 +89,10 @@ export async function prepareOffline({ branchId, user }) {
     user,
   });
 
-  // Pedir cada foto hace que el service worker la guarde para verla sin red.
-  // no-cors: igual que la etiqueta <img>, para que sea la misma entrada de caché.
-  await Promise.allSettled(
-    catalog.filter((item) => item.image).map((item) => fetch(item.image, { mode: 'no-cors' }))
-  );
+  // Pedir cada foto (y el logo del ticket) hace que el service worker la
+  // guarde para verla sin red
+  const images = [...catalog.map((item) => item.image), business?.ticket_logo_url];
+  await Promise.allSettled(images.filter(Boolean).map((url) => fetch(url)));
 
   // Que el navegador no borre estos datos si le falta espacio
   navigator.storage?.persist?.().catch(() => {});
