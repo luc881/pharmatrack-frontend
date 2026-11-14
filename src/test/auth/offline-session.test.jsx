@@ -133,6 +133,7 @@ describe('sesión sin internet', () => {
   });
 
   it('con red y sin sesión no entra aunque haya usuario guardado', async () => {
+    server.use(http.get(`${API}/users/me`, () => new HttpResponse(null, { status: 401 })));
     await setKV('context', { user: saved });
 
     start();
@@ -145,5 +146,25 @@ describe('sesión sin internet', () => {
 
     await signOut();
     expect(await getKV('context')).toEqual({ user: null, branchId: 7 });
+  });
+  it('un error del servidor al renovar (502) no cierra la sesión', async () => {
+    const calls = refresh(() => new HttpResponse(null, { status: 502 }));
+    localStorage.setItem('jwt_refresh_token', 'r1');
+    const access = token(60.2);
+    await setSession(access);
+
+    await waitFor(() => expect(calls.count).toBe(1));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sessionStorage.getItem('jwt_access_token')).toBe(access);
+    expect(localStorage.getItem('jwt_refresh_token')).toBe('r1');
+  });
+
+  it('con wifi pero sin internet (el API no responde) abre con el usuario del equipo', async () => {
+    // navigator.onLine dice que sí hay red; lo que cuenta es si el API contesta
+    server.use(http.get(`${API}/users/me`, () => HttpResponse.error()));
+    await setKV('context', { user: saved });
+
+    start();
+    expect(await screen.findByText('dentro:a@b.mx:offline')).toBeInTheDocument();
   });
 });

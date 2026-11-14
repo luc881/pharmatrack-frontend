@@ -132,4 +132,21 @@ describe('venta rápida: estado de la cuenta', () => {
     expect(unapplied).toBe(8);
     expect(result.current.cart.map((l) => l.discount)).toEqual([8, 40]);
   });
+  it('una venta recién subida no devuelve su stock si el catálogo es anterior', async () => {
+    await setKV('catalog', {
+      items: [cueva, pack, reserved],
+      fetchedAt: '2026-11-22T18:00:01.000Z',
+      requestedAt: '2026-11-22T18:00:00.000Z',
+    });
+    await addSale({
+      idempotency_key: 'llave-0009',
+      sold_at: '2026-11-22T18:04:00.000Z',
+      status: 'synced',
+      sale_id: 77,
+      synced_at: '2026-11-22T18:05:00.000Z',
+      lines: [{ product_id: 1, quantity: 3, components: [] }],
+    });
+    const { result } = await setup();
+    expect(result.current.stockOf(cueva)).toBe(5);
+  });
 });

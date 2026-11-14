@@ -27,6 +27,7 @@ import { QuickSaleStatus } from '../quick-sale-status';
 import {
   retrySale,
   syncQueue,
+  shellReady,
   enqueueSale,
   exportBackup,
   prepareOffline,
@@ -63,7 +64,8 @@ export function QuickSaleView() {
 
   // Preferencias del equipo: sucursal y si se imprime el ticket
   const [prefs, setPrefs] = useState({ branchId: null, printTicket: true });
-  const [savedBranch, setSavedBranch] = useState(null);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [shell, setShell] = useState(true);
   const [picking, setPicking] = useState(false);
   const [charging, setCharging] = useState(false);
   const [preparing, setPreparing] = useState(false);
@@ -73,7 +75,7 @@ export function QuickSaleView() {
   const saleKey = useRef(crypto.randomUUID());
   const busy = useRef(false);
 
-  const branchId = prefs.branchId ?? savedBranch ?? branches[0]?.id ?? null;
+  const branchId = prefs.branchId ?? branches[0]?.id ?? null;
   const branchRef = useRef(branchId);
   branchRef.current = branchId;
 
@@ -129,8 +131,16 @@ export function QuickSaleView() {
   }, [sync, prepare]);
 
   useEffect(() => {
-    getKV('prefs').then((saved) => saved && setPrefs((p) => ({ ...p, ...saved })));
-    getKV('context').then((context) => setSavedBranch(context?.branchId ?? null));
+    getKV('prefs').then((saved) => {
+      if (saved) setPrefs((p) => ({ ...p, ...saved }));
+      setPrefsLoaded(true);
+    });
+    // Mientras el service worker termina de guardar la app no está «listo»
+    const waiting = setTimeout(() => setShell(false), 0);
+    shellReady().then((ready) => {
+      clearTimeout(waiting);
+      setShell(ready);
+    });
     catchUp();
     window.addEventListener('online', catchUp);
     return () => window.removeEventListener('online', catchUp);
@@ -142,6 +152,13 @@ export function QuickSaleView() {
       setKV('prefs', next);
       return next;
     });
+
+  // La sucursal se guarda en el equipo en cuanto se conoce: sin red la lista
+  // de sucursales no carga y, sin esto, no habría con cuál cobrar
+  useEffect(() => {
+    if (prefsLoaded && branchId && prefs.branchId !== branchId) savePrefs({ branchId });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefsLoaded, branchId]);
 
   const charge = async ({ method }) => {
     if (busy.current) return false;
@@ -252,6 +269,7 @@ export function QuickSaleView() {
 
       <QuickSaleStatus
         online={online}
+        shellReady={shell}
         count={quick.items?.length ?? 0}
         fetchedAt={quick.fetchedAt}
         counts={quick.counts}

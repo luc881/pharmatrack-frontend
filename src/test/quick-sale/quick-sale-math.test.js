@@ -101,4 +101,16 @@ describe('venta rápida: cálculo', () => {
   it('el stock nunca es negativo', () => {
     expect(stockOf(cueva, new Map([[1, 99]]))).toBe(0);
   });
+  it('una venta ya subida sigue apartando stock hasta que baja un catálogo más nuevo', () => {
+    const sale = {
+      status: 'synced',
+      sale_id: 9,
+      synced_at: '2026-11-22T18:05:00.000Z',
+      lines: [{ product_id: 1, quantity: 2, components: [] }],
+    };
+    // catálogo pedido ANTES de subir la venta: todavía no la trae restada
+    expect(stockOf(cueva, usage([sale], '2026-11-22T18:00:00.000Z'))).toBe(6);
+    // catálogo pedido DESPUÉS: ya viene restada del servidor
+    expect(stockOf(cueva, usage([sale], '2026-11-22T18:06:00.000Z'))).toBe(8);
+  });
 });

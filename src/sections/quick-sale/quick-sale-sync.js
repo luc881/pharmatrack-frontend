@@ -1,9 +1,10 @@
 import { fCurrency } from 'src/utils/format-number';
 
-import { checkoutSale } from 'src/actions/sale';
 import axiosInstance, { endpoints } from 'src/lib/axios';
 
 import { toItem, BUSINESS_URL } from 'src/sections/sale/print-ticket';
+
+import { refreshSession } from 'src/auth/context/jwt/utils';
 
 import { cartTotals } from './quick-sale-math';
 import {
@@ -71,7 +72,23 @@ const optional = (url) =>
     .then((res) => res.data)
     .catch(() => null);
 
+const SHELL_WAIT_MS = 60_000;
+
+// ¿Ya terminó el service worker de guardar la app en el equipo? Hasta
+// entonces no abriría sin red ni guardaría las fotos. En desarrollo y en
+// navegadores sin service worker no hay nada que esperar.
+export function shellReady() {
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return Promise.resolve(true);
+  return Promise.race([
+    navigator.serviceWorker.ready.then(() => true),
+    new Promise((resolve) => setTimeout(() => resolve(false), SHELL_WAIT_MS)),
+  ]);
+}
+
 export async function prepareOffline({ branchId, user }) {
+  // La hora en que se PIDE el catálogo: lo que se suba después de este
+  // momento no viene restado en él (ver usage en quick-sale-math.js)
+  const requestedAt = new Date().toISOString();
   // Si el catálogo no baja, se lanza el error sin tocar lo ya guardado
   const [catalog, business, ticketSettings, previous] = await Promise.all([
     axiosInstance.get(endpoints.product.quickSale).then((res) => res.data),
@@ -81,16 +98,23 @@ export async function prepareOffline({ branchId, user }) {
   ]);
 
   const fetchedAt = new Date().toISOString();
-  await setKV('catalog', { items: catalog, fetchedAt });
+  // Dos descargas a la vez: gana la que se pidió más tarde, no la que
+  // termina al último
+  const current = await getKV('catalog');
+  if (!(current?.requestedAt > requestedAt)) {
+    await setKV('catalog', { items: catalog, fetchedAt, requestedAt });
+  }
   await setKV('context', {
     business: business ?? previous?.business ?? {},
     ticketSettings: ticketSettings ?? previous?.ticketSettings ?? null,
-    branchId,
-    user,
+    // al abrir la pantalla la sucursal puede no haber cargado todavía
+    branchId: branchId ?? previous?.branchId ?? null,
+    user: user ?? previous?.user ?? null,
   });
 
   // Pedir cada foto (y el logo del ticket) hace que el service worker la
-  // guarde para verla sin red
+  // guarde para verla sin red; por eso se espera a que ya esté al mando
+  await shellReady();
   const images = [...catalog.map((item) => item.image), business?.ticket_logo_url];
   await Promise.allSettled(images.filter(Boolean).map((url) => fetch(url)));
 
@@ -132,26 +156,38 @@ export async function enqueueSale({ key, cart, itemsById, method, branchId }) {
 
 const REJECTED = [400, 404, 409, 422];
 
+// Una red que acepta la conexión y se queda colgada no debe congelar la cola
+const UPLOAD_TIMEOUT_MS = 20_000;
+
 // Manda una venta. Devuelve 'synced' | 'review' | 'login' | 'stop'
-async function upload(sale) {
+async function upload(sale, { timeout, retried = false }) {
+  // Se corta con abort (no con el timeout de axios) para que valga igual en
+  // cualquier navegador
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const res = await checkoutSale({
-      branch_id: sale.branch_id,
-      description: `Venta rápida · ${sale.folio}`,
-      items: sale.lines.map(({ product_id, quantity, discount }) => ({
-        product_id,
-        quantity,
-        discount,
-      })),
-      payments: [sale.payment],
-      // la misma llave en cada intento: el servidor devuelve la venta ya
-      // hecha en vez de cobrar otra
-      idempotency_key: sale.idempotency_key,
-      sold_at: sale.sold_at,
-    });
+    const { data: res } = await axiosInstance.post(
+      endpoints.sale.checkout,
+      {
+        branch_id: sale.branch_id,
+        description: `Venta rápida · ${sale.folio}`,
+        items: sale.lines.map(({ product_id, quantity, discount }) => ({
+          product_id,
+          quantity,
+          discount,
+        })),
+        payments: [sale.payment],
+        // la misma llave en cada intento: el servidor devuelve la venta ya
+        // hecha en vez de cobrar otra (por eso cortar y reintentar es seguro)
+        idempotency_key: sale.idempotency_key,
+        sold_at: sale.sold_at,
+      },
+      { signal: controller.signal }
+    );
     const serverTotal = Number(res.total);
+    const synced_at = new Date().toISOString();
     if (Math.abs(serverTotal - sale.totals.total) < 0.01) {
-      await putSale({ ...sale, status: 'synced', sale_id: res.id, reason: undefined });
+      await putSale({ ...sale, status: 'synced', sale_id: res.id, synced_at, reason: undefined });
       return 'synced';
     }
     // Ya quedó registrada (con otro total): no se reenvía, se avisa
@@ -159,6 +195,7 @@ async function upload(sale) {
       ...sale,
       status: 'review',
       sale_id: res.id,
+      synced_at,
       server_total: serverTotal,
       reason: `Se cobró ${fCurrency(sale.totals.total)}; el sistema registró ${fCurrency(serverTotal)}. Revisa el precio del producto.`,
     });
@@ -168,8 +205,19 @@ async function upload(sale) {
       await putSale({ ...sale, status: 'review', reason: error.message });
       return 'review';
     }
+    // Tras horas sin red el token ya caducó: se renueva y se reintenta una vez
+    if (error.status === 401 && !retried) {
+      try {
+        await refreshSession();
+      } catch {
+        return 'login';
+      }
+      return upload(sale, { timeout, retried: true });
+    }
     if (error.status === 401 || error.status === 403) return 'login';
     return 'stop'; // sin red o servidor caído: se reintenta después
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -177,13 +225,13 @@ let running = null;
 
 // Sube las ventas pendientes en orden. Una sola corrida a la vez: quien
 // llame mientras tanto recibe el resultado de la que ya está en curso.
-export function syncQueue() {
+export function syncQueue({ timeout = UPLOAD_TIMEOUT_MS } = {}) {
   if (!running) {
     running = (async () => {
       const result = { synced: 0, review: 0, pending: 0, needsLogin: false };
       const pending = (await listSales()).filter((s) => s.status === 'pending');
       for (let i = 0; i < pending.length; i += 1) {
-        const outcome = await upload(pending[i]);
+        const outcome = await upload(pending[i], { timeout });
         if (outcome === 'synced' || outcome === 'review') {
           result[outcome] += 1;
         } else {

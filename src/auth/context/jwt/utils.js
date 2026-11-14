@@ -74,8 +74,31 @@ async function doRefresh() {
   return res.data;
 }
 
+// Solo estas respuestas significan que el servidor rechazó la sesión. Sin
+// respuesta (sin red) o con un 5xx de un enlace inestable, se espera.
+export const isRefreshRejected = (error) => [400, 401, 403].includes(error?.status);
+
+let refreshing = null;
+
+// Renueva la sesión con el refresh token. Una sola a la vez: el refresh
+// token rota, y dos renovaciones simultáneas harían fallar a la segunda.
+export function refreshSession() {
+  if (!refreshing) {
+    refreshing = (async () => {
+      const { access_token, refresh_token } = await doRefresh();
+      if (refresh_token) storeRefreshToken(refresh_token);
+      await setSession(access_token);
+      return access_token;
+    })().finally(() => {
+      refreshing = null;
+    });
+  }
+  return refreshing;
+}
+
 // Renovación que quedó esperando a que vuelva la red
 let retryWhenOnline = null;
+const RETRY_REFRESH_MS = 30_000;
 
 function cancelPendingRefresh() {
   if (refreshTimer) {
@@ -90,19 +113,17 @@ function cancelPendingRefresh() {
 
 async function refreshNow() {
   try {
-    const { access_token, refresh_token } = await doRefresh();
-    if (refresh_token) storeRefreshToken(refresh_token);
-    await setSession(access_token);
+    await refreshSession();
   } catch (error) {
-    // Sin red (el error de axios no trae status) no se cierra la sesión: en
-    // una convención sin internet la venta rápida sigue con los datos del
-    // equipo. Se reintenta al volver la conexión.
-    if (getStoredRefreshToken() && error?.status === undefined) {
-      retryWhenOnline = () => {
-        retryWhenOnline = null;
-        refreshNow();
-      };
+    // Si el servidor no rechazó la sesión (sin red, o un 5xx) no se cierra:
+    // en una convención sin internet la venta rápida sigue con los datos del
+    // equipo. Se reintenta al volver la conexión y, por si el evento no
+    // llega, cada medio minuto.
+    if (getStoredRefreshToken() && !isRefreshRejected(error)) {
+      cancelPendingRefresh();
+      retryWhenOnline = refreshNow;
       window.addEventListener('online', retryWhenOnline, { once: true });
+      refreshTimer = setTimeout(refreshNow, RETRY_REFRESH_MS);
       return;
     }
     await setSession(null);

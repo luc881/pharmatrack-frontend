@@ -5,8 +5,8 @@ import axios, { endpoints } from 'src/lib/axios';
 
 import { AuthContext } from '../auth-context';
 import { savedOfflineUser } from './offline-user';
-import { jwtDecode, setSession, isValidToken } from './utils';
-import { JWT_STORAGE_KEY, JWT_REFRESH_KEY, JWT_REMEMBER_KEY } from './constant';
+import { JWT_STORAGE_KEY, JWT_REFRESH_KEY } from './constant';
+import { jwtDecode, setSession, isValidToken, refreshSession, isRefreshRejected } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -64,31 +64,21 @@ export function AuthProvider({ children }) {
         sessionStorage.getItem(JWT_REFRESH_KEY) || localStorage.getItem(JWT_REFRESH_KEY);
 
       if (refreshToken) {
-        let res;
+        let access_token;
         try {
-          res = await axios.post(endpoints.auth.refresh, { refresh_token: refreshToken });
+          // guarda el refresh token nuevo y deja la sesión puesta
+          access_token = await refreshSession();
         } catch (error) {
-          // Sin red (sin status) se entra con el usuario del equipo; un rechazo
-          // del servidor solo conserva a quien ya estaba trabajando sin red
+          // Si el servidor no contestó un rechazo (sin red, 5xx) se entra con
+          // el usuario del equipo; un rechazo solo conserva a quien ya estaba
+          // trabajando sin red
           const fallback =
-            error?.status === undefined || stateRef.current.user?.offline
+            !isRefreshRejected(error) || stateRef.current.user?.offline
               ? await offlineUser()
               : null;
           setState({ user: fallback, loading: false });
           return;
         }
-        const { access_token, refresh_token: newRefreshToken } = res.data;
-
-        const rememberMe = localStorage.getItem(JWT_REMEMBER_KEY) === 'true';
-        if (newRefreshToken) {
-          if (rememberMe) {
-            localStorage.setItem(JWT_REFRESH_KEY, newRefreshToken);
-          } else {
-            sessionStorage.setItem(JWT_REFRESH_KEY, newRefreshToken);
-          }
-        }
-
-        await setSession(access_token);
 
         const decoded = jwtDecode(access_token);
         const permissions = await fetchLivePermissions(decoded.permissions ?? []);
@@ -103,9 +93,22 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // Sin ninguna sesión: solo sin red se abre con el usuario del equipo
-      const fallback =
-        !navigator.onLine || stateRef.current.user?.offline ? await offlineUser() : null;
+      // Sin ninguna sesión: solo sin red se abre con el usuario del equipo.
+      // navigator.onLine no basta (un wifi sin internet dice que sí hay red):
+      // se pregunta al API, y solo si no contesta cuenta como «sin red».
+      const saved = await offlineUser();
+      let fallback = null;
+      if (saved) {
+        if (!navigator.onLine || stateRef.current.user?.offline) {
+          fallback = saved;
+        } else {
+          try {
+            await axios.get(endpoints.user.me);
+          } catch (error) {
+            if (error?.status === undefined) fallback = saved;
+          }
+        }
+      }
       setState({ user: fallback, loading: false });
     } catch (error) {
       console.error(error);

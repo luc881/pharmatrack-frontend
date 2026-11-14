@@ -29,6 +29,7 @@ const signInHref = `${paths.auth.jwt.signIn}?${new URLSearchParams({
 // ventas faltan por subir y cuáles rechazó el servidor.
 export function QuickSaleStatus({
   online,
+  shellReady = true,
   count,
   fetchedAt,
   counts,
@@ -55,9 +56,13 @@ export function QuickSaleStatus({
             {online ? 'Con conexión' : 'Sin conexión: las ventas se guardan en este equipo'}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {fetchedAt
-              ? `Listo para vender sin internet · ${count} productos · preparado ${when(fetchedAt)}`
-              : 'Este equipo aún no está preparado para vender sin internet'}
+            {!fetchedAt && 'Este equipo aún no está preparado para vender sin internet'}
+            {fetchedAt &&
+              !shellReady &&
+              'La app todavía se está guardando en este equipo. Espera a que termine antes de cerrar o salir.'}
+            {fetchedAt &&
+              shellReady &&
+              `Listo para vender sin internet · ${count} productos · preparado ${when(fetchedAt)}`}
           </Typography>
         </Box>
         <Button variant="outlined" disabled={!online} loading={preparing} onClick={onPrepare}>

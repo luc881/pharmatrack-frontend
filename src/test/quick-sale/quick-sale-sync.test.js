@@ -1,5 +1,5 @@
-import { http, HttpResponse } from 'msw';
 import { IDBFactory } from 'fake-indexeddb';
+import { http, delay, HttpResponse } from 'msw';
 import { it, expect, describe, beforeEach } from 'vitest';
 
 import { getKV, setKV, putSale, listSales } from 'src/sections/quick-sale/quick-sale-store';
@@ -10,6 +10,8 @@ import {
   enqueueSale,
   prepareOffline,
 } from 'src/sections/quick-sale/quick-sale-sync';
+
+import { setSession } from 'src/auth/context/jwt/utils';
 
 import { server } from '../mocks/server';
 
@@ -118,6 +120,41 @@ describe('venta rápida: preparar el dispositivo', () => {
 
     await prepareOffline({ branchId: 7, user });
     expect((await listSales()).map((s) => s.idempotency_key)).toEqual(['vieja-pendiente']);
+  });
+});
+
+describe('venta rápida: preparar no pierde lo que ya sabía', () => {
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    server.use(
+      http.get(`${API}/products/quick-sale`, () => HttpResponse.json([cueva])),
+      http.get(`${API}/settings/email-ticket`, () => HttpResponse.json({})),
+      http.get(`${API}/settings/ticket-print`, () => HttpResponse.json({ width: 58, offset: 0 })),
+      http.get('https://res.cloudinary.com/*', () => HttpResponse.error())
+    );
+  });
+
+  it('si aún no se sabe la sucursal conserva la guardada', async () => {
+    await prepareOffline({ branchId: 7, user });
+    // al abrir, la lista de sucursales todavía no llega
+    await prepareOffline({ branchId: null, user });
+    expect((await getKV('context')).branchId).toBe(7);
+  });
+
+  it('anota cuándo pidió el catálogo y no pisa uno más nuevo', async () => {
+    const before = new Date().toISOString();
+    await prepareOffline({ branchId: 7, user });
+    const saved = await getKV('catalog');
+    expect(saved.requestedAt >= before).toBe(true);
+
+    // otra preparación más vieja termina después: no debe ganar
+    await setKV('catalog', {
+      ...saved,
+      items: [{ id: 99 }],
+      requestedAt: '2999-01-01T00:00:00.000Z',
+    });
+    await prepareOffline({ branchId: 7, user });
+    expect((await getKV('catalog')).items).toEqual([{ id: 99 }]);
   });
 });
 
@@ -268,5 +305,44 @@ describe('venta rápida: cola y subida', () => {
     const backup = await backupData();
     expect(backup.sales.map((s) => s.idempotency_key)).toEqual(['llave-0002']);
     expect(backup.exported_at).toBeTruthy();
+  });
+  it('al subir anota cuándo, para saber si el catálogo ya la trae restada', async () => {
+    fakeCheckout();
+    await enqueue('llave-0001');
+    await syncQueue();
+    expect(new Date((await listSales())[0].synced_at).getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('con el token caducado renueva la sesión y sube sin pedir entrar', async () => {
+    const payload = btoa(JSON.stringify({ id: 3, sub: 'a@b.mx', exp: Date.now() / 1000 + 3600 }));
+    localStorage.setItem('jwt_refresh_token', 'r1');
+    let refreshed = false;
+    server.use(
+      http.post(`${API}/auth/refresh`, () => {
+        refreshed = true;
+        return HttpResponse.json({ access_token: `x.${payload}.x`, refresh_token: 'r2' });
+      })
+    );
+    fakeCheckout({ fail: () => (refreshed ? null : new HttpResponse(null, { status: 401 })) });
+    await enqueue('llave-0001');
+
+    expect(await syncQueue()).toMatchObject({ synced: 1, pending: 0, needsLogin: false });
+    await setSession(null);
+    localStorage.clear();
+  });
+
+  it('una conexión que se queda colgada no congela las siguientes subidas', async () => {
+    let hang = true;
+    server.use(
+      http.post(`${API}/sales/checkout`, async () => {
+        if (hang) await delay('infinite');
+        return HttpResponse.json({ id: 700, total: '80.00' }, { status: 201 });
+      })
+    );
+    await enqueue('llave-0001');
+
+    expect(await syncQueue({ timeout: 150 })).toMatchObject({ synced: 0, pending: 1 });
+    hang = false;
+    expect(await syncQueue({ timeout: 150 })).toMatchObject({ synced: 1, pending: 0 });
   });
 });

@@ -61,15 +61,18 @@ export function spreadDiscount(lines, itemsById, percent) {
   return { lines: next, unapplied: pesos(unapplied) };
 }
 
-// Unidades que las ventas del dispositivo todavía no descuentan en el
-// servidor, por producto. Un paquete cuenta como sus componentes. Las que el
-// servidor ya registró (synced, o por revisar con sale_id) no se cuentan: el
-// catálogo descargado ya las trae restadas.
-export function usage(sales) {
+// Unidades que el catálogo guardado todavía no trae restadas, por producto.
+// Un paquete cuenta como sus componentes. Una venta que el servidor ya
+// registró (synced, o por revisar con sale_id) deja de contarse solo cuando
+// el catálogo se pidió DESPUÉS de subirla (`catalogAt`): si esa descarga
+// falla, el stock no "regresa" y no se vende dos veces lo mismo.
+export function usage(sales, catalogAt) {
   const used = new Map();
   const add = (id, qty) => used.set(id, (used.get(id) ?? 0) + qty);
   sales.forEach((sale) => {
-    if (sale.status === 'synced' || sale.sale_id) return;
+    const uploaded = sale.status === 'synced' || Boolean(sale.sale_id);
+    const newerThanCatalog = Boolean(catalogAt && sale.synced_at && sale.synced_at >= catalogAt);
+    if (uploaded && !newerThanCatalog) return;
     sale.lines.forEach((line) => {
       if (line.components?.length) {
         line.components.forEach((c) => add(c.product_id, Number(line.quantity) * c.quantity));

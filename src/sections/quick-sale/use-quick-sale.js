@@ -9,7 +9,13 @@ import { usage, stockOf, cartTotals, maxDiscount, spreadDiscount } from './quick
 // más la cuenta en curso. El stock no se guarda: es el del catálogo menos lo
 // que el dispositivo vendió y aún no sube, menos lo que ya está en la cuenta.
 export function useQuickSale() {
-  const [state, setState] = useState({ ready: false, items: null, fetchedAt: null, sales: [] });
+  const [state, setState] = useState({
+    ready: false,
+    items: null,
+    fetchedAt: null,
+    requestedAt: null,
+    sales: [],
+  });
   const [cart, setCart] = useState([]);
 
   const reload = useCallback(async () => {
@@ -18,6 +24,7 @@ export function useQuickSale() {
       ready: true,
       items: catalog?.items ?? null,
       fetchedAt: catalog?.fetchedAt ?? null,
+      requestedAt: catalog?.requestedAt ?? null,
       sales,
     });
   }, []);
@@ -26,24 +33,27 @@ export function useQuickSale() {
     reload();
   }, [reload]);
 
-  const { items, sales } = state;
+  const { items, sales, requestedAt } = state;
 
   const itemsById = useMemo(() => new Map((items ?? []).map((i) => [i.id, i])), [items]);
 
   // Lo apartado por las ventas sin subir y por una cuenta `lines`
   const usedWith = useCallback(
     (lines) =>
-      usage([
-        ...sales,
-        {
-          status: 'pending',
-          lines: lines.map((l) => ({
-            ...l,
-            components: itemsById.get(l.product_id)?.components ?? [],
-          })),
-        },
-      ]),
-    [sales, itemsById]
+      usage(
+        [
+          ...sales,
+          {
+            status: 'pending',
+            lines: lines.map((l) => ({
+              ...l,
+              components: itemsById.get(l.product_id)?.components ?? [],
+            })),
+          },
+        ],
+        requestedAt
+      ),
+    [sales, itemsById, requestedAt]
   );
 
   const used = useMemo(() => usedWith(cart), [usedWith, cart]);

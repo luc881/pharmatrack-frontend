@@ -6,7 +6,8 @@ import userEvent from '@testing-library/user-event';
 import { it, vi, expect, describe, beforeEach } from 'vitest';
 import { render, screen, within, waitFor } from '@testing-library/react';
 
-import { listSales } from 'src/sections/quick-sale/quick-sale-store';
+import { QuickSaleStatus } from 'src/sections/quick-sale/quick-sale-status';
+import { getKV, listSales } from 'src/sections/quick-sale/quick-sale-store';
 import { QuickSaleView } from 'src/sections/quick-sale/view/quick-sale-view';
 
 import { server } from '../mocks/server';
@@ -217,5 +218,27 @@ describe('venta rápida: pantalla', () => {
     reject = false;
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
     await waitFor(() => expect(screen.queryByText(/por revisar/)).toBeNull());
+  });
+  it('recuerda la sucursal en el equipo para poder cobrar sin red', async () => {
+    mount();
+    await product('Cueva de resina');
+    await waitFor(async () => expect((await getKV('prefs'))?.branchId).toBe(7));
+  });
+
+  it('avisa mientras la app todavía se está guardando en el equipo', async () => {
+    render(
+      <MemoryRouter>
+        <QuickSaleStatus
+          online
+          shellReady={false}
+          count={4}
+          fetchedAt="2026-11-22T18:00:00.000Z"
+          counts={{ pending: 0, review: 0 }}
+          sales={[]}
+        />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(/todavía se está guardando/)).toBeInTheDocument();
+    expect(screen.queryByText(/Listo para vender sin internet/)).toBeNull();
   });
 });
