@@ -99,6 +99,15 @@
 - [ ] Pruebas: crear sin red y vender → queda en cola con `local:`; al volver la red se crea una vez y la venta sube con el id real; reintento no duplica (misma `client_key`); catálogo que ya lo trae → un solo botón; provisional rechazado (400) → venta por revisar; 5xx → venta pendiente y las demás suben.
 - [ ] RED → implementar → GREEN. Commit `feat(venta-rápida): productos de último momento sin internet`.
 
+### Task 5b (Dashboard): buscador en la venta rápida
+
+**Files:** Modify `src/sections/quick-sale/quick-sale-grid.jsx`, `view/quick-sale-view.jsx`; Test `src/test/quick-sale/quick-sale-view.test.jsx`
+
+**Interfaces — Produces:** campo «Buscar producto» arriba de los botones (`type="search"`, sin icono). Filtra por título y categoría sin distinguir mayúsculas ni acentos; cada palabra escrita debe aparecer. Sin resultados: «Nada con "<texto>"» y un botón «+ Producto nuevo» que abre el diálogo con ese nombre ya escrito. Se limpia sola después de cobrar. Funciona sin red (filtra lo guardado).
+
+- [ ] Pruebas: escribir «musg» deja solo Musgo; «RESINA cueva» encuentra «Cueva de resina»; «decoracion» (sin acento) encuentra por categoría; sin resultados ofrece crear el producto con ese nombre; tras cobrar el campo queda vacío.
+- [ ] RED → implementar → GREEN. Commit `feat(venta-rápida): buscador de productos`.
+
 ### Task 6 (Dashboard): talón de orden
 
 **Files:** Modify `src/sections/sale/sale-ticket.jsx` (exportar CSS/clases si hace falta), `view/quick-sale-ticket-view.jsx`, `view/quick-sale-view.jsx`, `src/sections/sale/view/sale-ticket-view.jsx` (`TicketPrintPage` acepta `extra` tras el ticket y `ticket` opcional); Create `src/sections/quick-sale/prep-order.jsx`; Test `src/test/quick-sale/quick-sale-ticket.test.jsx`

@@ -120,6 +120,13 @@ Dashboard:
 - No reparte por forma de pago: en un ticket mezclado un solo pago cubre a
   los dos.
 
+### 4. Buscador
+
+Campo «Buscar producto» arriba de los botones de la venta rápida: filtra por
+nombre y categoría (sin distinguir mayúsculas ni acentos) sobre lo guardado en
+el equipo. Si no hay resultados ofrece «+ Producto nuevo» con ese nombre. Se
+limpia al cobrar.
+
 ## Restricciones
 
 - Mismo esquema que la venta rápida: la pantalla lee de IndexedDB y cobra
