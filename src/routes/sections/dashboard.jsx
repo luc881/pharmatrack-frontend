@@ -70,6 +70,7 @@ const SaleEmailTemplatePage = lazy(() => import('src/pages/dashboard/sale/email-
 const SaleDetailsPage = lazy(() => import('src/pages/dashboard/sale/details'));
 const SaleTicketPage  = lazy(() => import('src/pages/dashboard/sale/ticket'));
 const QuickSalePage   = lazy(() => import('src/pages/dashboard/quick-sale'));
+const QuickSaleTicketPage = lazy(() => import('src/pages/dashboard/quick-sale/ticket'));
 // Delivery
 const DeliveryListPage = lazy(() => import('src/pages/dashboard/delivery/list'));
 // Refund
@@ -202,6 +203,17 @@ export const dashboardRoutes = [
       </AuthGuard>
     ),
   })),
+  // Ticket de la venta rápida: se arma con los datos del dispositivo
+  {
+    path: 'dashboard/quick-sale/ticket/:key',
+    element: (
+      <AuthGuard>
+        <Suspense fallback={<LoadingScreen />}>
+          {guard(P.salesCreate, <QuickSaleTicketPage />)}
+        </Suspense>
+      </AuthGuard>
+    ),
+  },
   {
     path: 'dashboard',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,

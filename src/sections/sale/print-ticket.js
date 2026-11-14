@@ -10,7 +10,7 @@ import { useAllProducts } from '../product-batch/use-all-products';
 // datos para el ticket impreso (sale-ticket.jsx) y el de WhatsApp/correo.
 // ----------------------------------------------------------------------
 
-const PAYMENT_LABELS = {
+export const PAYMENT_LABELS = {
   cash: 'Efectivo',
   card: 'Tarjeta',
   transfer: 'Transferencia',
@@ -64,7 +64,7 @@ function speciesNames(species) {
   return { name: `${species.genus?.name ?? ''} ${epithet}`.trim(), locality };
 }
 
-function toItem(detail, product, animal) {
+export function toItem(detail, product, animal) {
   const base = {
     cantidad: Number(detail.quantity) || 0,
     precio_unitario: Number(detail.price_unit ?? 0),

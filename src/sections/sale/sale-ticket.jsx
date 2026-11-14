@@ -91,7 +91,8 @@ export function SaleTicket({ ticket, business = {}, width = 80, onReady }) {
       </div>
 
       <hr />
-      <Row label="Folio" value={folio(t.id, b.folio_prefix)} bold />
+      {/* t.folio: folio propio del dispositivo (venta rápida sin internet) */}
+      <Row label="Folio" value={t.folio ?? folio(t.id, b.folio_prefix)} bold />
       <Row label="Fecha" value={fmtTicketDate(t.fecha)} />
       {t.cliente && <Row label="Cliente" value={t.cliente} />}
       {t.entrega && (

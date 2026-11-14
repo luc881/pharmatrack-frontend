@@ -83,8 +83,6 @@ export function SaleTicketView({ saleId }) {
   // ponytail: perilla de calibración; cada driver/cabezal trae unos mm de desfase propio
   const [settings, saveSettings] = useTicketPrintSettings();
   const { width, offset } = settings ?? DEFAULTS;
-  const printed = useRef(false);
-
   const saleTicket = useSaleTicket(saleId);
   const business = useTicketTemplate();
   // El ticket espera al ajuste de la cuenta (para no imprimir con el de
@@ -100,6 +98,87 @@ export function SaleTicketView({ saleId }) {
     const next = Math.max(-8, Math.min(8, Math.round((offset + delta) * 10) / 10));
     saveSettings({ width, offset: next });
   };
+
+  return (
+    <TicketPrintPage
+      ticket={ticket}
+      business={business}
+      width={width}
+      offset={offset}
+      autoPrint={autoPrint}
+      controls={
+        <>
+          <Button
+            component={RouterLink}
+            href={saleId ? paths.dashboard.sale.details(saleId) : paths.dashboard.sale.root}
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          >
+            {saleId ? 'Ver venta' : 'Ventas'}
+          </Button>
+          <ToggleButtonGroup size="small" exclusive value={width} onChange={changeWidth}>
+            <ToggleButton value={58}>Rollo 58 mm</ToggleButton>
+            <ToggleButton value={80}>Rollo 80 mm</ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            variant="contained"
+            disabled={!ticket}
+            startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
+            onClick={() => window.print()}
+          >
+            {saleId ? 'Imprimir ticket' : 'Imprimir prueba'}
+          </Button>
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+            <Button size="small" variant="outlined" onClick={() => nudge(-0.1)}>
+              ← 0.1 mm
+            </Button>
+            <Typography variant="body2" sx={{ minWidth: 92, textAlign: 'center' }}>
+              Ajuste: {offset > 0 ? '+' : ''}
+              {offset.toFixed(1)} mm
+            </Typography>
+            <Button size="small" variant="outlined" onClick={() => nudge(0.1)}>
+              0.1 mm →
+            </Button>
+          </Stack>
+          {saleId && (
+            <Button
+              component={RouterLink}
+              href={paths.dashboard.sale.new}
+              variant="outlined"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              Nueva venta
+            </Button>
+          )}
+        </>
+      }
+      hint={
+        !saleId && (
+          <Typography
+            variant="body2"
+            sx={{
+              textAlign: 'center',
+              color: 'text.secondary',
+              mb: 2,
+              px: 2,
+              '@media print': { display: 'none' },
+            }}
+          >
+            Ticket de ejemplo con datos ficticios para revisar la impresora: ancho, logo, QR y
+            fuentes.
+          </Typography>
+        )
+      }
+    />
+  );
+}
+
+// ----------------------------------------------------------------------
+
+// La hoja imprimible: controles arriba (no salen en el rollo) y el ticket.
+// La usan el ticket de una venta guardada y el de la venta rápida, que se
+// arma con los datos del dispositivo.
+export function TicketPrintPage({ ticket, business, width, offset, autoPrint, controls, hint }) {
+  const printed = useRef(false);
 
   // Si la fuente web tarda (sin internet), se imprime con la de respaldo
   const handleReady = useCallback(() => {
@@ -138,64 +217,10 @@ export function SaleTicketView({ saleId }) {
           '@media print': { display: 'none' },
         }}
       >
-        <Button
-          component={RouterLink}
-          href={saleId ? paths.dashboard.sale.details(saleId) : paths.dashboard.sale.root}
-          startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-        >
-          {saleId ? 'Ver venta' : 'Ventas'}
-        </Button>
-        <ToggleButtonGroup size="small" exclusive value={width} onChange={changeWidth}>
-          <ToggleButton value={58}>Rollo 58 mm</ToggleButton>
-          <ToggleButton value={80}>Rollo 80 mm</ToggleButton>
-        </ToggleButtonGroup>
-        <Button
-          variant="contained"
-          disabled={!ticket}
-          startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
-          onClick={() => window.print()}
-        >
-          {saleId ? 'Imprimir ticket' : 'Imprimir prueba'}
-        </Button>
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-          <Button size="small" variant="outlined" onClick={() => nudge(-0.1)}>
-            ← 0.1 mm
-          </Button>
-          <Typography variant="body2" sx={{ minWidth: 92, textAlign: 'center' }}>
-            Ajuste: {offset > 0 ? '+' : ''}
-            {offset.toFixed(1)} mm
-          </Typography>
-          <Button size="small" variant="outlined" onClick={() => nudge(0.1)}>
-            0.1 mm →
-          </Button>
-        </Stack>
-        {saleId && (
-          <Button
-            component={RouterLink}
-            href={paths.dashboard.sale.new}
-            variant="outlined"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-          >
-            Nueva venta
-          </Button>
-        )}
+        {controls}
       </Stack>
 
-      {!saleId && (
-        <Typography
-          variant="body2"
-          sx={{
-            textAlign: 'center',
-            color: 'text.secondary',
-            mb: 2,
-            px: 2,
-            '@media print': { display: 'none' },
-          }}
-        >
-          Ticket de ejemplo con datos ficticios para revisar la impresora: ancho, logo, QR y
-          fuentes.
-        </Typography>
-      )}
+      {hint}
 
       <Box
         sx={{
