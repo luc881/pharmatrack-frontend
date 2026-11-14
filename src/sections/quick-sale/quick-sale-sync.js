@@ -25,9 +25,9 @@ import {
 
 // Renglón del ticket con los mismos nombres que el ticket de una venta
 // guardada (nombre científico si el producto es el gemelo de un animal)
-export const buildTicketItem = (item, quantity) =>
+export const buildTicketItem = (item, quantity, discount = 0) =>
   toItem(
-    { product_id: item.id, quantity, price_unit: item.price_retail },
+    { product_id: item.id, quantity, price_unit: item.price_retail, discount },
     { title: item.title },
     item.animal
   );
@@ -51,7 +51,7 @@ export function buildLocalSale({ key, folio, soldAt, branchId, method, cart, ite
         tax_percentage: item.tax_percentage ?? null,
         // para apartar el stock de los componentes mientras no se suba
         components: item.components.map(({ product_id, quantity }) => ({ product_id, quantity })),
-        ticketItem: buildTicketItem(item, line.quantity),
+        ticketItem: buildTicketItem(item, line.quantity, line.discount),
       };
     }),
     payment: { method_payment: method, amount: totals.total },
@@ -73,6 +73,8 @@ const optional = (url) =>
     .catch(() => null);
 
 const SHELL_WAIT_MS = 60_000;
+// El mismo nombre que en vite.config.js (runtimeCaching)
+const IMAGE_CACHE = 'quick-sale-images';
 
 // ¿Ya terminó el service worker de guardar la app en el equipo? Hasta
 // entonces no abriría sin red ni guardaría las fotos. En desarrollo y en
@@ -112,11 +114,18 @@ export async function prepareOffline({ branchId, user }) {
     user: user ?? previous?.user ?? null,
   });
 
-  // Pedir cada foto (y el logo del ticket) hace que el service worker la
-  // guarde para verla sin red; por eso se espera a que ya esté al mando
-  await shellReady();
+  // Las fotos (y el logo del ticket) van a un caché propio, que el service
+  // worker solo lee: lo demás que se ve en el dashboard ni se guarda ni las saca
   const images = [...catalog.map((item) => item.image), business?.ticket_logo_url];
-  await Promise.allSettled(images.filter(Boolean).map((url) => fetch(url)));
+  if (globalThis.caches) {
+    const cache = await caches.open(IMAGE_CACHE);
+    await Promise.allSettled(
+      images.filter(Boolean).map(async (url) => {
+        const res = await fetch(url);
+        if (res.ok) await cache.put(url, res);
+      })
+    );
+  }
 
   // Que el navegador no borre estos datos si le falta espacio
   navigator.storage?.persist?.().catch(() => {});
@@ -159,7 +168,7 @@ const REJECTED = [400, 404, 409, 422];
 // Una red que acepta la conexión y se queda colgada no debe congelar la cola
 const UPLOAD_TIMEOUT_MS = 20_000;
 
-// Manda una venta. Devuelve 'synced' | 'review' | 'login' | 'stop'
+// Manda una venta. Devuelve 'synced' | 'review' | 'login' | 'skip' | 'stop'
 async function upload(sale, { timeout, retried = false }) {
   // Se corta con abort (no con el timeout de axios) para que valga igual en
   // cualquier navegador
@@ -176,7 +185,8 @@ async function upload(sale, { timeout, retried = false }) {
           quantity,
           discount,
         })),
-        payments: [sale.payment],
+        // un pago debe ser mayor a cero: la venta de $0 (100 % de descuento) va sin él
+        payments: sale.payment.amount > 0 ? [sale.payment] : [],
         // la misma llave en cada intento: el servidor devuelve la venta ya
         // hecha en vez de cobrar otra (por eso cortar y reintentar es seguro)
         idempotency_key: sale.idempotency_key,
@@ -215,7 +225,9 @@ async function upload(sale, { timeout, retried = false }) {
       return upload(sale, { timeout, retried: true });
     }
     if (error.status === 401 || error.status === 403) return 'login';
-    return 'stop'; // sin red o servidor caído: se reintenta después
+    // El servidor falló con ESTA venta: se queda pendiente y siguen las demás
+    if (error.status >= 500) return 'skip';
+    return 'stop'; // sin red: se reintenta después
   } finally {
     clearTimeout(timer);
   }
@@ -234,9 +246,11 @@ export function syncQueue({ timeout = UPLOAD_TIMEOUT_MS } = {}) {
         const outcome = await upload(pending[i], { timeout });
         if (outcome === 'synced' || outcome === 'review') {
           result[outcome] += 1;
+        } else if (outcome === 'skip') {
+          result.pending += 1;
         } else {
           result.needsLogin = outcome === 'login';
-          result.pending = pending.length - i;
+          result.pending += pending.length - i;
           break;
         }
       }
@@ -258,7 +272,16 @@ export async function retrySale(key) {
     return null;
   }
   await putSale({ ...sale, status: 'pending', reason: undefined });
+  // Una subida en curso ya leyó la cola sin esta venta: se espera y se corre otra
+  await running;
   return syncQueue();
+}
+
+// «Descartar»: borra del equipo una venta que el servidor rechazó y que no
+// se va a registrar (deja de apartar stock). Las pendientes no se tocan.
+export async function discardSale(key) {
+  const sale = (await listSales()).find((s) => s.idempotency_key === key);
+  if (sale?.status === 'review' && !sale.sale_id) await deleteSale(key);
 }
 
 // ----------------------------------------------------------------------

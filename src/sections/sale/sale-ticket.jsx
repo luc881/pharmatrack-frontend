@@ -117,6 +117,7 @@ export function SaleTicket({ ticket, business = {}, width = 80, onReady }) {
             <div className="sub">
               {it.cantidad} × {money(it.precio_unitario)}
             </div>
+            {it.descuento ? <div className="sub">Descuento −{money(it.descuento)}</div> : null}
           </div>
           <span>{money(it.cantidad * it.precio_unitario)}</span>
         </div>

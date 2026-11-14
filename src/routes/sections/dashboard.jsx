@@ -160,6 +160,7 @@ const P = {
   ordersRead:     ['orders.read'],
   salesRead:      ['sales.read'],
   salesCreate:    ['sales.create'],
+  salesUpdate:    ['sales.update'],
   articlesCreate: ['articles.create'],
   articlesUpdate: ['articles.update'],
   // Sitio publico
@@ -209,7 +210,7 @@ export const dashboardRoutes = [
     element: (
       <AuthGuard>
         <Suspense fallback={<LoadingScreen />}>
-          {guard(P.salesCreate, <QuickSaleTicketPage />)}
+          {guard(P.salesCreate, guard(P.salesUpdate, <QuickSaleTicketPage />))}
         </Suspense>
       </AuthGuard>
     ),
@@ -332,7 +333,8 @@ export const dashboardRoutes = [
       },
 
       { path: 'delivery', element: guard(P.salesRead, <DeliveryListPage />) },
-      { path: 'quick-sale', element: guard(P.salesCreate, <QuickSalePage />) },
+      // Cobrar (POST /sales/checkout) pide los dos permisos
+      { path: 'quick-sale', element: guard(P.salesCreate, guard(P.salesUpdate, <QuickSalePage />)) },
       // ── Sales ───────────────────────────────────────────────────────
       {
         path: 'sale',

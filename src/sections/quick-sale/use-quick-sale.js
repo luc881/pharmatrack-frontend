@@ -15,18 +15,26 @@ export function useQuickSale() {
     fetchedAt: null,
     requestedAt: null,
     sales: [],
+    failed: false,
   });
-  const [cart, setCart] = useState([]);
+  const [rawCart, setCart] = useState([]);
 
   const reload = useCallback(async () => {
-    const [catalog, sales] = await Promise.all([getKV('catalog'), listSales()]);
-    setState({
-      ready: true,
-      items: catalog?.items ?? null,
-      fetchedAt: catalog?.fetchedAt ?? null,
-      requestedAt: catalog?.requestedAt ?? null,
-      sales,
-    });
+    try {
+      const [catalog, sales] = await Promise.all([getKV('catalog'), listSales()]);
+      setState({
+        ready: true,
+        items: catalog?.items ?? null,
+        fetchedAt: catalog?.fetchedAt ?? null,
+        requestedAt: catalog?.requestedAt ?? null,
+        sales,
+        failed: false,
+      });
+    } catch {
+      // El navegador no deja leer lo guardado (modo privado, disco lleno):
+      // la pantalla lo dice en vez de quedarse cargando
+      setState((prev) => ({ ...prev, ready: true, failed: true }));
+    }
   }, []);
 
   useEffect(() => {
@@ -36,6 +44,12 @@ export function useQuickSale() {
   const { items, sales, requestedAt } = state;
 
   const itemsById = useMemo(() => new Map((items ?? []).map((i) => [i.id, i])), [items]);
+
+  // Un producto que salió del catálogo (lo desmarcaron) ya no se puede cobrar
+  const cart = useMemo(
+    () => rawCart.filter((l) => itemsById.has(l.product_id)),
+    [rawCart, itemsById]
+  );
 
   // Lo apartado por las ventas sin subir y por una cuenta `lines`
   const usedWith = useCallback(
@@ -144,6 +158,7 @@ export function useQuickSale() {
 
   return {
     ready: state.ready,
+    failed: state.failed,
     items,
     itemsById,
     fetchedAt: state.fetchedAt,

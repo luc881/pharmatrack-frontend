@@ -24,7 +24,9 @@ function ProductButton({ item, left, onAdd }) {
     <ButtonBase
       onClick={() => onAdd(item)}
       disabled={disabled}
-      aria-label={`Agregar ${item.title}`}
+      aria-label={[`Agregar ${item.title}`, fCurrency(item.price_retail), note]
+        .filter(Boolean)
+        .join(', ')}
       sx={{
         minHeight: 132,
         p: 1,

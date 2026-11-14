@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
@@ -29,6 +30,7 @@ import {
   syncQueue,
   shellReady,
   enqueueSale,
+  discardSale,
   exportBackup,
   prepareOffline,
 } from '../quick-sale-sync';
@@ -71,6 +73,8 @@ export function QuickSaleView() {
   const [preparing, setPreparing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [needsLogin, setNeedsLogin] = useState(false);
+  // Hay wifi pero el sistema no responde (red del lugar sin salida, API caído)
+  const [reachable, setReachable] = useState(true);
   // Una llave por cuenta: tocar «Cobrar» dos veces guarda una sola venta
   const saleKey = useRef(crypto.randomUUID());
   const busy = useRef(false);
@@ -100,8 +104,10 @@ export function QuickSaleView() {
           branchId: branchRef.current,
           user: account.current,
         });
+        setReachable(true);
         if (announce) toast.success(`Listo: ${count} productos guardados en este equipo`);
       } catch (error) {
+        setReachable(Boolean(error?.status) && error.status < 500);
         if (announce) toast.error(error?.message || 'No se pudo preparar. Revisa tu conexión.');
       } finally {
         setPreparing(false);
@@ -131,10 +137,12 @@ export function QuickSaleView() {
   }, [sync, prepare]);
 
   useEffect(() => {
-    getKV('prefs').then((saved) => {
-      if (saved) setPrefs((p) => ({ ...p, ...saved }));
-      setPrefsLoaded(true);
-    });
+    getKV('prefs')
+      .catch(() => null)
+      .then((saved) => {
+        if (saved) setPrefs((p) => ({ ...p, ...saved }));
+        setPrefsLoaded(true);
+      });
     // Mientras el service worker termina de guardar la app no está «listo»
     const waiting = setTimeout(() => setShell(false), 0);
     shellReady().then((ready) => {
@@ -203,7 +211,27 @@ export function QuickSaleView() {
     await sync();
   };
 
+  const discard = async (sale) => {
+    const sure = window.confirm(
+      `¿Descartar la venta ${sale.folio}? Se borra de este equipo y no quedará registrada en el sistema.`
+    );
+    if (!sure) return;
+    await discardSale(sale.idempotency_key);
+    await reload();
+  };
+
   if (!quick.ready) return <LoadingScreen />;
+
+  if (quick.failed) {
+    return (
+      <DashboardContent maxWidth="xl">
+        <Alert severity="error">
+          No se pudieron leer los datos guardados en este equipo. Cierra las ventanas privadas o de
+          incógnito, revisa que el equipo tenga espacio y vuelve a abrir la venta rápida.
+        </Alert>
+      </DashboardContent>
+    );
+  }
 
   const addButton = (
     <Button variant="outlined" disabled={!online} onClick={() => setPicking(true)}>
@@ -269,6 +297,7 @@ export function QuickSaleView() {
 
       <QuickSaleStatus
         online={online}
+        reachable={reachable}
         shellReady={shell}
         count={quick.items?.length ?? 0}
         fetchedAt={quick.fetchedAt}
@@ -280,6 +309,7 @@ export function QuickSaleView() {
         onPrepare={() => prepare(true)}
         onSync={sync}
         onRetry={retry}
+        onDiscard={discard}
         onBackup={exportBackup}
       />
 

@@ -150,3 +150,33 @@ describe('venta rápida: estado de la cuenta', () => {
     expect(result.current.stockOf(cueva)).toBe(5);
   });
 });
+
+describe('venta rápida: la cuenta ante imprevistos', () => {
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+  });
+
+  it('si un producto de la cuenta sale del catálogo, su línea desaparece', async () => {
+    await catalog();
+    const { result } = await setup();
+    act(() => result.current.add(cueva));
+    expect(result.current.cart).toHaveLength(1);
+
+    // lo desmarcaron y se volvió a bajar el catálogo
+    await setKV('catalog', { items: [pack, reserved], fetchedAt: 'y' });
+    await act(() => result.current.reload());
+
+    expect(result.current.cart).toEqual([]);
+    expect(result.current.totals.total).toBe(0);
+  });
+
+  it('si no se puede leer lo guardado en el equipo, lo dice en vez de quedarse cargando', async () => {
+    globalThis.indexedDB = {
+      open: () => {
+        throw new Error('bloqueado');
+      },
+    };
+    const { result } = await setup();
+    expect(result.current.failed).toBe(true);
+  });
+});

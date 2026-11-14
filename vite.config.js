@@ -1,3 +1,4 @@
+import fs from 'fs';
 import path from 'path';
 import checker from 'vite-plugin-checker';
 import { defineConfig } from 'vite';
@@ -12,6 +13,13 @@ const PORT = 3030;
 // instalación los pisa con sus variables de entorno
 process.env.VITE_APP_NAME ||= 'Opuntia Den';
 process.env.VITE_BRAND_DIR ||= '/brand/assets';
+
+// Las carpetas de marca de otras instalaciones no se guardan en este equipo
+const otherBrands = fs
+  .readdirSync('public/brand', { withFileTypes: true })
+  .filter((d) => d.isDirectory() && fs.existsSync(`public/brand/${d.name}/favicon`))
+  .filter((d) => `/brand/${d.name}` !== process.env.VITE_BRAND_DIR)
+  .map((d) => `brand/${d.name}/**`);
 
 export default defineConfig({
   plugins: [
@@ -32,16 +40,16 @@ export default defineConfig({
     VitePWA({
       // El manifest lo pone cada marca (<link rel="manifest"> en index.html)
       manifest: false,
-      // 'prompt' sin botón de actualizar: una versión nueva espera a que se
-      // cierre la app y entra en la siguiente apertura. Nunca recarga la
+      // 'prompt': una versión nueva espera a que se cierre la app o a que el
+      // usuario toque «Actualizar» en el aviso (main.jsx). Nunca recarga la
       // página sola a media venta.
       registerType: 'prompt',
-      injectRegister: 'auto',
       workbox: {
         // Toma el control en la primera visita, para que «Preparar» ya
         // guarde las fotos sin tener que recargar
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,svg,png,ico,jpg,webp,woff2,webmanifest}'],
+        globIgnores: ['**/node_modules/**/*', ...otherBrands],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: '/index.html',
         // Las llamadas al API no se guardan aquí: el catálogo y las ventas
@@ -51,9 +59,12 @@ export default defineConfig({
             urlPattern: /^https:\/\/res\.cloudinary\.com\//,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'product-images',
-              expiration: { maxEntries: 500 },
-              cacheableResponse: { statuses: [0, 200] },
+              // Solo lee: las fotos las guarda «Preparar» (prepareOffline en
+              // quick-sale-sync.js). El resto del dashboard no llena el caché.
+              cacheName: 'quick-sale-images',
+              plugins: [{ cacheWillUpdate: async () => null }],
+              // Cloudinary responde con «Vary: Accept» y <img> pide otro Accept
+              matchOptions: { ignoreVary: true },
             },
           },
         ],

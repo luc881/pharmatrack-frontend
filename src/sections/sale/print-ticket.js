@@ -68,6 +68,7 @@ export function toItem(detail, product, animal) {
   const base = {
     cantidad: Number(detail.quantity) || 0,
     precio_unitario: Number(detail.price_unit ?? 0),
+    descuento: Number(detail.discount) || undefined,
   };
   if (!animal?.species) {
     return {

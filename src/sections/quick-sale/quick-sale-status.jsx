@@ -29,6 +29,7 @@ const signInHref = `${paths.auth.jwt.signIn}?${new URLSearchParams({
 // ventas faltan por subir y cuáles rechazó el servidor.
 export function QuickSaleStatus({
   online,
+  reachable = true,
   shellReady = true,
   count,
   fetchedAt,
@@ -40,6 +41,7 @@ export function QuickSaleStatus({
   onPrepare,
   onSync,
   onRetry,
+  onDiscard,
   onBackup,
 }) {
   const review = sales.filter((s) => s.status === 'review');
@@ -53,7 +55,11 @@ export function QuickSaleStatus({
       >
         <Box>
           <Typography variant="subtitle2">
-            {online ? 'Con conexión' : 'Sin conexión: las ventas se guardan en este equipo'}
+            {!online && 'Sin conexión: las ventas se guardan en este equipo'}
+            {online &&
+              !reachable &&
+              'Sin conexión con el sistema: las ventas se guardan en este equipo'}
+            {online && reachable && 'Con conexión'}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
             {!fetchedAt && 'Este equipo aún no está preparado para vender sin internet'}
@@ -121,9 +127,16 @@ export function QuickSaleStatus({
                   {sale.reason}
                 </Typography>
               </Box>
-              <Button size="small" variant="outlined" onClick={() => onRetry(sale)}>
-                {sale.sale_id ? 'Ya la revisé' : 'Reintentar'}
-              </Button>
+              <Stack direction="row" sx={{ gap: 1, flexShrink: 0 }}>
+                {!sale.sale_id && (
+                  <Button size="small" color="error" onClick={() => onDiscard(sale)}>
+                    Descartar
+                  </Button>
+                )}
+                <Button size="small" variant="outlined" onClick={() => onRetry(sale)}>
+                  {sale.sale_id ? 'Ya la revisé' : 'Reintentar'}
+                </Button>
+              </Stack>
             </Stack>
           ))}
         </Stack>

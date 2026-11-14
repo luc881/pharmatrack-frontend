@@ -28,6 +28,9 @@ export const METHODS = [
   { value: 'transfer', label: 'Transferencia' },
 ];
 
+// «100,50» y «100.50» valen lo mismo
+const toNumber = (text) => Number(String(text).trim().replace(',', '.'));
+
 const stepSx = { minWidth: 48, minHeight: 48, px: 0, fontSize: 22, lineHeight: 1 };
 
 // Descuento de una línea (pesos o %) o de toda la cuenta (solo %)
@@ -41,7 +44,7 @@ function DiscountDialog({ target, quick, onClose }) {
   const item = whole ? null : quick.itemsById.get(target);
 
   const apply = () => {
-    const number = Number(value);
+    const number = toNumber(value);
     if (!Number.isFinite(number) || number < 0) {
       setError('Escribe una cantidad válida');
       return;
@@ -122,7 +125,7 @@ export function QuickSaleCart({ quick, charging, printTicket, onPrintTicketChang
   const [discountFor, setDiscountFor] = useState(null);
 
   const empty = cart.length === 0;
-  const receivedNumber = Number(received);
+  const receivedNumber = toNumber(received);
   const short = method === 'cash' && received !== '' && receivedNumber < totals.total;
 
   const charge = async () => {

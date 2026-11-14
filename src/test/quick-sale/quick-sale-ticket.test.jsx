@@ -134,6 +134,8 @@ describe('venta rápida: venta local y ticket', () => {
     expect(screen.getByText('OTRO CRIADERO')).toBeInTheDocument();
     expect(screen.getByText('Phyllium gardabagusi')).toHaveClass('sci');
     expect(screen.getByText('−$10.00')).toBeInTheDocument();
+    // y en la línea que lo lleva, no solo en el total
+    expect(screen.getByText('Descuento −$10.00')).toBeInTheDocument();
     expect(screen.getByText('$800.00 MXN')).toBeInTheDocument();
     expect(screen.getByText('Transferencia')).toBeInTheDocument();
     expect(requests).toEqual([]);

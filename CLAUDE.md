@@ -107,8 +107,9 @@ Path alias `src/` resolves to `./src/` in both Vite and Vitest configs.
 - El stock local no se guarda: es el del catálogo descargado menos las ventas del equipo que el servidor aún no registra (`usage` + `stockOf` en `quick-sale-math.js`).
 - Cada venta lleva su `idempotency_key`: reintentar la subida nunca duplica. Lo que el servidor rechaza queda «por revisar» en el equipo.
 - El cálculo del total (`quick-sale-math.js`) debe dar lo mismo que `build_sale_detail` + `recalc_sale_totals` del API.
+- Las fotos las guarda «Preparar» en el caché `quick-sale-images`; el service worker solo lo lee (no guarda las demás imágenes del dashboard).
 - Sin iconos de Iconify en esa pantalla: los no registrados se piden a internet.
-- El service worker (`vite-plugin-pwa` en `vite.config.js`) solo existe en el build: se prueba con `yarn build && yarn preview`, no con `yarn dev`. Una versión nueva entra al cerrar y volver a abrir la app; nunca recarga sola.
+- El service worker (`vite-plugin-pwa` en `vite.config.js`) solo existe en el build: se prueba con `yarn build && yarn preview`, no con `yarn dev`. Una versión nueva entra al cerrar y volver a abrir la app, o al tocar «Actualizar» en el aviso (`main.jsx`); nunca recarga sola.
 - Ojo al probar con `yarn preview`: el service worker queda registrado en `localhost:3030` y después le sirve el build viejo a `yarn dev` (mismo origen). Al terminar, en DevTools → Application → Service Workers → «Unregister» y «Clear site data».
 - Sin red y con el token caducado, la sesión se mantiene con el usuario guardado al «Preparar» (`user.offline`, en `src/auth/context/jwt/`).
 

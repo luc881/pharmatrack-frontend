@@ -1,6 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+// eslint-disable-next-line import/no-unresolved -- módulo virtual de vite-plugin-pwa
+import { registerSW } from 'virtual:pwa-register';
 import { Outlet, RouterProvider, createBrowserRouter } from 'react-router';
+
+import { toast } from 'src/components/snackbar';
 
 import App from './app';
 import { CONFIG } from './global-config';
@@ -21,6 +25,16 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     })
   );
 }
+
+// Versión nueva ya descargada: se avisa y el usuario decide cuándo recargar
+const updateApp = registerSW({
+  onNeedRefresh() {
+    toast.info('Hay una versión nueva de la app', {
+      duration: Infinity,
+      action: { label: 'Actualizar', onClick: () => updateApp(true) },
+    });
+  },
+});
 
 const router = createBrowserRouter([
   {

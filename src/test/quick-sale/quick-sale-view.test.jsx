@@ -225,6 +225,51 @@ describe('venta rápida: pantalla', () => {
     await waitFor(async () => expect((await getKV('prefs'))?.branchId).toBe(7));
   });
 
+  it('«Recibí» acepta coma decimal', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await product('Cueva de resina'));
+    await user.type(cart().getByLabelText('Recibí'), '100,50');
+    expect(cart().getByText(/^\$20\.50?$/)).toBeInTheDocument();
+  });
+
+  it('el botón del producto dice precio y existencias al lector de pantalla', async () => {
+    mount();
+    expect(await product('Cueva de resina')).toHaveAccessibleName(
+      'Agregar Cueva de resina, $80, Quedan 8'
+    );
+    expect(await product('Musgo')).toHaveAccessibleName('Agregar Musgo, $60, Agotado');
+  });
+
+  it('una venta rechazada se puede descartar y deja de apartar stock', async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    mount();
+    await user.click(await product('Cueva de resina'));
+    await user.click(screen.getByRole('checkbox', { name: 'Imprimir ticket' }));
+    server.use(
+      http.post(`${BASE}/api/v1/sales/checkout`, () =>
+        HttpResponse.json({ detail: 'Stock insuficiente' }, { status: 400 })
+      )
+    );
+    await user.click(cart().getByRole('button', { name: /^Cobrar/ }));
+    expect(await screen.findByText(/1 por revisar/)).toBeInTheDocument();
+    expect(await product('Cueva de resina')).toHaveTextContent('Quedan 7');
+
+    await user.click(screen.getByRole('button', { name: 'Descartar' }));
+    await waitFor(() => expect(screen.queryByText(/por revisar/)).toBeNull());
+    expect(confirm).toHaveBeenCalled();
+    expect(await product('Cueva de resina')).toHaveTextContent('Quedan 8');
+    expect(await listSales()).toEqual([]);
+    confirm.mockRestore();
+  });
+
+  it('con wifi pero sin llegar al sistema no dice «Con conexión»', async () => {
+    mount(null);
+    expect(await screen.findByText(/Sin conexión con el sistema/)).toBeInTheDocument();
+    expect(screen.queryByText('Con conexión')).toBeNull();
+  });
+
   it('avisa mientras la app todavía se está guardando en el equipo', async () => {
     render(
       <MemoryRouter>

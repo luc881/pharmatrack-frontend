@@ -1,12 +1,13 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { http, delay, HttpResponse } from 'msw';
-import { it, expect, describe, beforeEach } from 'vitest';
+import { it, vi, expect, describe, beforeEach } from 'vitest';
 
 import { getKV, setKV, putSale, listSales } from 'src/sections/quick-sale/quick-sale-store';
 import {
   retrySale,
   syncQueue,
   backupData,
+  discardSale,
   enqueueSale,
   prepareOffline,
 } from 'src/sections/quick-sale/quick-sale-sync';
@@ -49,7 +50,7 @@ function fakeCheckout({ fail = () => null } = {}) {
     http.post(`${API}/sales/checkout`, async ({ request }) => {
       const body = await request.json();
       bodies.push(body);
-      const failure = fail(body, bodies.length);
+      const failure = await fail(body, bodies.length);
       if (failure) return failure;
       if (!sales.has(body.idempotency_key)) {
         sales.set(body.idempotency_key, {
@@ -87,6 +88,20 @@ describe('venta rápida: preparar el dispositivo', () => {
       branchId: 7,
       user,
     });
+  });
+
+  it('guarda las fotos en su propio caché, aparte del resto del dashboard', async () => {
+    const stored = [];
+    globalThis.caches = {
+      open: async (name) => ({ put: async (url) => stored.push([name, url]) }),
+    };
+    server.use(http.get('https://res.cloudinary.com/*', () => new HttpResponse('foto')));
+    try {
+      await prepareOffline({ branchId: 7, user });
+    } finally {
+      delete globalThis.caches;
+    }
+    expect(stored).toEqual([['quick-sale-images', cueva.image]]);
   });
 
   it('si el catálogo no baja, lo guardado queda intacto', async () => {
@@ -287,13 +302,95 @@ describe('venta rápida: cola y subida', () => {
     expect(await statuses()).toEqual(['pending', 'pending']);
   });
 
-  it('sin red o con el servidor caído se detiene y deja todo pendiente', async () => {
-    const { bodies } = fakeCheckout({ fail: () => new HttpResponse(null, { status: 503 }) });
+  it('sin red se detiene y deja todo pendiente', async () => {
+    const { bodies } = fakeCheckout({ fail: () => HttpResponse.error() });
     await enqueue('llave-0001');
     await enqueue('llave-0002');
 
     expect(await syncQueue()).toMatchObject({ synced: 0, pending: 2, needsLogin: false });
     expect(bodies).toHaveLength(1);
+  });
+
+  it('un error del servidor en una venta no detiene las que siguen', async () => {
+    fakeCheckout({
+      fail: (body) =>
+        body.idempotency_key === 'llave-0001' ? new HttpResponse(null, { status: 500 }) : null,
+    });
+    await enqueue('llave-0001');
+    await enqueue('llave-0002');
+
+    expect(await syncQueue()).toMatchObject({ synced: 1, pending: 1, needsLogin: false });
+    expect(await statuses()).toEqual(['pending', 'synced']);
+  });
+
+  it('una venta de $0 (descuento del 100 %) sube sin pago', async () => {
+    const { bodies } = fakeCheckout({
+      fail: () => HttpResponse.json({ id: 600, total: '0.00' }, { status: 201 }),
+    });
+    await enqueueSale({
+      key: 'llave-0001',
+      cart: [{ product_id: 1, quantity: 1, discount: 80 }],
+      itemsById: byId,
+      method: 'cash',
+      branchId: 7,
+    });
+
+    expect(await syncQueue()).toMatchObject({ synced: 1, review: 0 });
+    expect(bodies[0].payments).toEqual([]);
+  });
+
+  it('reintentar mientras otra subida corre no deja la venta para después', async () => {
+    let reject = true;
+    let hold = false;
+    let release;
+    let arrived;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    const uploading = new Promise((resolve) => {
+      arrived = resolve;
+    });
+    fakeCheckout({
+      fail: async (body) => {
+        if (hold && body.idempotency_key === 'llave-0002') {
+          arrived();
+          await gate;
+        }
+        return reject && body.idempotency_key === 'llave-0001'
+          ? HttpResponse.json({ detail: 'Stock insuficiente' }, { status: 400 })
+          : null;
+      },
+    });
+    await enqueue('llave-0001');
+    await syncQueue(); // la 0001 queda por revisar
+    reject = false;
+
+    await enqueue('llave-0002');
+    hold = true;
+    const slow = syncQueue(); // se queda subiendo la 0002
+    await uploading;
+    const retry = retrySale('llave-0001');
+    // ya volvió a la cola, con la otra subida todavía en curso
+    await vi.waitFor(async () => expect((await listSales())[0].status).toBe('pending'));
+    release();
+    await Promise.all([slow, retry]);
+    expect(await statuses()).toEqual(['synced', 'synced']);
+  });
+
+  it('descartar borra del equipo una venta rechazada, no una que falta subir', async () => {
+    fakeCheckout({
+      fail: (body) =>
+        body.idempotency_key === 'llave-0001'
+          ? HttpResponse.json({ detail: 'Stock insuficiente' }, { status: 400 })
+          : HttpResponse.error(),
+    });
+    await enqueue('llave-0001');
+    await enqueue('llave-0002');
+    await syncQueue();
+
+    await discardSale('llave-0001');
+    await discardSale('llave-0002');
+    expect((await listSales()).map((s) => s.idempotency_key)).toEqual(['llave-0002']);
   });
 
   it('el respaldo trae lo que falta por subir', async () => {
