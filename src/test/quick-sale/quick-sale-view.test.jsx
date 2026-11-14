@@ -6,12 +6,18 @@ import userEvent from '@testing-library/user-event';
 import { it, vi, expect, describe, beforeEach } from 'vitest';
 import { render, screen, within, waitFor } from '@testing-library/react';
 
+import { listSales } from 'src/sections/quick-sale/quick-sale-store';
 import { QuickSaleView } from 'src/sections/quick-sale/view/quick-sale-view';
 
 import { server } from '../mocks/server';
 
 // El layout importa el tema completo (CSS de data-grid), que vitest no carga
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
+vi.mock('src/auth/hooks', () => ({
+  useAuthContext: () => ({
+    user: { id: 3, email: 'a@b.mx', role: 'admin', permissions: ['sales.create'] },
+  }),
+}));
 
 const BASE = 'https://api.opuntiaden.com';
 
@@ -53,7 +59,10 @@ let checkouts;
 function mount(items = [cueva, musgo, pack]) {
   checkouts = [];
   server.use(
-    http.get(`${BASE}/api/v1/products/quick-sale`, () => HttpResponse.json(items)),
+    http.get(`${BASE}/api/v1/products/quick-sale`, () =>
+      items ? HttpResponse.json(items) : HttpResponse.error()
+    ),
+    http.get('https://res.cloudinary.com/*', () => HttpResponse.error()),
     http.get(`${BASE}/api/v1/branches`, () => HttpResponse.json([{ id: 7, name: 'Matriz' }])),
     http.get(`${BASE}/api/v1/settings/email-ticket`, () => HttpResponse.json({})),
     http.get(`${BASE}/api/v1/settings/ticket-print`, () =>
@@ -146,7 +155,9 @@ describe('venta rápida: pantalla', () => {
     await waitFor(() =>
       expect(cart().getByText('Toca un producto para empezar')).toBeInTheDocument()
     );
-    expect(checkouts).toHaveLength(1);
+    // la subida corre aparte: se espera a que llegue y se revisa que fue una
+    await waitFor(() => expect(checkouts).toHaveLength(1));
+    expect(await listSales()).toHaveLength(1);
   });
 
   it('sin productos marcados invita a agregarlos', async () => {
@@ -155,5 +166,53 @@ describe('venta rápida: pantalla', () => {
     expect(screen.getAllByRole('button', { name: '+ Agregar productos' }).length).toBeGreaterThan(
       0
     );
+  });
+  it('sin preparar y sin red explica qué hacer', async () => {
+    mount(null);
+
+    expect(
+      await screen.findByText(/Prepara la venta rápida con internet antes de salir/)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Agregar / })).toBeNull();
+  });
+
+  it('sin red la venta se guarda en el equipo y aparta su stock', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await product('Cueva de resina'));
+    await user.click(screen.getByRole('checkbox', { name: 'Imprimir ticket' }));
+    server.use(http.post(`${BASE}/api/v1/sales/checkout`, () => HttpResponse.error()));
+    await user.click(cart().getByRole('button', { name: /^Cobrar/ }));
+
+    expect(await screen.findByText(/1 por subir/)).toBeInTheDocument();
+    expect(cart().getByText('Toca un producto para empezar')).toBeInTheDocument();
+    expect(await product('Cueva de resina')).toHaveTextContent('Quedan 7');
+    expect(screen.getByText(/No borres los datos del navegador/)).toBeInTheDocument();
+  });
+
+  it('una venta rechazada muestra el motivo y se puede reintentar', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await product('Cueva de resina'));
+    await user.click(screen.getByRole('checkbox', { name: 'Imprimir ticket' }));
+    let reject = true;
+    server.use(
+      http.post(`${BASE}/api/v1/sales/checkout`, () =>
+        reject
+          ? HttpResponse.json(
+              { detail: 'Stock insuficiente para Cueva de resina' },
+              { status: 400 }
+            )
+          : HttpResponse.json({ id: 9, total: '80.00' }, { status: 201 })
+      )
+    );
+    await user.click(cart().getByRole('button', { name: /^Cobrar/ }));
+
+    expect(await screen.findByText('Stock insuficiente para Cueva de resina')).toBeInTheDocument();
+    expect(screen.getByText(/1 por revisar/)).toBeInTheDocument();
+
+    reject = false;
+    await user.click(screen.getByRole('button', { name: 'Reintentar' }));
+    await waitFor(() => expect(screen.queryByText(/por revisar/)).toBeNull());
   });
 });
