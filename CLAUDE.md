@@ -109,6 +109,7 @@ Path alias `src/` resolves to `./src/` in both Vite and Vitest configs.
 - El cálculo del total (`quick-sale-math.js`) debe dar lo mismo que `build_sale_detail` + `recalc_sale_totals` del API.
 - Sin iconos de Iconify en esa pantalla: los no registrados se piden a internet.
 - El service worker (`vite-plugin-pwa` en `vite.config.js`) solo existe en el build: se prueba con `yarn build && yarn preview`, no con `yarn dev`. Una versión nueva entra al cerrar y volver a abrir la app; nunca recarga sola.
+- Ojo al probar con `yarn preview`: el service worker queda registrado en `localhost:3030` y después le sirve el build viejo a `yarn dev` (mismo origen). Al terminar, en DevTools → Application → Service Workers → «Unregister» y «Clear site data».
 - Sin red y con el token caducado, la sesión se mantiene con el usuario guardado al «Preparar» (`user.offline`, en `src/auth/context/jwt/`).
 
 ## Otra instalación (otro cliente)
