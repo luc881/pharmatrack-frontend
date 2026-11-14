@@ -1,9 +1,10 @@
 import { useSetState } from 'minimal-shared/hooks';
-import { useMemo, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useEffect, useCallback } from 'react';
 
 import axios, { endpoints } from 'src/lib/axios';
 
 import { AuthContext } from '../auth-context';
+import { savedOfflineUser } from './offline-user';
 import { jwtDecode, setSession, isValidToken } from './utils';
 import { JWT_STORAGE_KEY, JWT_REFRESH_KEY, JWT_REMEMBER_KEY } from './constant';
 
@@ -14,6 +15,14 @@ import { JWT_STORAGE_KEY, JWT_REFRESH_KEY, JWT_REMEMBER_KEY } from './constant';
  * We only build demo at basic level.
  * Customer will need to do some extra handling yourself if you want to extend the logic and other features...
  */
+
+// Usuario que la venta rápida guardó en el equipo al «Preparar». Sin red no
+// se puede validar ni renovar el token; con él la pantalla sigue abierta y
+// trabaja solo con datos locales (subir ventas sí exige sesión válida).
+async function offlineUser() {
+  const user = await savedOfflineUser();
+  return user ? { ...user, offline: true } : null;
+}
 
 // Fetch live permissions from /me. Falls back to JWT-embedded permissions on error.
 async function fetchLivePermissions(jwtPermissions) {
@@ -27,6 +36,8 @@ async function fetchLivePermissions(jwtPermissions) {
 
 export function AuthProvider({ children }) {
   const { state, setState } = useSetState({ user: null, loading: true });
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const checkUserSession = useCallback(async () => {
     try {
@@ -53,7 +64,19 @@ export function AuthProvider({ children }) {
         sessionStorage.getItem(JWT_REFRESH_KEY) || localStorage.getItem(JWT_REFRESH_KEY);
 
       if (refreshToken) {
-        const res = await axios.post(endpoints.auth.refresh, { refresh_token: refreshToken });
+        let res;
+        try {
+          res = await axios.post(endpoints.auth.refresh, { refresh_token: refreshToken });
+        } catch (error) {
+          // Sin red (sin status) se entra con el usuario del equipo; un rechazo
+          // del servidor solo conserva a quien ya estaba trabajando sin red
+          const fallback =
+            error?.status === undefined || stateRef.current.user?.offline
+              ? await offlineUser()
+              : null;
+          setState({ user: fallback, loading: false });
+          return;
+        }
         const { access_token, refresh_token: newRefreshToken } = res.data;
 
         const rememberMe = localStorage.getItem(JWT_REMEMBER_KEY) === 'true';
@@ -80,7 +103,10 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      setState({ user: null, loading: false });
+      // Sin ninguna sesión: solo sin red se abre con el usuario del equipo
+      const fallback =
+        !navigator.onLine || stateRef.current.user?.offline ? await offlineUser() : null;
+      setState({ user: fallback, loading: false });
     } catch (error) {
       console.error(error);
       setState({ user: null, loading: false });
@@ -92,6 +118,14 @@ export function AuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Al volver la red, quien entró sin ella intenta recuperar su sesión real
+  const isOffline = Boolean(state.user?.offline);
+  useEffect(() => {
+    if (!isOffline) return undefined;
+    window.addEventListener('online', checkUserSession);
+    return () => window.removeEventListener('online', checkUserSession);
+  }, [isOffline, checkUserSession]);
+
   // ----------------------------------------------------------------------
 
   const checkAuthenticated = state.user ? 'authenticated' : 'unauthenticated';
@@ -101,7 +135,11 @@ export function AuthProvider({ children }) {
   const memoizedValue = useMemo(
     () => ({
       user: state.user
-        ? { ...state.user, role: state.user?.role ?? '', permissions: state.user?.permissions ?? [] }
+        ? {
+            ...state.user,
+            role: state.user?.role ?? '',
+            permissions: state.user?.permissions ?? [],
+          }
         : null,
       checkUserSession,
       loading: status === 'loading',

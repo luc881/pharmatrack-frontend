@@ -83,7 +83,10 @@ function mount(items = [cueva, musgo, pack]) {
   );
 }
 
-const product = (name) => screen.findByRole('button', { name: new RegExp(`^Agregar ${name}`) });
+// El primer render carga todo el módulo: con la suite completa en paralelo
+// tarda más que el segundo que da findBy por omisión
+const product = (name) =>
+  screen.findByRole('button', { name: new RegExp(`^Agregar ${name}`) }, { timeout: 8000 });
 const cart = () => within(screen.getByRole('region', { name: 'Cuenta' }));
 
 describe('venta rápida: pantalla', () => {

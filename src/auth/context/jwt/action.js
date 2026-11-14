@@ -1,6 +1,7 @@
 import axios, { endpoints } from 'src/lib/axios';
 
 import { setSession } from './utils';
+import { forgetOfflineUser } from './offline-user';
 import { JWT_STORAGE_KEY, JWT_REFRESH_KEY, JWT_REMEMBER_KEY } from './constant';
 
 // ----------------------------------------------------------------------
@@ -84,6 +85,8 @@ export const signOut = async () => {
     });
     await setSession(null); // setSession(null) ya limpia ambos storages
     localStorage.removeItem(JWT_REMEMBER_KEY);
+    // El usuario guardado para la venta rápida sin internet tampoco se queda
+    await forgetOfflineUser();
   } catch (error) {
     console.error('Error during sign out:', error);
     throw error;

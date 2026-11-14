@@ -74,31 +74,55 @@ async function doRefresh() {
   return res.data;
 }
 
+// Renovación que quedó esperando a que vuelva la red
+let retryWhenOnline = null;
+
+function cancelPendingRefresh() {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+  }
+  if (retryWhenOnline) {
+    window.removeEventListener('online', retryWhenOnline);
+    retryWhenOnline = null;
+  }
+}
+
+async function refreshNow() {
+  try {
+    const { access_token, refresh_token } = await doRefresh();
+    if (refresh_token) storeRefreshToken(refresh_token);
+    await setSession(access_token);
+  } catch (error) {
+    // Sin red (el error de axios no trae status) no se cierra la sesión: en
+    // una convención sin internet la venta rápida sigue con los datos del
+    // equipo. Se reintenta al volver la conexión.
+    if (getStoredRefreshToken() && error?.status === undefined) {
+      retryWhenOnline = () => {
+        retryWhenOnline = null;
+        refreshNow();
+      };
+      window.addEventListener('online', retryWhenOnline, { once: true });
+      return;
+    }
+    await setSession(null);
+    window.location.href = paths.auth.jwt.signIn;
+  }
+}
+
 function scheduleTokenRefresh(exp) {
-  if (refreshTimer) clearTimeout(refreshTimer);
+  cancelPendingRefresh();
 
   // Renovar 60 segundos antes de que expire
   const delay = Math.max(exp * 1000 - Date.now() - 60_000, 0);
 
-  refreshTimer = setTimeout(async () => {
-    try {
-      const { access_token, refresh_token } = await doRefresh();
-      if (refresh_token) storeRefreshToken(refresh_token);
-      await setSession(access_token);
-    } catch {
-      await setSession(null);
-      window.location.href = paths.auth.jwt.signIn;
-    }
-  }, delay);
+  refreshTimer = setTimeout(refreshNow, delay);
 }
 
 // ----------------------------------------------------------------------
 
 export async function setSession(accessToken) {
-  if (refreshTimer) {
-    clearTimeout(refreshTimer);
-    refreshTimer = null;
-  }
+  cancelPendingRefresh();
 
   try {
     if (accessToken) {
