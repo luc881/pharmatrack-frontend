@@ -20,6 +20,8 @@ import ListItemText from '@mui/material/ListItemText';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
+import { paths } from 'src/routes/paths';
+
 import { matchesWords } from 'src/utils/plain';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -206,9 +208,22 @@ function AnimalsTab({ search, onSearch, busy, onToggle, canCreate }) {
       />
       {/* algo que aún no está en venta: alta corta, ya como botón */}
       {canCreate && (
-        <Button size="small" onClick={() => setCreating(true)} sx={{ mt: 1 }}>
-          + Animal nuevo
-        </Button>
+        <Stack direction="row" sx={{ mt: 1, gap: 1, flexWrap: 'wrap' }}>
+          <Button size="small" onClick={() => setCreating(true)}>
+            + Alta rápida de animal
+          </Button>
+          {/* en otra pestaña: la cuenta en curso no se pierde y al volver
+              el catálogo de la venta rápida se actualiza solo */}
+          <Button
+            size="small"
+            component="a"
+            href={`${paths.dashboard.animal.new}?purpose=sale&quick_sale=1`}
+            target="_blank"
+            rel="noopener"
+          >
+            Alta completa de animal ↗
+          </Button>
+        </Stack>
       )}
       {creating && (
         <PutOnSaleDialog
@@ -321,6 +336,16 @@ function ProductsTab({ search, onSearch, busy, onToggle }) {
 
   return (
     <>
+      <Button
+        size="small"
+        component="a"
+        href={`${paths.dashboard.product.new}?quick_sale=1`}
+        target="_blank"
+        rel="noopener"
+        sx={{ mb: 1 }}
+      >
+        Producto nuevo en el catálogo ↗
+      </Button>
       <Toolbar
         search={search}
         onSearch={onSearch}

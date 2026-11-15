@@ -61,9 +61,13 @@ export function QuickSaleNewProduct({
 
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Producto nuevo</DialogTitle>
+      <DialogTitle>Producto temporal</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Solo para cobrar ahora (también sin internet). No entra al catálogo de la tienda:
+            después lo completas o lo desechas en Productos → «Por revisar».
+          </Typography>
           <TextField
             autoFocus
             label="Nombre"

@@ -189,6 +189,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const urlPurpose = searchParams.get('purpose');
   useEffect(() => {
     if (!isEdit && PURPOSES.includes(urlPurpose)) setValue('purpose', urlPurpose);
+    // viene de la venta rápida: ya marcado como botón de la venta rápida
+    if (!isEdit && searchParams.get('quick_sale') === '1') setValue('quick_sale', true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEdit, urlPurpose]);
   useEffect(() => {

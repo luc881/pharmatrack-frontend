@@ -194,7 +194,8 @@ export function ProductCreateEditForm({ currentProduct }) {
     max_discount: null,
     tracks_batches: true,
     show_online: false,
-    quick_sale: false,
+    // ?quick_sale=1: viene de la venta rápida y nace como su botón
+    quick_sale: searchParams.get('quick_sale') === '1',
     needs_prep: false,
     consignor_id: '',
     allow_warranty: false,

@@ -404,15 +404,30 @@ describe('Venta rápida: elegir qué se vende', () => {
     const user = userEvent.setup();
     wrap(<QuickSalePicker canCreateAnimals onClose={() => {}} />);
     const dialog = within(await screen.findByRole('dialog', { name: /Qué se vende/ }));
-    await user.click(await dialog.findByRole('button', { name: '+ Animal nuevo' }));
-    expect(await screen.findByRole('dialog', { name: 'Poner en venta' })).toBeInTheDocument();
+    await user.click(await dialog.findByRole('button', { name: '+ Alta rápida de animal' }));
+    expect(await screen.findByRole('dialog', { name: 'Alta rápida de animal' })).toBeInTheDocument();
+  });
+
+  it('la alta completa se abre en otra pestaña, ya marcada para la venta rápida', async () => {
+    const user = userEvent.setup();
+    wrap(<QuickSalePicker canCreateAnimals onClose={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog', { name: /Qué se vende/ }));
+
+    const full = await dialog.findByRole('link', { name: /Alta completa de animal/ });
+    expect(full).toHaveAttribute('href', '/dashboard/animal/new?purpose=sale&quick_sale=1');
+    expect(full).toHaveAttribute('target', '_blank');
+
+    await user.click(dialog.getByRole('tab', { name: 'Productos' }));
+    const product = await dialog.findByRole('link', { name: /Producto nuevo en el catálogo/ });
+    expect(product).toHaveAttribute('href', '/dashboard/product/new?quick_sale=1');
+    expect(product).toHaveAttribute('target', '_blank');
   });
 
   it('sin permiso de dar de alta animales no ofrece el alta', async () => {
     wrap(<QuickSalePicker onClose={() => {}} />);
     const dialog = within(await screen.findByRole('dialog', { name: /Qué se vende/ }));
     await dialog.findByText('Gecko leopardo');
-    expect(dialog.queryByRole('button', { name: '+ Animal nuevo' })).toBeNull();
+    expect(dialog.queryByRole('button', { name: '+ Alta rápida de animal' })).toBeNull();
   });
 
   it('los productos van sin los animales y se pueden ver más de 30', async () => {

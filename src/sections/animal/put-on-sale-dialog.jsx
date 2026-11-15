@@ -6,6 +6,7 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
 import DialogActions from '@mui/material/DialogActions';
@@ -151,9 +152,13 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
 
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Poner en venta</DialogTitle>
+      <DialogTitle>Alta rápida de animal</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            Queda en tu inventario (Animales → «En venta») como cualquier otro y ya como botón de
+            la venta rápida. Aquí solo se piden los datos mínimos; lo demás se completa después.
+          </Typography>
           {/* Abierto desde la fila de una especie ya no hay nada que buscar */}
           {!initialSpecies && (
             <Stack direction="row" spacing={2}>

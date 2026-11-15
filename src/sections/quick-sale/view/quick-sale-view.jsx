@@ -164,8 +164,15 @@ export function QuickSaleView() {
     });
     catchUp();
     window.addEventListener('online', catchUp);
-    return () => window.removeEventListener('online', catchUp);
-  }, [catchUp]);
+    // Al volver a esta pestaña (p. ej. tras una alta completa en otra) se baja
+    // el catálogo de nuevo: lo recién dado de alta aparece como botón
+    const refresh = () => navigator.onLine && prepare();
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.removeEventListener('online', catchUp);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [catchUp, prepare]);
 
   const savePrefs = (patch) =>
     setPrefs((prev) => {
@@ -337,13 +344,14 @@ export function QuickSaleView() {
             </TextField>
           )}
           {addButton}
+          {/* temporal: solo para cobrar ahora; se revisa en Productos → Por revisar */}
           <Button variant="outlined" onClick={() => setCreating('')}>
-            + Producto nuevo
+            + Producto temporal
           </Button>
           {/* un animal que aún no está en venta, sin salir de aquí (necesita internet) */}
           {canCreateAnimals && (
             <Button variant="outlined" disabled={!online} onClick={() => setNewAnimal(true)}>
-              + Animal nuevo
+              + Alta rápida de animal
             </Button>
           )}
           <Button color="inherit" onClick={() => router.push(paths.dashboard.sale.root)}>
@@ -396,7 +404,7 @@ export function QuickSaleView() {
                   Nada con «{query.trim()}»
                 </Typography>
                 <Button variant="contained" onClick={() => setCreating(query.trim())}>
-                  + Producto nuevo «{query.trim()}»
+                  + Producto temporal «{query.trim()}»
                 </Button>
               </Stack>
             )}

@@ -71,7 +71,7 @@ export function ProductProvisionalView() {
       <Stack spacing={0.5} sx={{ mb: 3 }}>
         <Typography variant="h4">Productos por revisar</Typography>
         <Typography variant="body2" sx={{ maxWidth: 640, color: 'text.secondary' }}>
-          Se crearon en la venta rápida con «+ Producto nuevo». Completa los que se quedan en el
+          Se crearon en la venta rápida con «+ Producto temporal». Completa los que se quedan en el
           catálogo (categoría, costo, foto, existencias) o desecha los que no.
         </Typography>
       </Stack>

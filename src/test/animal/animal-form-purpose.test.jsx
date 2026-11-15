@@ -164,6 +164,14 @@ describe('Formulario de animal: destino', () => {
     expect(await screen.findAllByAltText(/Foto heredada/)).toHaveLength(2);
   });
 
+  it('desde la venta rápida llega con «También en la venta rápida» ya marcado', async () => {
+    mockApi();
+    wrap(<AnimalCreateEditForm />, '/new?purpose=sale&quick_sale=1');
+    expect(
+      await screen.findByRole('checkbox', { name: /También en la venta rápida/ })
+    ).toBeChecked();
+  });
+
   it('da de alta varios iguales: manda count y nunca un código manual', async () => {
     const body = {};
     mockApi([capture('post', '/animals', body)]);

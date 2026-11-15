@@ -296,7 +296,7 @@ describe('venta rápida: producto nuevo y buscador (pantalla)', () => {
     const user = userEvent.setup();
     mount();
     await product('Musgo');
-    await user.click(screen.getByRole('button', { name: '+ Producto nuevo' }));
+    await user.click(screen.getByRole('button', { name: '+ Producto temporal' }));
 
     const dialog = within(await screen.findByRole('dialog'));
     await user.type(dialog.getByLabelText('Nombre'), 'Tronco de corcho');
@@ -319,11 +319,36 @@ describe('venta rápida: producto nuevo y buscador (pantalla)', () => {
     expect(checkouts[0].items).toEqual([{ product_id: 900, quantity: 1, discount: 0 }]);
   });
 
+  it('el producto temporal dice que no entra al catálogo y se revisa después', async () => {
+    const user = userEvent.setup();
+    mount();
+    await product('Musgo');
+    await user.click(screen.getByRole('button', { name: '+ Producto temporal' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Producto temporal' }));
+    expect(dialog.getByText(/Por revisar/)).toBeInTheDocument();
+  });
+
+  it('al volver a la pestaña vuelve a bajar el catálogo (lo dado de alta en otra)', async () => {
+    let fetched = 0;
+    server.use(
+      http.get(`${API}/products/quick-sale`, () => {
+        fetched += 1;
+        return HttpResponse.json(catalog);
+      })
+    );
+    mount();
+    await product('Musgo');
+    await waitFor(() => expect(fetched).toBeGreaterThan(0));
+    const before = fetched;
+    window.dispatchEvent(new Event('focus'));
+    await waitFor(() => expect(fetched).toBe(before + 1));
+  });
+
   it('el nombre y el precio son obligatorios', async () => {
     const user = userEvent.setup();
     mount();
     await product('Musgo');
-    await user.click(screen.getByRole('button', { name: '+ Producto nuevo' }));
+    await user.click(screen.getByRole('button', { name: '+ Producto temporal' }));
     const dialog = within(await screen.findByRole('dialog'));
     await user.click(dialog.getByRole('button', { name: 'Agregar a la cuenta' }));
 
@@ -358,7 +383,7 @@ describe('venta rápida: producto nuevo y buscador (pantalla)', () => {
     await user.type(screen.getByRole('searchbox', { name: 'Buscar producto' }), 'tronco');
 
     expect(screen.queryByRole('button', { name: /^Agregar / })).toBeNull();
-    await user.click(screen.getByRole('button', { name: '+ Producto nuevo «tronco»' }));
+    await user.click(screen.getByRole('button', { name: '+ Producto temporal «tronco»' }));
     const dialog = within(await screen.findByRole('dialog'));
     expect(dialog.getByLabelText('Nombre')).toHaveValue('tronco');
   });
