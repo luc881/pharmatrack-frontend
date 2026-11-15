@@ -159,6 +159,8 @@ const P = {
   speciesRead:   ['species.read'],
   speciesCreate: ['species.create'],
   speciesUpdate: ['species.update'],
+  morphsCreate: ['morphs.create'],
+  morphsUpdate: ['morphs.update'],
   // Articles
   articlesRead:   ['articles.read'],
   ordersRead:     ['orders.read'],

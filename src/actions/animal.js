@@ -1,5 +1,5 @@
-import useSWR from 'swr';
 import { useMemo } from 'react';
+import useSWR, { mutate as swrMutate } from 'swr';
 
 import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
 
@@ -236,3 +236,17 @@ export function useHusbandryStatus(speciesId) {
     [data, isLoading, mutate]
   );
 }
+
+// ----------------------------------------------------------------------
+// Llaves de SWR que cambian al editar una especie o variedad: listas y
+// fichas de especies, variedades, animales (traen dentro la especie y sus
+// fotos) y el catálogo de la venta rápida. Con revalidateIfStale en false
+// nadie las recarga solo.
+const TAXON_PREFIXES = ['/api/v1/species', '/api/v1/morphs', '/api/v1/animals', '/api/v1/products/quick-sale'];
+
+export const isTaxonCacheKey = (key) => {
+  const url = Array.isArray(key) ? key[0] : key;
+  return typeof url === 'string' && TAXON_PREFIXES.some((prefix) => url.startsWith(prefix));
+};
+
+export const refreshTaxonCaches = () => swrMutate(isTaxonCacheKey);

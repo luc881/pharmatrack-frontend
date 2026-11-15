@@ -49,7 +49,7 @@ const animalName = (animal) => [animal.code, ...(animal.morphs ?? []).map((m) =>
 // salir de ella. Los animales van aparte de los productos: se buscan por
 // especie (nombre común o científico) y no por el título de su producto
 // gemelo. Necesita internet.
-export function QuickSalePicker({ onClose }) {
+export function QuickSalePicker({ onClose, canCreateAnimals = false }) {
   const [tab, setTab] = useState('animals');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(() => new Set());
@@ -76,7 +76,13 @@ export function QuickSalePicker({ onClose }) {
           <Tab value="products" label="Productos" />
         </Tabs>
         {tab === 'animals' ? (
-          <AnimalsTab search={search} onSearch={setSearch} busy={busy} onToggle={toggle} />
+          <AnimalsTab
+            search={search}
+            onSearch={setSearch}
+            busy={busy}
+            onToggle={toggle}
+            canCreate={canCreateAnimals}
+          />
         ) : (
           <ProductsTab search={search} onSearch={setSearch} busy={busy} onToggle={toggle} />
         )}
@@ -131,7 +137,7 @@ function Toolbar({ search, onSearch, suggestions, filterLabel, filter, onFilter,
 
 // ----------------------------------------------------------------------
 
-function AnimalsTab({ search, onSearch, busy, onToggle }) {
+function AnimalsTab({ search, onSearch, busy, onToggle, canCreate }) {
   const [group, setGroup] = useState('');
   const [creating, setCreating] = useState(false);
   // ponytail: una página de 500 (tope del API), igual que la lista de animales
@@ -199,9 +205,11 @@ function AnimalsTab({ search, onSearch, busy, onToggle }) {
         filterOptions={groupOptions}
       />
       {/* algo que aún no está en venta: alta corta, ya como botón */}
-      <Button size="small" onClick={() => setCreating(true)} sx={{ mt: 1 }}>
-        + Animal nuevo
-      </Button>
+      {canCreate && (
+        <Button size="small" onClick={() => setCreating(true)} sx={{ mt: 1 }}>
+          + Animal nuevo
+        </Button>
+      )}
       {creating && (
         <PutOnSaleDialog
           animals={animals}

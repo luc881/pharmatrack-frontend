@@ -316,7 +316,6 @@ export function AnimalTaxonomyView() {
     const sp = row.__kind === 'morph' ? speciesById[row.__speciesId] : row;
     const groupId = generaById[sp?.genus_id]?.group?.id ?? sp?.genus?.group?.id;
     if (groupId != null && hiddenGroupIds.has(groupId)) return 'Grupo oculto';
-    if (row.__kind === 'morph' && sp?.show_public === false) return 'Especie oculta';
     return null;
   };
   const visibleOnSite = (row) => !webReason(row) && row.show_public !== false;

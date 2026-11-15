@@ -421,6 +421,7 @@ export function QuickSaleView() {
 
       {picking && (
         <QuickSalePicker
+          canCreateAnimals={Boolean(user?.permissions?.includes('animals.create'))}
           onClose={() => {
             setPicking(false);
             prepare();

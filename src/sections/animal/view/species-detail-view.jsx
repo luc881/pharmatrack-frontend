@@ -28,12 +28,10 @@ import {
   updateMorph,
   deleteMorph,
   deleteAnimal,
-  useAllGenera,
   useAllMorphs,
   useGetAnimals,
   useAllSpecies,
   deleteSpecies,
-  useAnimalGroupTree,
 } from 'src/actions/animal';
 
 import { Label } from 'src/components/label';
@@ -46,10 +44,9 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { TaxonDialog } from '../taxon-dialog';
 import { AnimalRow } from './animal-list-view';
 import { HusbandryPlanCard } from '../husbandry-plan-card';
-import { purposeOf, displayImage, saleFormatLabel, flattenGroupTree } from '../utils';
+import { purposeOf, displayImage, saleFormatLabel } from '../utils';
 import {
   STOCK,
   HUSBANDRY,
@@ -99,12 +96,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
   // Morphs de esta especie: la ficha es el hub, así no hay que ir a Taxonomía
   const { morphs, morphsMutate } = useAllMorphs(species?.id);
 
-  // Datos para el diálogo de ficha de cuidados (reusa TaxonDialog)
-  const { genera } = useAllGenera();
   const { species: allSpecies } = useAllSpecies();
-  const { groupTree } = useAnimalGroupTree();
-
-  const [dialog, setDialogState] = useState(null);
   // Especie y variedad se editan en su propia página (fotos y ficha de
   // cuidados); grupos y géneros siguen en el diálogo
   const setDialog = (next) => {
@@ -118,7 +110,6 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
       navigate(href, { state: { from: paths.dashboard.animal.species(species?.id) } });
       return;
     }
-    setDialogState(next);
   };
   const [manage, setManage] = useState(null); // { row, kind } — cultivo de especie o morph
   const [toDelete, setToDelete] = useState(null); // { kind, id, name }
@@ -613,23 +604,6 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
           </Card>
         </Grid>
       </Grid>
-
-      {dialog && (
-        <TaxonDialog
-          tab={dialog.tab}
-          singular={dialog.tab === 'morphs' ? 'morph' : 'especie'}
-          current={dialog.current}
-          initial={dialog.initial}
-          genera={genera}
-          allSpecies={allSpecies}
-          groupsFlat={flattenGroupTree(groupTree)}
-          onClose={() => setDialog(null)}
-          onSaved={async () => {
-            if (dialog.tab === 'morphs') await morphsMutate();
-            else await onMutate?.();
-          }}
-        />
-      )}
 
       {manage && (
         <ManageDialog

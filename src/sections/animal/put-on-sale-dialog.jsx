@@ -118,6 +118,8 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
         await updateAnimal(existing.id, {
           stock: Number(existing.stock ?? 0) + amount,
           ...(String(price).trim() === '' ? {} : { price: value }),
+          // solo publica; no esconde algo que ya se anuncia
+          ...(showOnSite ? { show_public: true } : {}),
         });
         await updateProduct(existing.product_id, { quick_sale: true });
       } else {

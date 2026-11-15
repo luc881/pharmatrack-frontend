@@ -206,7 +206,6 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const isSale = purpose === 'sale';
   const speciesId = watch('species_id');
   const morphIds = watch('morphs');
-  // «Mostrar en el sitio» al dar de alta (null = como está hoy la variedad)
   const { morphsMutate } = useAllMorphs();
 
   const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));

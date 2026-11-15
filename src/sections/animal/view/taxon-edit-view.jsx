@@ -4,7 +4,13 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { useAllGenera, useAllMorphs, useAllSpecies, useAnimalGroupTree } from 'src/actions/animal';
+import {
+  useAllGenera,
+  useAllMorphs,
+  useAllSpecies,
+  refreshTaxonCaches,
+  useAnimalGroupTree,
+} from 'src/actions/animal';
 
 import { EmptyContent } from 'src/components/empty-content';
 import { LoadingScreen } from 'src/components/loading-screen';
@@ -23,9 +29,9 @@ export function TaxonEditView({ kind, id }) {
   const { state } = useLocation();
   const back = state?.from ?? paths.dashboard.animal.taxonomy;
 
-  const { species, speciesLoading, speciesMutate } = useAllSpecies();
+  const { species, speciesLoading } = useAllSpecies();
   const { genera, generaMutate } = useAllGenera();
-  const { morphs, morphsLoading, morphsMutate } = useAllMorphs();
+  const { morphs, morphsLoading } = useAllMorphs();
   const { groupTree } = useAnimalGroupTree();
 
   const isMorph = kind === 'morph';
@@ -57,7 +63,8 @@ export function TaxonEditView({ kind, id }) {
         groupsFlat={flattenGroupTree(groupTree)}
         onClose={() => router.push(back)}
         onSaved={async () => {
-          await Promise.all([speciesMutate(), morphsMutate(), generaMutate()]);
+          // también la ficha de la especie, sus variedades y los animales
+          await Promise.all([refreshTaxonCaches(), generaMutate()]);
         }}
       />
     </DashboardContent>

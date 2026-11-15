@@ -214,6 +214,30 @@ describe('Poner en venta (alta corta)', () => {
     ]);
   });
 
+  it('al sumar a lo que ya hay, «Mostrar también en el sitio» lo publica', async () => {
+    const user = userEvent.setup();
+    const existing = {
+      id: 40,
+      product_id: 400,
+      purpose: 'sale',
+      status: 'available',
+      stock: 6,
+      price: 120,
+      morphs: [],
+      species: ROACH,
+      show_public: false,
+    };
+    wrap(
+      <PutOnSaleDialog initialSpecies={ROACH} animals={[existing]} onClose={() => {}} onDone={() => {}} />
+    );
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.click(dialog.getByRole('checkbox', { name: /Mostrar también en el sitio/ }));
+    await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
+
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[0]).toEqual(['PUT', '/animals/40', { stock: 7, show_public: true }]);
+  });
+
   it('los filtros de grupo y género acortan la lista de especies', async () => {
     const user = userEvent.setup();
     wrap(<PutOnSaleDialog onClose={() => {}} onDone={() => {}} />);
@@ -378,10 +402,17 @@ describe('Venta rápida: elegir qué se vende', () => {
 
   it('desde aquí se pone en venta un animal nuevo', async () => {
     const user = userEvent.setup();
-    wrap(<QuickSalePicker onClose={() => {}} />);
+    wrap(<QuickSalePicker canCreateAnimals onClose={() => {}} />);
     const dialog = within(await screen.findByRole('dialog', { name: /Qué se vende/ }));
     await user.click(await dialog.findByRole('button', { name: '+ Animal nuevo' }));
     expect(await screen.findByRole('dialog', { name: 'Poner en venta' })).toBeInTheDocument();
+  });
+
+  it('sin permiso de dar de alta animales no ofrece el alta', async () => {
+    wrap(<QuickSalePicker onClose={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog', { name: /Qué se vende/ }));
+    await dialog.findByText('Gecko leopardo');
+    expect(dialog.queryByRole('button', { name: '+ Animal nuevo' })).toBeNull();
   });
 
   it('los productos van sin los animales y se pueden ver más de 30', async () => {

@@ -148,3 +148,14 @@ describe('nueva variedad en su página', () => {
     ]);
   });
 });
+
+describe('al guardar se refresca lo que otras pantallas tienen guardado', () => {
+  it('cuenta la ficha de la especie, sus variedades y los animales; no lo demás', async () => {
+    const { isTaxonCacheKey } = await import('src/actions/animal');
+    expect(isTaxonCacheKey('/api/v1/species/7')).toBe(true);
+    expect(isTaxonCacheKey(['/api/v1/morphs', { params: { species_id: 7 } }])).toBe(true);
+    expect(isTaxonCacheKey(['/api/v1/animals', { params: { page: 1 } }])).toBe(true);
+    expect(isTaxonCacheKey('/api/v1/products/quick-sale')).toBe(true);
+    expect(isTaxonCacheKey('/api/v1/sales')).toBe(false);
+  });
+});
