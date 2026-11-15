@@ -19,6 +19,8 @@ import { Toolbar, DataGrid, gridClasses, useGridApiRef } from '@mui/x-data-grid'
 
 import { paths } from 'src/routes/paths';
 
+import { plain } from 'src/utils/plain';
+
 import axiosInstance, { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
@@ -153,6 +155,35 @@ const FILTER_TYPES = ['group', 'genus', 'species'];
 // de estos valores por defecto, no los reemplaza.
 const COLUMNS_STORAGE_KEY = 'animal-taxonomy-columns';
 const HIDE_COLUMNS = { common_name: false };
+
+// ----------------------------------------------------------------------
+
+// Barra de la tabla: búsqueda + filtro activo + botones del grid, en una línea
+function TaxonomyToolbar({ chipLabel, onClearFilter, showHint }) {
+  return (
+    <Toolbar>
+      <ToolbarContainer>
+        <CustomToolbarQuickFilter />
+
+        {chipLabel && <Chip color="primary" variant="soft" label={chipLabel} onDelete={onClearFilter} />}
+
+        <ToolbarRightPanel>
+          {showHint && (
+            <Typography
+              variant="caption"
+              sx={{ color: 'text.disabled', display: { xs: 'none', md: 'block' } }}
+            >
+              Da clic en una fila para ver lo que contiene
+            </Typography>
+          )}
+          <CustomToolbarColumnsButton />
+          <CustomToolbarFilterButton />
+          <CustomToolbarExportButton />
+        </ToolbarRightPanel>
+      </ToolbarContainer>
+    </Toolbar>
+  );
+}
 
 // ----------------------------------------------------------------------
 
@@ -612,10 +643,15 @@ export function AnimalTaxonomyView() {
           flex: 1,
           minWidth: 200,
           sortable: false,
-          // lo que mira el buscador: la variedad con su especie, la especie con sus variedades
-          valueGetter: (_, row) => searchText(row, speciesById, morphsBySpecies),
-          // al exportar va el nombre tal cual, no el texto de búsqueda
-          valueFormatter: (_, row) => row.name,
+          // El buscador de la tabla compara contra el valor formateado de cada
+          // celda; esta columna busca en otro texto: la variedad con su
+          // especie y la especie con sus variedades. Mostrar y exportar siguen
+          // con el nombre tal cual.
+          getApplyQuickFilterFn: (value) => {
+            const wanted = plain(value);
+            if (!wanted) return null;
+            return (_, row) => plain(searchText(row, speciesById, morphsBySpecies)).includes(wanted);
+          },
           renderCell: (params) => {
             const { row } = params;
             if (row.__kind === 'morph') {
@@ -819,32 +855,16 @@ export function AnimalTaxonomyView() {
               ),
               noResultsOverlay: () => <EmptyContent title="Sin resultados" />,
               // Todo en una línea: búsqueda + filtro activo + botones del grid
-              toolbar: () => (
-                <Toolbar>
-                  <ToolbarContainer>
-                    <CustomToolbarQuickFilter />
-
-                    {filter && (
-                      <Chip color="primary" variant="soft" label={filterLabel()} onDelete={() => goTo(tabValue, null)} />
-                    )}
-
-
-                    <ToolbarRightPanel>
-                      {drillDown[tabValue] && (
-                        <Typography
-                          variant="caption"
-                          sx={{ color: 'text.disabled', display: { xs: 'none', md: 'block' } }}
-                        >
-                          Da clic en una fila para ver lo que contiene
-                        </Typography>
-                      )}
-                      <CustomToolbarColumnsButton />
-                      <CustomToolbarFilterButton />
-                      <CustomToolbarExportButton />
-                    </ToolbarRightPanel>
-                  </ToolbarContainer>
-                </Toolbar>
-              ),
+              // Componente estable (no una función nueva en cada render): si se
+              // recrea, el buscador se desmonta y pierde el foco en cada letra
+              toolbar: TaxonomyToolbar,
+            }}
+            slotProps={{
+              toolbar: {
+                chipLabel: filter ? filterLabel() : null,
+                onClearFilter: () => goTo(tabValue, null),
+                showHint: Boolean(drillDown[tabValue]),
+              },
             }}
             sx={{
               [`& .${gridClasses.cell}`]: { display: 'flex', alignItems: 'center' },
