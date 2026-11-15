@@ -112,3 +112,14 @@ export function moveBlockReason(animal) {
   if (animal.status === 'reserved') return 'Primero libera el apartado';
   return 'Ya no está en tu criadero';
 }
+
+// ----------------------------------------------------------------------
+// Foto que se muestra de un ejemplar: la propia; si no tiene, la de su
+// variedad; si no, la de su especie (las de especie y variedad, editadas en
+// «Especies y morphs», son la fuente de verdad). Mismo orden que el API.
+export function displayImage(animal, species = animal?.species) {
+  const own = animal?.image || animal?.photos?.[0];
+  if (own) return own;
+  const variety = (animal?.morphs ?? []).find((m) => m.image)?.image;
+  return variety || species?.image || '';
+}

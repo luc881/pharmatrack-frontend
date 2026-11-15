@@ -206,7 +206,22 @@ export function AnimalTaxonomyView() {
     COLUMNS_STORAGE_KEY,
     HIDE_COLUMNS
   );
-  const [dialog, setDialog] = useState(null); // { current } — abierto si no es null
+  const [dialog, setDialogState] = useState(null); // grupos y géneros
+  // Especie y variedad se editan en su propia página (fotos y ficha de
+  // cuidados); grupos y géneros siguen en el diálogo
+  const setDialog = (next) => {
+    if (next && (next.tab === 'species' || next.tab === 'morphs')) {
+      const isMorph = next.tab === 'morphs';
+      const { animal } = paths.dashboard;
+      const speciesId = next.initial?.species_id;
+      const href = next.current
+        ? (isMorph ? animal.morphEdit : animal.speciesEdit)(next.current.id)
+        : `${isMorph ? animal.morphNew : animal.speciesNew}${speciesId ? `?species_id=${speciesId}` : ''}`;
+      navigate(href, { state: { from: currentUrl() } });
+      return;
+    }
+    setDialogState(next);
+  };
   const [rowToDelete, setRowToDelete] = useState(null);
   const [managing, setManaging] = useState(null); // especie cuyo cultivo se gestiona
 
@@ -358,9 +373,12 @@ export function AnimalTaxonomyView() {
   useEffect(() => {
     if (!editSpeciesId || speciesLoading) return;
     const sp = allSpecies.find((s) => s.id === Number(editSpeciesId));
-    if (sp) setDialog({ tab: 'species', current: sp });
-    // reemplaza la URL (quita edit_species) para no repetir la apertura al recargar
-    goTo(sp ? 'species' : tabValue, sp ? { type: 'species', id: sp.id } : filter, { replace: true });
+    // la ficha de la especie tiene su propia página
+    if (sp) {
+      navigate(paths.dashboard.animal.speciesEdit(sp.id), { replace: true });
+      return;
+    }
+    goTo(tabValue, filter, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editSpeciesId, speciesLoading]);
 
@@ -467,11 +485,11 @@ export function AnimalTaxonomyView() {
           ? [<CustomGridActionsCellItem label="Ver ficha" icon={ACTION_ICONS.ficha} onClick={() => navigate(paths.dashboard.animal.species(row.id), { state: { from: currentUrl() } })} />]
           : []),
         ...(canDo(kind, 'update')
-          ? [<CustomGridActionsCellItem label="Editar" icon={ACTION_ICONS.edit} onClick={() => setDialog({ tab: kind, current: row })} />]
+          ? [<CustomGridActionsCellItem label={kind === 'species' ? 'Editar especie y ficha' : 'Editar'} icon={ACTION_ICONS.edit} onClick={() => setDialog({ tab: kind, current: row })} />]
           : []),
         // En el menú "⋮", con etiqueta
         ...(kind === 'species' && canDo('morphs', 'create')
-          ? [<CustomGridActionsCellItem showInMenu label="Añadir morph" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
+          ? [<CustomGridActionsCellItem showInMenu label="Añadir variedad" icon={ACTION_ICONS.add} onClick={() => setDialog({ tab: 'morphs', current: null, initial: { species_id: row.id } })} />]
           : []),
         ...(tabValue === 'species' && canDo(kind, 'update')
           ? [<CustomGridActionsCellItem showInMenu label="Gestionar cultivo" icon={ACTION_ICONS.cultivo} onClick={() => setManaging({ row, kind })} />]
@@ -732,8 +750,14 @@ export function AnimalTaxonomyView() {
               )}
             </Stack>
           }
-          sx={{ mb: { xs: 3, md: 5 } }}
+          sx={{ mb: 1.5 }}
         />
+        {/* Que se sepa qué se edita aquí: lo que ve el cliente en la tienda */}
+        <Typography variant="body2" sx={{ mb: { xs: 3, md: 4 }, maxWidth: 720, color: 'text.secondary' }}>
+          Aquí se edita lo que la tienda muestra de cada especie y variedad: sus fotos, la
+          descripción y la ficha de cuidados (temperatura, humedad, dieta…). Abre una especie con
+          «Editar especie y ficha».
+        </Typography>
 
         {tabValue === 'species' && (
           <AnimalCapAlert shown={animals.length} total={animalsTotal} sx={{ mb: 3 }} />

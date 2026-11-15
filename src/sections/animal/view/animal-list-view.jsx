@@ -64,6 +64,7 @@ import {
   SEX_LABELS,
   statusLabel,
   animalUnits,
+  displayImage,
   speciesLabel,
   STATUS_COLORS,
   PURPOSE_COLORS,
@@ -711,7 +712,8 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, ope
   const selectedHere = deletable.filter((a) => selected.has(a.id)).length;
   const allSelected = deletable.length > 0 && selectedHere === deletable.length;
 
-  const photo = animals.find((a) => a.image || a.photos?.[0]);
+  // la especie se ilustra con su propia foto; si no tiene, con la de algún ejemplar
+  const photo = species.image || animals.map((a) => displayImage(a, species)).find(Boolean) || '';
   // Precio solo de los que están en venta (pie de cría y crianza no tienen)
   const prices = animals.filter((a) => purposeOf(a) === 'sale').map((a) => a.price);
   const minPrice = Math.min(...prices);
@@ -746,7 +748,7 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, ope
         <TableCell>
           <Box sx={{ gap: 1.5, display: 'flex', alignItems: 'center' }}>
             <Avatar
-              src={photo?.image || photo?.photos?.[0] || ''}
+              src={photo}
               variant="rounded"
               sx={{ width: 40, height: 40, bgcolor: 'background.neutral' }}
             >
@@ -823,11 +825,12 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, ope
               </Button>
             )}
             {canUpdateSpecies && (
-              <Tooltip title="Editar ficha de cuidados">
+              <Tooltip title="Editar especie y ficha de cuidados">
                 <IconButton
                   size="small"
                   component={RouterLink}
-                  href={`${paths.dashboard.animal.taxonomy}?edit_species=${species.id}`}
+                  href={paths.dashboard.animal.speciesEdit(species.id)}
+                  state={{ from: `${pathname}${search}` }}
                   onClick={(event) => event.stopPropagation()}
                 >
                   <Iconify icon="solar:document-text-bold" width={18} />
@@ -988,7 +991,7 @@ function CriaderoRow({ animal, species, showStock, canUpdate, isSelected, onTogg
       <TableCell>
         <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
           <Avatar
-            src={animal.image || animal.photos?.[0] || ''}
+            src={displayImage(animal, species)}
             variant="rounded"
             sx={{ width: 28, height: 28, bgcolor: 'background.default' }}
           >
@@ -1085,7 +1088,7 @@ export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onD
       <TableCell>
         <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
           <Avatar
-            src={animal.image || animal.photos?.[0] || ''}
+            src={displayImage(animal)}
             variant="rounded"
             sx={{ width: 28, height: 28, bgcolor: 'background.default' }}
           >

@@ -862,7 +862,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               </Box>
 
               <Typography variant="caption" sx={{ mt: 1, display: 'block', color: 'text.secondary' }}>
-                Si no se indica una imagen principal, la primera foto se usa como principal (también en el POS).
+                Fotos propias de este ejemplar (útil cuando cada uno se ve distinto, como una serpiente). Sin fotos
+                propias se usan las de su variedad o especie, que se editan en «Especies y morphs».
               </Typography>
             </Box>
           </Box>

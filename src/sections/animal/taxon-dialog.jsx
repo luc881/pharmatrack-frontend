@@ -2,10 +2,10 @@ import { mutate } from 'swr';
 import { useState } from 'react';
 
 import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -18,7 +18,6 @@ import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 import { handleApiError } from 'src/utils/handle-api-error';
 
 import { endpoints } from 'src/lib/axios';
-import { uploadToCloudinary } from 'src/lib/cloudinary';
 import {
   createGenus,
   updateGenus,
@@ -38,6 +37,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { speciesLabel } from './utils';
+import { TaxonPhotosField } from './taxon-photos-field';
 
 // ----------------------------------------------------------------------
 
@@ -231,7 +231,20 @@ function SavePreview({ parts }) {
 // Diálogo de crear/editar cualquier nivel de la taxonomía. `current` = editar;
 // `initial` prellena campos al crear (p. ej. el género elegido en el form de
 // animal). onSaved recibe la entidad guardada para poder auto-seleccionarla.
-export function TaxonDialog({ tab, singular, current, initial, genera, allSpecies, groupsFlat, onClose, onSaved }) {
+// asPage: el mismo formulario como página (editar especie o variedad tiene
+// su propia ruta); si no, diálogo (grupos, géneros y altas al vuelo).
+export function TaxonDialog({
+  tab,
+  singular,
+  current,
+  initial,
+  genera,
+  allSpecies,
+  groupsFlat,
+  onClose,
+  onSaved,
+  asPage = false,
+}) {
   const isEdit = !!current;
   const base = current ?? initial;
 
@@ -256,6 +269,8 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
     diet: base?.diet ?? '',
     notes: base?.notes ?? '',
     image: base?.image ?? null,
+    // todas las fotos; la primera es la principal (el API la deja en `image`)
+    photos: base?.photos?.length ? base.photos : base?.image ? [base.image] : [],
   });
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -265,22 +280,6 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
   const [newGroup, setNewGroup] = useState(null);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
-
-  // Foto del taxón: tarjeta del catálogo cuando la especie no tiene ejemplares
-  // (la mayoría hoy). PUT parcial: el campo viaja siempre en el payload, pero
-  // solo cambia lo que este diálogo edita.
-  const handlePickImage = async (file) => {
-    if (!file) return;
-    setUploadingImage(true);
-    try {
-      const url = await uploadToCloudinary(file);
-      setForm((f) => ({ ...f, image: url }));
-    } catch (error) {
-      toast.error(error.message || 'Error al subir la imagen');
-    } finally {
-      setUploadingImage(false);
-    }
-  };
 
   // Un subgrupo siempre puede destacarse; un raíz sólo si está visible
   const canFeature = !!form.parent_id || form.show_public;
@@ -386,14 +385,14 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           habitat: form.habitat || null,
           diet: form.diet || null,
           notes: form.notes || null,
-          image: form.image || null,
+          photos: form.photos,
         },
         morphs: {
           species_id: Number(form.species_id),
           name: quoteMorph(form.name),
           show_public: form.show_public,
           description: form.description || null,
-          image: form.image || null,
+          photos: form.photos,
         },
       }[tab];
 
@@ -414,11 +413,10 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
     }
   };
 
-  return (
-    <Dialog open fullWidth maxWidth={tab === 'species' ? 'sm' : 'xs'} onClose={onClose}>
-      <DialogTitle>{`${isEdit ? 'Editar' : 'Nuevo'} ${singular}`}</DialogTitle>
+  const title = `${isEdit ? 'Editar' : singular === 'variedad' ? 'Nueva' : 'Nuevo'} ${singular}`;
 
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+  const body = (
+    <>
         {tab === 'groups' && (
           <Autocomplete
             options={parentOptions}
@@ -556,55 +554,11 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
         )}
 
         {(tab === 'species' || tab === 'morphs') && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box
-              sx={{
-                width: 72,
-                height: 72,
-                flexShrink: 0,
-                borderRadius: 1.5,
-                overflow: 'hidden',
-                bgcolor: 'background.neutral',
-                display: 'grid',
-                placeItems: 'center',
-              }}
-            >
-              {form.image ? (
-                <Box component="img" src={form.image} alt="" sx={{ width: 1, height: 1, objectFit: 'cover' }} />
-              ) : (
-                <Iconify icon="solar:gallery-bold" width={28} sx={{ color: 'text.disabled' }} />
-              )}
-            </Box>
-
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Button
-                component="label"
-                variant="outlined"
-                size="small"
-                disabled={uploadingImage}
-                startIcon={<Iconify icon={uploadingImage ? 'eos-icons:loading' : 'solar:upload-bold'} width={16} />}
-              >
-                {uploadingImage ? 'Subiendo…' : form.image ? 'Reemplazar imagen' : 'Subir imagen'}
-                {/* Input anidado y SIN htmlFor: mismo patrón que site-media-view.jsx,
-                    evita que el selector se dispare dos veces en algunos navegadores. */}
-                <Box
-                  component="input"
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(event) => {
-                    handlePickImage(event.target.files?.[0]);
-                    event.target.value = '';
-                  }}
-                />
-              </Button>
-              {form.image && (
-                <Button color="error" size="small" onClick={() => setForm((f) => ({ ...f, image: null }))}>
-                  Quitar imagen
-                </Button>
-              )}
-            </Box>
-          </Box>
+          <TaxonPhotosField
+            photos={form.photos}
+            onChange={(next) => setForm((f) => ({ ...f, photos: next(f.photos) }))}
+            onUploading={setUploadingImage}
+          />
         )}
 
         {/* Del más general al más específico: primero el grupo, luego el nombre */}
@@ -692,11 +646,13 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
               <MenuItem value="genes">Genes combinables (varios por ejemplar)</MenuItem>
             </TextField>
 
-            <Divider sx={{ borderStyle: 'dashed' }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Ficha para el sitio público
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="h6">Ficha de cuidados en la tienda</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Es lo que ve el cliente en la página de cada producto de esta especie (y de sus
+                variedades): descripción, origen, temperatura, humedad, tamaño, dieta…
               </Typography>
-            </Divider>
+            </Box>
 
             <TextField
               label="Descripción"
@@ -741,21 +697,44 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           </>
         )}
 
-      </DialogContent>
+    </>
+  );
 
-      <DialogActions>
-        <Button color="inherit" onClick={onClose}>
-          Cancelar
-        </Button>
-        <Button
-          variant="contained"
-          loading={saving}
-          disabled={!form.name.trim() || missingParent || uploadingImage}
-          onClick={handleSave}
-        >
-          Guardar
-        </Button>
-      </DialogActions>
+  const actions = (
+    <>
+      <Button color="inherit" onClick={onClose}>
+        Cancelar
+      </Button>
+      <Button
+        variant="contained"
+        loading={saving}
+        disabled={!form.name.trim() || missingParent || uploadingImage}
+        onClick={handleSave}
+      >
+        Guardar
+      </Button>
+    </>
+  );
+
+  if (asPage) {
+    return (
+      <Card sx={{ p: 3, maxWidth: 760 }}>
+        <Typography variant="h4" component="h1" sx={{ mb: 3 }}>
+          {title}
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{body}</Box>
+        <Box sx={{ mt: 3, gap: 1.5, display: 'flex', justifyContent: 'flex-end' }}>{actions}</Box>
+      </Card>
+    );
+  }
+
+  return (
+    <Dialog open fullWidth maxWidth={tab === 'species' ? 'sm' : 'xs'} onClose={onClose}>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+        {body}
+      </DialogContent>
+      <DialogActions>{actions}</DialogActions>
     </Dialog>
   );
 }

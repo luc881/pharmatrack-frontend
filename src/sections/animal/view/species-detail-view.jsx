@@ -49,7 +49,7 @@ import { useAuthContext } from 'src/auth/hooks';
 import { TaxonDialog } from '../taxon-dialog';
 import { AnimalRow } from './animal-list-view';
 import { HusbandryPlanCard } from '../husbandry-plan-card';
-import { purposeOf, saleFormatLabel, flattenGroupTree } from '../utils';
+import { purposeOf, displayImage, saleFormatLabel, flattenGroupTree } from '../utils';
 import {
   STOCK,
   HUSBANDRY,
@@ -104,7 +104,22 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
   const { species: allSpecies } = useAllSpecies();
   const { groupTree } = useAnimalGroupTree();
 
-  const [dialog, setDialog] = useState(null); // { tab, current, initial } — TaxonDialog
+  const [dialog, setDialogState] = useState(null);
+  // Especie y variedad se editan en su propia página (fotos y ficha de
+  // cuidados); grupos y géneros siguen en el diálogo
+  const setDialog = (next) => {
+    if (next && (next.tab === 'species' || next.tab === 'morphs')) {
+      const isMorph = next.tab === 'morphs';
+      const { animal } = paths.dashboard;
+      const speciesId = next.initial?.species_id;
+      const href = next.current
+        ? (isMorph ? animal.morphEdit : animal.speciesEdit)(next.current.id)
+        : `${isMorph ? animal.morphNew : animal.speciesNew}${speciesId ? `?species_id=${speciesId}` : ''}`;
+      navigate(href, { state: { from: paths.dashboard.animal.species(species?.id) } });
+      return;
+    }
+    setDialogState(next);
+  };
   const [manage, setManage] = useState(null); // { row, kind } — cultivo de especie o morph
   const [toDelete, setToDelete] = useState(null); // { kind, id, name }
 
@@ -180,7 +195,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
   const scientific = [species.genus?.name, species.name].filter(Boolean).join(' ');
   const isBulk = species.sale_format && species.sale_format !== 'individual';
   const format = saleFormatLabel(species);
-  const photo = animals.find((a) => a.image || a.photos?.[0]);
+  const photo = species?.image || animals.map((a) => displayImage(a, species)).find(Boolean) || '';
 
   const units = availableUnits(animals);
   const kept = keptUnitsBy(animals, [species])[species.id];
@@ -249,7 +264,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
             <Stack spacing={2}>
               <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                 <Avatar
-                  src={photo?.image || photo?.photos?.[0] || ''}
+                  src={photo}
                   alt={scientific}
                   variant="rounded"
                   sx={{

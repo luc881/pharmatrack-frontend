@@ -30,6 +30,7 @@ import {
   purposeOf,
   SEX_LABELS,
   statusLabel,
+  displayImage,
   STATUS_COLORS,
   PURPOSE_LABELS,
   PURPOSE_COLORS,
@@ -53,7 +54,9 @@ export function AnimalDetailsView({ animal, animalError }) {
   const canUpdate = user?.permissions?.includes('animals.update');
 
   const gallery = useMemo(() => {
-    const urls = [...(animal?.image ? [animal.image] : []), ...(animal?.photos ?? [])];
+    const own = [...(animal?.image ? [animal.image] : []), ...(animal?.photos ?? [])];
+    // sin fotos propias se muestra la de su variedad o especie
+    const urls = own.length ? own : [displayImage(animal)].filter(Boolean);
     return [...new Set(urls)];
   }, [animal]);
 

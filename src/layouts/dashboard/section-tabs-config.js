@@ -34,7 +34,7 @@ const ALL_SECTIONS = [
       // «Hoja de inventario») es otra vista de «En venta».
       { label: 'En venta', path: D.animal.root, match: [D.animal.sheet] },
       { label: 'Pie de cría y crianza', path: D.animal.breeding },
-      { label: 'Especies y morphs', path: D.animal.taxonomy, match: [`${D.animal.root}/species`] },
+      { label: 'Especies y morphs', path: D.animal.taxonomy, match: [`${D.animal.root}/species`, `${D.animal.root}/morph`] },
       { label: 'Bitácora', path: D.animal.log, module: 'bitacora' },
       { label: 'Vendidos y bajas', path: D.animal.history },
     ],

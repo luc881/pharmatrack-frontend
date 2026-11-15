@@ -32,6 +32,8 @@ describe('findSection', () => {
     expect(where('/dashboard/animal/history')).toEqual(['animales', 'Vendidos y bajas', null]);
     expect(where('/dashboard/animal/taxonomy')).toEqual(['animales', 'Especies y morphs', null]);
     expect(where('/dashboard/animal/species/3')).toEqual(['animales', 'Especies y morphs', null]);
+    expect(where('/dashboard/animal/species/3/edit')).toEqual(['animales', 'Especies y morphs', null]);
+    expect(where('/dashboard/animal/morph/4/edit')).toEqual(['animales', 'Especies y morphs', null]);
     expect(where('/dashboard/user/account')).toEqual(['ajustes', 'Usuarios', null]);
   });
 

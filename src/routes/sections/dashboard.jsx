@@ -85,6 +85,7 @@ const BranchEditPage   = lazy(() => import('src/pages/dashboard/branch/edit'));
 const AnimalListPage     = lazy(() => import('src/pages/dashboard/animal/list'));
 const AnimalBreedingPage = lazy(() => import('src/pages/dashboard/animal/breeding'));
 const AnimalHistoryPage  = lazy(() => import('src/pages/dashboard/animal/history'));
+const TaxonEditPage      = lazy(() => import('src/pages/dashboard/animal/taxon-edit'));
 const AnimalDetailsPage  = lazy(() => import('src/pages/dashboard/animal/details'));
 const AnimalCreatePage   = lazy(() => import('src/pages/dashboard/animal/new'));
 const AnimalEditPage     = lazy(() => import('src/pages/dashboard/animal/edit'));
@@ -385,6 +386,10 @@ export const dashboardRoutes = [
           { path: 'taxonomy',   element: <AnimalTaxonomyPage /> },
           { path: 'sheet',      element: <AnimalSheetPage /> },
           { path: 'log',        element: <AnimalLogPage /> },
+          { path: 'species/new', element: guard(P.speciesCreate, <TaxonEditPage kind="species" />) },
+          { path: 'species/:id/edit', element: guard(P.speciesUpdate, <TaxonEditPage kind="species" />) },
+          { path: 'morph/new',   element: guard(P.morphsCreate, <TaxonEditPage kind="morph" />) },
+          { path: 'morph/:id/edit', element: guard(P.morphsUpdate, <TaxonEditPage kind="morph" />) },
           { path: 'species/:id', element: <AnimalSpeciesPage /> },
           { path: 'new',        element: guard(P.animalsCreate, <AnimalCreatePage />) },
           { path: ':id',        element: <AnimalDetailsPage /> },
