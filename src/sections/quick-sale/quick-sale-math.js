@@ -39,6 +39,32 @@ export function cartTotals(lines, itemsById) {
   };
 }
 
+// Cuánto de la cuenta es de cada dueño (consignor_id; null = propio): el total
+// de cada línea, ya con su descuento e impuesto. Propio va primero.
+export function ownerSplit(lines, itemsById) {
+  const byOwner = new Map();
+  lines.forEach((line) => {
+    const item = itemsById.get(line.product_id);
+    if (!item) return;
+    const owner = item.consignor_id ?? null;
+    const { total } = lineCents(item, line.quantity, line.discount);
+    byOwner.set(owner, (byOwner.get(owner) ?? 0) + total);
+  });
+  return [...byOwner]
+    .map(([consignor_id, total]) => ({ consignor_id, total: pesos(total) }))
+    .sort((a, b) => (a.consignor_id !== null) - (b.consignor_id !== null));
+}
+
+// Con nombre, para mostrarlo; `suppliers` son los dueños guardados en el equipo
+export const namedSplit = (lines, itemsById, suppliers = []) =>
+  ownerSplit(lines, itemsById).map((part) => ({
+    ...part,
+    name:
+      part.consignor_id === null
+        ? 'Propio'
+        : (suppliers.find((s) => s.id === part.consignor_id)?.name ?? 'En consigna'),
+  }));
+
 // Tope del descuento de una línea en pesos (_check_max_discount en el API);
 // null = el producto no tiene tope
 export function maxDiscount(item, quantity) {

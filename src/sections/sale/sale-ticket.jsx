@@ -135,6 +135,15 @@ export function SaleTicket({ ticket, business = {}, width = 80, onReady }) {
       {t.metodo_pago && <Row label="Pago" value={t.metodo_pago} />}
       {t.pagado ? <Row label="Pagado" value={money(t.pagado)} /> : null}
       {change > 0.009 && <Row label="Cambio" value={money(change)} />}
+      {/* Venta rápida con productos de más de un dueño: cuánto es de cada quien */}
+      {t.reparto?.length ? (
+        <>
+          <hr />
+          {t.reparto.map((part) => (
+            <Row key={part.name} label={part.name} value={money(part.total)} />
+          ))}
+        </>
+      ) : null}
 
       <hr />
       <div className="c">

@@ -18,7 +18,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { fCurrency } from 'src/utils/format-number';
 
-import { toNumber, lineTotals } from './quick-sale-math';
+import { toNumber, lineTotals, namedSplit } from './quick-sale-math';
 
 // ----------------------------------------------------------------------
 
@@ -122,6 +122,8 @@ export function QuickSaleCart({ quick, charging, printTicket, onPrintTicketChang
   const [discountFor, setDiscountFor] = useState(null);
 
   const empty = cart.length === 0;
+  // Solo si la cuenta mezcla productos de más de un dueño
+  const split = namedSplit(cart, itemsById, quick.suppliers);
   const receivedNumber = toNumber(received);
   const short = method === 'cash' && received !== '' && receivedNumber < totals.total;
 
@@ -206,6 +208,29 @@ export function QuickSaleCart({ quick, charging, printTicket, onPrintTicketChang
           {fCurrency(totals.total) || '$0'}
         </Typography>
       </Stack>
+
+      {split.length > 1 && (
+        <Box sx={{ mt: 1, p: 1.5, borderRadius: 1, bgcolor: 'action.hover' }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+            Reparto
+          </Typography>
+          <Stack component="ul" aria-label="Reparto" sx={{ m: 0, p: 0, listStyle: 'none' }}>
+            {split.map((part) => (
+              <Stack
+                key={part.consignor_id ?? 'own'}
+                component="li"
+                direction="row"
+                sx={{ gap: 2, justifyContent: 'space-between' }}
+              >
+                <Typography variant="body2">{part.name}</Typography>
+                <Typography variant="subtitle2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {fCurrency(part.total) || '$0'}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+        </Box>
+      )}
 
       <Button
         size="small"

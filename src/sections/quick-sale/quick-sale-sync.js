@@ -6,7 +6,7 @@ import { toItem, BUSINESS_URL } from 'src/sections/sale/print-ticket';
 
 import { refreshSession } from 'src/auth/context/jwt/utils';
 
-import { cartTotals } from './quick-sale-math';
+import { cartTotals, namedSplit } from './quick-sale-math';
 import {
   getKV,
   setKV,
@@ -32,9 +32,21 @@ export const buildTicketItem = (item, quantity, discount = 0) =>
     item.animal
   );
 
-export function buildLocalSale({ key, folio, soldAt, branchId, method, cart, itemsById }) {
+export function buildLocalSale({
+  key,
+  folio,
+  soldAt,
+  branchId,
+  method,
+  cart,
+  itemsById,
+  suppliers = [],
+}) {
   const totals = cartTotals(cart, itemsById);
+  // Venta mezclada (productos de más de un dueño): cuánto es de cada quien
+  const owners = namedSplit(cart, itemsById, suppliers);
   return {
+    ...(owners.length > 1 ? { owners } : {}),
     idempotency_key: key,
     folio,
     sold_at: soldAt,
@@ -281,6 +293,7 @@ export async function enqueueSale({ key, cart, itemsById, method, branchId }) {
     method,
     cart,
     itemsById,
+    suppliers: (await getKV('context'))?.suppliers ?? [],
   });
   return (await addSale(sale)) ? sale : null;
 }

@@ -465,3 +465,69 @@ describe('venta rápida: talón de orden', () => {
     expect(screen.queryByTestId('prep-order')).toBeNull();
   });
 });
+
+// ----------------------------------------------------------------------
+
+describe('venta rápida: reparto por dueño en una venta mezclada', () => {
+  const mantis = {
+    ...base,
+    id: 5,
+    title: 'Mantis',
+    category: 'Animales',
+    price_retail: '300.00',
+    consignor_id: 9,
+  };
+
+  beforeEach(async () => {
+    catalog = [cueva, musgo, mantis];
+    await setKV('context', { suppliers: [{ id: 9, name: 'Insectario Vecino' }] });
+  });
+
+  it('la cuenta dice cuánto es de cada quien, con el descuento ya aplicado', async () => {
+    const user = userEvent.setup();
+    mount();
+    await user.click(await product('Cueva de resina'));
+    // con un solo dueño no hay nada que repartir
+    expect(screen.queryByText('Reparto')).toBeNull();
+
+    await user.click(await product('Cueva de resina'));
+    await user.click(await product('Mantis'));
+
+    const split = within(await screen.findByRole('list', { name: 'Reparto' }));
+    expect(split.getByText('Propio')).toBeInTheDocument();
+    expect(split.getByText('$160')).toBeInTheDocument();
+    expect(split.getByText('Insectario Vecino')).toBeInTheDocument();
+    expect(split.getByText('$300')).toBeInTheDocument();
+  });
+
+  it('la venta guardada y su ticket llevan el reparto', async () => {
+    const KEY = '99999999-2222-3333-4444-555555555555';
+    const sale = await enqueueSale({
+      key: KEY,
+      cart: [
+        { product_id: 1, quantity: 2, discount: 10 },
+        { product_id: 5, quantity: 1, discount: 0 },
+      ],
+      itemsById: new Map([cueva, mantis].map((i) => [i.id, i])),
+      method: 'cash',
+      branchId: 7,
+    });
+    expect(sale.owners).toEqual([
+      { consignor_id: null, name: 'Propio', total: 150 },
+      { consignor_id: 9, name: 'Insectario Vecino', total: 300 },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <QuickSaleTicketView saleKey={KEY} />
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('Insectario Vecino')).toBeInTheDocument();
+    expect(screen.getByText('$150.00')).toBeInTheDocument();
+  });
+
+  it('una venta de un solo dueño no lleva reparto', async () => {
+    const sale = await sell('llave-0001', mantis);
+    expect(sale.owners).toBeUndefined();
+  });
+});

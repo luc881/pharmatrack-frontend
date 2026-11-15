@@ -79,6 +79,7 @@ export function QuickSaleTicketView({ saleKey }) {
     total: sale.totals.total,
     metodo_pago: PAYMENT_LABELS[sale.payment.method_payment] ?? sale.payment.method_payment,
     pagado: sale.payment.amount,
+    reparto: sale.owners,
   };
 
   const hasOrder = prepLines(sale).length > 0;
