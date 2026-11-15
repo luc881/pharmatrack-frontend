@@ -103,6 +103,8 @@ export const paths = {
     animal: {
       root: `${ROOTS.DASHBOARD}/animal`,
       new: `${ROOTS.DASHBOARD}/animal/new`,
+      breeding: `${ROOTS.DASHBOARD}/animal/breeding`,
+      history: `${ROOTS.DASHBOARD}/animal/history`,
       taxonomy: `${ROOTS.DASHBOARD}/animal/taxonomy`,
       sheet: `${ROOTS.DASHBOARD}/animal/sheet`,
       log: `${ROOTS.DASHBOARD}/animal/log`,

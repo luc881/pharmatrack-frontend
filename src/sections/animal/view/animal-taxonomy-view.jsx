@@ -766,11 +766,11 @@ export function AnimalTaxonomyView() {
     <>
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
-          heading="Taxonomía"
+          heading="Especies y morphs"
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Animales', href: paths.dashboard.animal.root },
-            { name: 'Taxonomía' },
+            { name: 'Especies y morphs' },
           ]}
           action={
             <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>

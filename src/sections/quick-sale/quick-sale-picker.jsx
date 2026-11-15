@@ -1,7 +1,12 @@
-import { useState } from 'react';
+import useSWR from 'swr';
+import { useMemo, useState } from 'react';
 import { useDebounce } from 'minimal-shared/hooks';
 
+import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import List from '@mui/material/List';
+import Tabs from '@mui/material/Tabs';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Switch from '@mui/material/Switch';
@@ -13,74 +18,68 @@ import ListItemText from '@mui/material/ListItemText';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
+import { matchesWords } from 'src/utils/plain';
 import { fCurrency } from 'src/utils/format-number';
 
+import { fetcher, endpoints } from 'src/lib/axios';
+import { useGetAnimals } from 'src/actions/animal';
 import { useGetProducts, toggleProductQuickSale } from 'src/actions/product';
 
 import { toast } from 'src/components/snackbar';
 
+import { purposeOf } from 'src/sections/animal/utils';
+
 // ----------------------------------------------------------------------
 
-// «+ Agregar productos»: marca o desmarca cualquier producto (también los
-// gemelos de animales) sin salir de la venta rápida. Necesita internet.
-export function QuickSalePicker({ onClose }) {
-  const [search, setSearch] = useState('');
-  const debounced = useDebounce(search, 300);
-  const { products, productsLoading, productsMutate } = useGetProducts({
-    search: debounced,
-    pageSize: 30,
-    isActive: true,
-    ordering: 'title',
-  });
-  const [busy, setBusy] = useState(null);
+const PAGE = 30;
 
-  const toggle = async (product) => {
-    setBusy(product.id);
+const scientific = (species) => [species.genus?.name, species.name].filter(Boolean).join(' ');
+
+// «G-2 Tangerine»: código y morphs, lo que distingue a un ejemplar de otro
+const animalName = (animal) => [animal.code, ...(animal.morphs ?? []).map((m) => m.name)].join(' ');
+
+// «+ Agregar productos»: elige qué sale como botón en la venta rápida, sin
+// salir de ella. Los animales van aparte de los productos: se buscan por
+// especie (nombre común o científico) y no por el título de su producto
+// gemelo. Necesita internet.
+export function QuickSalePicker({ onClose }) {
+  const [tab, setTab] = useState('animals');
+  const [search, setSearch] = useState('');
+  const [busy, setBusy] = useState(() => new Set());
+
+  // Marca o desmarca productos (los de `ids`) y avisa si alguno falla
+  const toggle = async (ids, after) => {
+    setBusy((prev) => new Set([...prev, ...ids]));
     try {
-      await toggleProductQuickSale(product.id);
-      await productsMutate();
-    } catch (error) {
-      toast.error(error?.message || 'No se pudo cambiar el producto');
+      const results = await Promise.allSettled(ids.map((id) => toggleProductQuickSale(id)));
+      const failed = results.find((r) => r.status === 'rejected');
+      if (failed) toast.error(failed.reason?.message || 'No se pudo cambiar');
+      await after();
     } finally {
-      setBusy(null);
+      setBusy((prev) => new Set([...prev].filter((id) => !ids.includes(id))));
     }
   };
 
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Productos de la venta rápida</DialogTitle>
+      <DialogTitle>Qué se vende en la venta rápida</DialogTitle>
       <DialogContent>
+        <Tabs value={tab} onChange={(_, value) => setTab(value)} sx={{ mb: 2 }}>
+          <Tab value="animals" label="Animales" />
+          <Tab value="products" label="Productos" />
+        </Tabs>
         <TextField
           autoFocus
           fullWidth
-          label="Buscar producto"
+          size="small"
+          label="Buscar"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          sx={{ mt: 1 }}
         />
-        <List>
-          {products.map((product) => (
-            <ListItem
-              key={product.id}
-              disableGutters
-              secondaryAction={
-                <Switch
-                  edge="end"
-                  checked={Boolean(product.quick_sale)}
-                  disabled={busy === product.id}
-                  onChange={() => toggle(product)}
-                  slotProps={{ input: { 'aria-label': `Venta rápida: ${product.title}` } }}
-                />
-              }
-            >
-              <ListItemText primary={product.title} secondary={fCurrency(product.price_retail)} />
-            </ListItem>
-          ))}
-        </List>
-        {!productsLoading && products.length === 0 && (
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Ningún producto coincide con la búsqueda.
-          </Typography>
+        {tab === 'animals' ? (
+          <AnimalsTab search={search} busy={busy} onToggle={toggle} />
+        ) : (
+          <ProductsTab search={search} busy={busy} onToggle={toggle} />
         )}
       </DialogContent>
       <DialogActions>
@@ -89,5 +88,157 @@ export function QuickSalePicker({ onClose }) {
         </Button>
       </DialogActions>
     </Dialog>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function AnimalsTab({ search, busy, onToggle }) {
+  // ponytail: una página de 500 (tope del API), igual que la lista de animales
+  const { animals, animalsLoading } = useGetAnimals({ page: 1, pageSize: 500 });
+  // Lo ya marcado sale del catálogo de la venta rápida (una sola petición)
+  const { data: catalog, mutate } = useSWR(endpoints.product.quickSale, fetcher, {
+    revalidateOnFocus: false,
+  });
+  const marked = useMemo(() => new Set((catalog ?? []).map((item) => item.id)), [catalog]);
+
+  const groups = useMemo(() => {
+    const bySpecies = new Map();
+    animals
+      // solo lo que se puede cobrar: en venta y disponible
+      .filter((a) => a.species && a.status === 'available' && purposeOf(a) === 'sale')
+      .filter((a) =>
+        matchesWords(
+          `${a.species.common_name ?? ''} ${scientific(a.species)} ${animalName(a)}`,
+          search
+        )
+      )
+      .forEach((a) => {
+        if (!bySpecies.has(a.species.id))
+          bySpecies.set(a.species.id, { species: a.species, animals: [] });
+        bySpecies.get(a.species.id).animals.push(a);
+      });
+    return [...bySpecies.values()].sort((x, y) =>
+      (x.species.common_name ?? scientific(x.species)).localeCompare(
+        y.species.common_name ?? scientific(y.species)
+      )
+    );
+  }, [animals, search]);
+
+  if (!animalsLoading && groups.length === 0) {
+    return (
+      <Typography variant="body2" sx={{ mt: 3, color: 'text.secondary' }}>
+        {search
+          ? 'Ningún animal en venta coincide con la búsqueda.'
+          : 'No hay animales en venta. Ponlos en venta en Animales → «En venta».'}
+      </Typography>
+    );
+  }
+
+  return groups.map(({ species, animals: list }) => {
+    const name = species.common_name ?? scientific(species);
+    const pending = list.filter((a) => !marked.has(a.product_id)).map((a) => a.product_id);
+    return (
+      <Box key={species.id} component="section" aria-label={name} sx={{ mt: 2.5 }}>
+        <Stack
+          direction="row"
+          sx={{ gap: 2, alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <Box>
+            <Typography variant="subtitle2">{name}</Typography>
+            <Typography variant="caption" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
+              {scientific(species)}
+            </Typography>
+          </Box>
+          {pending.length > 0 && (
+            <Button
+              size="small"
+              aria-label={`Marcar todos: ${name}`}
+              disabled={pending.some((id) => busy.has(id))}
+              onClick={() => onToggle(pending, mutate)}
+            >
+              Marcar todos ({pending.length})
+            </Button>
+          )}
+        </Stack>
+        <List dense disablePadding>
+          {list.map((animal) => (
+            <ListItem
+              key={animal.id}
+              disableGutters
+              secondaryAction={
+                <Switch
+                  edge="end"
+                  checked={marked.has(animal.product_id)}
+                  disabled={busy.has(animal.product_id)}
+                  onChange={() => onToggle([animal.product_id], mutate)}
+                  slotProps={{ input: { 'aria-label': `Venta rápida: ${animalName(animal)}` } }}
+                />
+              }
+            >
+              <ListItemText
+                primary={animalName(animal)}
+                secondary={[
+                  fCurrency(animal.price),
+                  Number(animal.stock) > 1 ? `${animal.stock} disponibles` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+    );
+  });
+}
+
+// ----------------------------------------------------------------------
+
+function ProductsTab({ search, busy, onToggle }) {
+  const debounced = useDebounce(search, 300);
+  const [size, setSize] = useState(PAGE);
+  const { products, productsTotal, productsLoading, productsMutate } = useGetProducts({
+    search: debounced,
+    pageSize: size,
+    isActive: true,
+    ordering: 'title',
+    // los animales tienen su propia pestaña
+    excludeAnimalTwins: true,
+  });
+  const more = productsTotal - products.length;
+
+  return (
+    <>
+      <List>
+        {products.map((product) => (
+          <ListItem
+            key={product.id}
+            disableGutters
+            secondaryAction={
+              <Switch
+                edge="end"
+                checked={Boolean(product.quick_sale)}
+                disabled={busy.has(product.id)}
+                onChange={() => onToggle([product.id], productsMutate)}
+                slotProps={{ input: { 'aria-label': `Venta rápida: ${product.title}` } }}
+              />
+            }
+          >
+            <ListItemText primary={product.title} secondary={fCurrency(product.price_retail)} />
+          </ListItem>
+        ))}
+      </List>
+      {more > 0 && (
+        <Button fullWidth onClick={() => setSize((prev) => prev + Math.min(more, 100))}>
+          Ver más ({more})
+        </Button>
+      )}
+      {!productsLoading && products.length === 0 && (
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Ningún producto coincide con la búsqueda.
+        </Typography>
+      )}
+    </>
   );
 }

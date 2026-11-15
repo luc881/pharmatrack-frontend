@@ -72,7 +72,7 @@ export function AnimalDetailsView({ animal, animalError }) {
               variant="contained"
               sx={{ mt: 3 }}
             >
-              Ir a Mi criadero
+              Ir a Animales
             </Button>
           }
           sx={{ py: 10 }}

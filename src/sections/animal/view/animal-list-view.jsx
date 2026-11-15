@@ -38,15 +38,17 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
+import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { EmptyList, EmptyContent } from 'src/components/empty-content';
 
 import { useAuthContext } from 'src/auth/hooks';
 
 import { AnimalCapAlert } from '../animal-cap-alert';
+import { SaleViewSwitch } from '../sale-view-switch';
 import { QrLabelsDialog } from '../qr-labels-dialog';
 import { MoveAnimalMenu } from '../move-animal-dialog';
+import { PutOnSaleDialog } from '../put-on-sale-dialog';
 import {
   PURPOSES,
   purposeOf,
@@ -65,27 +67,62 @@ import {
 
 // ----------------------------------------------------------------------
 
-// Filtro por destino: los de venta/cría/crianza entre los vivos; vendidos y
-// bajas por estado
-const DESTINATIONS = [
-  { value: 'all', label: 'Todo' },
-  ...PURPOSES.map((p) => ({ value: p, label: PURPOSE_LABELS[p] })),
-  { value: 'sold', label: 'Vendidos' },
-  { value: 'deceased', label: 'Bajas' },
-];
-
 const isBulkSpecies = (species) => !!species?.sale_format && species.sale_format !== 'individual';
 
 // Colonia o paquete que se quedó en 0: solo se ve en «Todo», en gris
 const isEmptyBulk = (animal) =>
   animal.status === 'available' && isBulkSpecies(animal.species) && Number(animal.stock) === 0;
 
-function matchesDestination(animal, destination) {
-  if (destination === 'all') return true;
-  if (destination === 'sold' || destination === 'deceased') return animal.status === destination;
-  const live = animal.status === 'available' || animal.status === 'reserved';
-  return live && !isEmptyBulk(animal) && purposeOf(animal) === destination;
-}
+const isLive = (animal) => animal.status === 'available' || animal.status === 'reserved';
+
+// Qué ejemplares entran en cada filtro. Los de área (sale, breeding, history)
+// son el «Todo» de su página; una cepa o paquete en 0 solo se ve ahí, en gris.
+const FILTERS = {
+  sale: (a) => isLive(a) && purposeOf(a) === 'sale',
+  breeding: (a) => isLive(a) && purposeOf(a) !== 'sale',
+  breeder: (a) => isLive(a) && !isEmptyBulk(a) && purposeOf(a) === 'breeder',
+  growing: (a) => isLive(a) && !isEmptyBulk(a) && purposeOf(a) === 'growing',
+  history: (a) => a.status === 'sold' || a.status === 'deceased',
+  sold: (a) => a.status === 'sold',
+  deceased: (a) => a.status === 'deceased',
+};
+
+const FILTER_LABELS = { ...PURPOSE_LABELS, sold: 'Vendidos', deceased: 'Bajas' };
+const FILTER_COLORS = { ...PURPOSE_COLORS, sold: 'text', deceased: 'error' };
+
+// Las tres páginas de animales. Lo que se vende va aparte de lo que no: cada
+// una trae solo lo suyo, con su propia alta.
+//   tabs: filtros dentro de la página (además de «Todo»)
+//   purpose: con qué destino nace un ejemplar dado de alta aquí
+const AREAS = {
+  sale: {
+    heading: 'En venta',
+    intro: 'Lo que se vende: sale en el sitio, en el punto de venta y, si lo marcas, en la venta rápida.',
+    tabs: [],
+    purpose: 'sale',
+    path: paths.dashboard.animal.root,
+    emptyTitle: 'Todavía no hay nada en venta',
+    emptyText: 'Pon en venta un ejemplar, una cepa o un paquete de una especie que ya tengas registrada.',
+  },
+  breeding: {
+    heading: 'Pie de cría y crianza',
+    intro: 'Tus reproductores y las crías o cultivos que todavía no salen a la venta. Nada de aquí se vende ni se anuncia.',
+    tabs: ['breeder', 'growing'],
+    purpose: 'breeder',
+    path: paths.dashboard.animal.breeding,
+    emptyTitle: 'Todavía no hay pie de cría ni crianza',
+    emptyText: 'Registra aquí tus reproductores y las crías que aún no vendes.',
+  },
+  history: {
+    heading: 'Vendidos y bajas',
+    intro: 'Historial: lo que ya se vendió y las bajas.',
+    tabs: ['sold', 'deceased'],
+    purpose: null,
+    path: paths.dashboard.animal.history,
+    emptyTitle: 'Todavía no hay vendidos ni bajas',
+    emptyText: 'Aquí queda lo que se vendió y lo que causó baja.',
+  },
+};
 
 function groupBySpecies(animals) {
   const map = new Map();
@@ -167,10 +204,12 @@ function printPriceList(grouped) {
   setTimeout(() => win.print(), 300);
 }
 
-// «Mi criadero»: arriba cuántos hay en venta, pie de cría y en crianza; la
-// lista agrupa por especie (como producto → lotes) con un chip por destino y
-// al expandir salen los ejemplares con «Mover a…».
-export function AnimalListView() {
+// Una de las tres páginas de animales (`area`: sale | breeding | history).
+// Arriba los conteos; la lista agrupa por especie (como producto → lotes) y al
+// expandir salen los ejemplares con «Mover a…», que es como pasan de una
+// página a otra.
+export function AnimalListView({ area = 'sale' }) {
+  const config = AREAS[area];
   const confirmDialog = useBoolean();
 
   const { user } = useAuthContext();
@@ -186,7 +225,10 @@ export function AnimalListView() {
   const [groupFilter, setGroupFilter] = useState('');
   const [genusFilter, setGenusFilter] = useState(() => Number(searchParams.get('genus_id')) || '');
   const [speciesFilter, setSpeciesFilter] = useState(() => Number(searchParams.get('species_id')) || '');
-  const [destination, setDestination] = useState('all');
+  // filtro dentro de la página; el del área es «Todo»
+  const [destination, setDestination] = useState(area);
+  // alta corta: null = cerrada; { species } = abierta (con o sin especie)
+  const [putOnSale, setPutOnSale] = useState(null);
   const [selected, setSelected] = useState(() => new Set()); // ids de ejemplares
   // recién dado de alta un ejemplar: su especie llega abierta
   const [expanded, setExpanded] = useState(() => new Set(navState?.expand ? [navState.expand] : []));
@@ -229,7 +271,7 @@ export function AnimalListView() {
   }, [animals]);
 
   const visible = useMemo(
-    () => animals.filter((a) => matchesDestination(a, destination)),
+    () => animals.filter(FILTERS[destination]),
     [animals, destination]
   );
   const grouped = useMemo(() => groupBySpecies(visible), [visible]);
@@ -282,36 +324,42 @@ export function AnimalListView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVisible, animalsMutate, confirmDialog]);
 
-  const renderSummary = () => (
-    <Box
-      sx={{
-        gap: 2,
-        mb: 3,
-        display: 'grid',
-        gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
-      }}
-    >
-      {PURPOSES.map((p) => (
-        <Card
-          key={p}
-          variant="outlined"
-          sx={{ borderColor: destination === p ? `${PURPOSE_COLORS[p]}.main` : undefined }}
-        >
-          <CardActionArea onClick={() => setDestination(p)} sx={{ p: 2.5 }}>
-            <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>
-              {PURPOSE_LABELS[p]}
-            </Typography>
-            <Typography variant="h3">{counts[p]}</Typography>
-            {p === 'sale' && (
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                {`${plural(counts.saleAvailable, 'disponible', 'disponibles')} · ${plural(counts.reserved, 'apartado', 'apartados')}`}
+  const renderSummary = () =>
+    area === 'sale' ? (
+      <Card variant="outlined" sx={{ p: 2.5, mb: 3, maxWidth: 360 }}>
+        <Typography component="p" variant="subtitle2" sx={{ color: 'text.secondary' }}>
+          Ejemplares en venta
+        </Typography>
+        <Typography variant="h3">{counts.sale}</Typography>
+        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          {`${plural(counts.saleAvailable, 'disponible', 'disponibles')} · ${plural(counts.reserved, 'apartado', 'apartados')}`}
+        </Typography>
+      </Card>
+    ) : (
+      <Box
+        sx={{
+          gap: 2,
+          mb: 3,
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+        }}
+      >
+        {config.tabs.map((key) => (
+          <Card
+            key={key}
+            variant="outlined"
+            sx={{ borderColor: destination === key ? `${FILTER_COLORS[key]}.main` : undefined }}
+          >
+            <CardActionArea onClick={() => setDestination(key)} sx={{ p: 2.5 }}>
+              <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>
+                {FILTER_LABELS[key]}
               </Typography>
-            )}
-          </CardActionArea>
-        </Card>
-      ))}
-    </Box>
-  );
+              <Typography variant="h3">{counts[key]}</Typography>
+            </CardActionArea>
+          </Card>
+        ))}
+      </Box>
+    );
 
   // Grupo/Género/Especie con búsqueda al teclear (ignora acentos)
   const renderFilters = () => (
@@ -361,10 +409,11 @@ export function AnimalListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Mi criadero"
+          heading={config.heading}
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Mi criadero' },
+            { name: 'Animales' },
+            { name: config.heading },
           ]}
           action={
             <Stack direction="row" spacing={1.5}>
@@ -378,47 +427,80 @@ export function AnimalListView() {
                   Eliminar ({selectedVisible.length})
                 </Button>
               )}
-              <Button
-                variant="outlined"
-                startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
-                onClick={() => printPriceList(groupBySpecies(animals))}
-              >
-                Lista de precios
-              </Button>
-              {canCreate && (
+              {area === 'sale' && (
+                <Button
+                  variant="outlined"
+                  startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
+                  onClick={() => printPriceList(groupBySpecies(animals))}
+                >
+                  Lista de precios
+                </Button>
+              )}
+              {canCreate && area === 'sale' && (
+                <>
+                  {/* el formulario largo: sexo, fotos, documentación, costo… */}
+                  <Button
+                    component={RouterLink}
+                    href={`${paths.dashboard.animal.new}?purpose=sale`}
+                    state={{ from: config.path }}
+                    variant="outlined"
+                  >
+                    Alta completa
+                  </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                    onClick={() => setPutOnSale({ species: null })}
+                  >
+                    Poner en venta
+                  </Button>
+                </>
+              )}
+              {canCreate && area === 'breeding' && (
                 <Button
                   component={RouterLink}
-                  href={paths.dashboard.animal.new}
+                  href={`${paths.dashboard.animal.new}?purpose=breeder`}
+                  state={{ from: config.path }}
                   variant="contained"
                   startIcon={<Iconify icon="mingcute:add-line" />}
                 >
-                  Nuevo animal
+                  Registrar ejemplar
                 </Button>
               )}
             </Stack>
           }
-          sx={{ mb: { xs: 3, md: 5 } }}
+          sx={{ mb: 2 }}
         />
+
+        <Stack
+          direction="row"
+          sx={{ mb: 3, gap: 2, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <Typography variant="body2" sx={{ maxWidth: 640, color: 'text.secondary' }}>
+            {config.intro}
+          </Typography>
+          {area === 'sale' && <SaleViewSwitch value="list" />}
+        </Stack>
 
         <AnimalCapAlert shown={animals.length} total={animalsTotal} sx={{ mb: 3 }} />
 
         {renderSummary()}
 
         <Card>
-          <Tabs
-            value={destination}
-            onChange={(_, value) => setDestination(value)}
-            variant="scrollable"
-            sx={{ px: 2.5, boxShadow: (theme) => `inset 0 -2px 0 0 ${theme.vars.palette.divider}` }}
-          >
-            {DESTINATIONS.map((d) => (
-              <Tab
-                key={d.value}
-                value={d.value}
-                label={d.value === 'all' ? d.label : `${d.label} (${counts[d.value]})`}
-              />
-            ))}
-          </Tabs>
+          {config.tabs.length > 0 && (
+            <Tabs
+              value={destination}
+              onChange={(_, value) => setDestination(value)}
+              variant="scrollable"
+              sx={{ px: 2.5, boxShadow: (theme) => `inset 0 -2px 0 0 ${theme.vars.palette.divider}` }}
+            >
+              {/* «Todo» mezclaría animales con registros: va sin número */}
+              <Tab value={area} label="Todo" />
+              {config.tabs.map((key) => (
+                <Tab key={key} value={key} label={`${FILTER_LABELS[key]} (${counts[key]})`} />
+              ))}
+            </Tabs>
+          )}
 
           {renderFilters()}
 
@@ -429,14 +511,23 @@ export function AnimalListView() {
                 description={animalsError.message}
                 sx={{ py: 10 }}
               />
-            ) : groupFilter || genusFilter || speciesFilter || destination !== 'all' ? (
+            ) : groupFilter || genusFilter || speciesFilter || destination !== area ? (
               <EmptyContent title="Sin animales con esos filtros" sx={{ py: 10 }} />
             ) : (
-              <EmptyList
-                title="Todavía no hay animales"
-                description="Cada ejemplar (o lote de crías) que tienes para vender o en cría, con su especie, morph y precio."
-                newLabel="Nuevo animal"
-                href={canCreate ? paths.dashboard.animal.new : null}
+              <EmptyContent
+                title={config.emptyTitle}
+                description={config.emptyText}
+                action={
+                  canCreate && area === 'sale' ? (
+                    <Button
+                      variant="contained"
+                      onClick={() => setPutOnSale({ species: null })}
+                      sx={{ mt: 3 }}
+                    >
+                      Poner en venta
+                    </Button>
+                  ) : null
+                }
                 sx={{ py: 10 }}
               />
             )
@@ -462,6 +553,8 @@ export function AnimalListView() {
                         entry={entry}
                         open={expanded.has(entry.species.id) || grouped.length === 1}
                         onToggle={() => toggleExpanded(entry.species.id)}
+                        area={area}
+                        onPutOnSale={() => setPutOnSale({ species: entry.species })}
                         canCreate={canCreate}
                         canUpdate={canUpdate}
                         canDelete={canDelete}
@@ -479,6 +572,19 @@ export function AnimalListView() {
           )}
         </Card>
       </DashboardContent>
+
+      {putOnSale && (
+        <PutOnSaleDialog
+          initialSpecies={putOnSale.species}
+          animals={animals}
+          onClose={() => setPutOnSale(null)}
+          onDone={(speciesId) => {
+            setPutOnSale(null);
+            setExpanded((prev) => new Set(prev).add(speciesId));
+            animalsMutate();
+          }}
+        />
+      )}
 
       {labelsFor && (
         <QrLabelsDialog
@@ -539,7 +645,7 @@ function speciesChips(species, animals) {
   return chips;
 }
 
-function SpeciesRows({ entry, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
+function SpeciesRows({ entry, area, onPutOnSale, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
   const { species, animals } = entry;
   const { pathname, search } = useLocation();
 
@@ -621,13 +727,27 @@ function SpeciesRows({ entry, open, onToggle, canCreate, canUpdate, canDelete, c
 
         <TableCell align="right">
           <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
-            {canCreate && (
+            {canCreate && area === 'sale' && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Iconify icon="mingcute:add-line" />}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPutOnSale();
+                }}
+                sx={{ whiteSpace: 'nowrap' }}
+              >
+                Poner en venta
+              </Button>
+            )}
+            {canCreate && area === 'breeding' && (
               <Button
                 size="small"
                 variant="outlined"
                 startIcon={<Iconify icon="mingcute:add-line" />}
                 component={RouterLink}
-                href={`${paths.dashboard.animal.new}?species_id=${species.id}`}
+                href={`${paths.dashboard.animal.new}?species_id=${species.id}&purpose=breeder`}
                 state={{ from: `${pathname}${search}` }}
                 onClick={(event) => event.stopPropagation()}
                 sx={{ whiteSpace: 'nowrap' }}

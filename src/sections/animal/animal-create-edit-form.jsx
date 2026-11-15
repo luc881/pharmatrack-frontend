@@ -370,7 +370,9 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
-      navigate(navState?.from ?? paths.dashboard.animal.root, {
+      const home =
+        data.purpose === 'sale' ? paths.dashboard.animal.root : paths.dashboard.animal.breeding;
+      navigate(navState?.from ?? home, {
         state: { expand: Number(data.species_id) },
       });
     } catch (error) {

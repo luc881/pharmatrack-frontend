@@ -11,6 +11,8 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { matchesWords } from 'src/utils/plain';
+
 import { useGetBranches } from 'src/actions/sale';
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -54,13 +56,6 @@ function useOnline() {
   }, []);
   return online;
 }
-
-// «Decoración» y «decoracion» son lo mismo al buscar
-const plain = (text) =>
-  String(text ?? '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
 
 // ----------------------------------------------------------------------
 
@@ -254,14 +249,12 @@ export function QuickSaleView() {
   };
 
   // Cada palabra escrita debe estar en el nombre o la categoría
-  const words = useMemo(() => plain(query).split(/\s+/).filter(Boolean), [query]);
   const found = useMemo(
     () =>
-      (quick.items ?? []).filter((item) => {
-        const text = plain(`${item.title} ${item.category ?? ''}`);
-        return words.every((word) => text.includes(word));
-      }),
-    [quick.items, words]
+      (quick.items ?? []).filter((item) =>
+        matchesWords(`${item.title} ${item.category ?? ''}`, query)
+      ),
+    [quick.items, query]
   );
 
   if (!quick.ready) return <LoadingScreen />;

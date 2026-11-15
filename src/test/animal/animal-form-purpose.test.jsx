@@ -243,7 +243,7 @@ describe('Ficha del ejemplar', () => {
     );
 
     expect(await screen.findByText('Este ejemplar ya no existe')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Ir a Mi criadero' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Ir a Animales' })).toHaveAttribute(
       'href',
       '/dashboard/animal'
     );

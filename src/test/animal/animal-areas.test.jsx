@@ -13,8 +13,8 @@ import { server } from '../mocks/server';
 import { createWrapper } from '../utils';
 
 // ----------------------------------------------------------------------
-// «Mi criadero»: tarjetas con conteos por destino, filtro por destino,
-// «Mover a…» por ejemplar y borrado múltiple de 5 en 5.
+// Animales en tres páginas (En venta · Pie de cría y crianza · Vendidos y
+// bajas): cada una trae solo lo suyo. «Mover a…» y borrado de 5 en 5.
 // ----------------------------------------------------------------------
 
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
@@ -81,13 +81,13 @@ function mockApi(animals = ANIMALS, extra = []) {
   );
 }
 
-function renderView() {
+function renderView(area = 'sale') {
   const Wrapper = createWrapper();
   return render(
     <ThemeProvider theme={createTheme({ cssVariables: true })}>
       <Wrapper>
         <MemoryRouter>
-          <AnimalListView />
+          <AnimalListView area={area} />
         </MemoryRouter>
       </Wrapper>
     </ThemeProvider>
@@ -95,67 +95,47 @@ function renderView() {
 }
 
 const rowOf = (code) => screen.getByRole('link', { name: code }).closest('tr');
+const codes = () =>
+  screen
+    .getAllByRole('link')
+    .map((l) => l.textContent)
+    .filter((t) => /^[A-Z]-\d+$/.test(t));
 
-describe('Mi criadero', () => {
-  it('muestra tarjetas con conteos por destino', async () => {
+describe('Animales: En venta', () => {
+  it('solo trae lo que se vende, con sus disponibles y apartados', async () => {
     mockApi();
-    renderView();
+    renderView('sale');
 
-    expect(await screen.findByRole('button', { name: /En venta\s*3/ })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'En venta' })).toBeInTheDocument();
+    await screen.findByRole('link', { name: 'V-1' });
+    expect(codes()).toEqual(['V-1', 'V-2', 'V-3']);
     expect(screen.getByText('2 disponibles · 1 apartado')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Pie de cría\s*2/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /En crianza\s*1/ })).toBeInTheDocument();
-    // el filtro también lleva su conteo
-    expect(screen.getByRole('tab', { name: 'Vendidos (1)' })).toBeInTheDocument();
-    // «Todo» mezclaría animales con registros: va sin número
-    expect(screen.getByRole('tab', { name: 'Todo' })).toBeInTheDocument();
-    // renglón de la especie con un chip por destino
     expect(screen.getByText('3 en venta')).toBeInTheDocument();
-    expect(screen.getByText('2 pie de cría')).toBeInTheDocument();
     // pide documento y no tiene folio
     expect(screen.getByText('1 doc. pendiente')).toBeInTheDocument();
+    // una sola cosa aquí: no hay filtro por destino
+    expect(screen.queryByRole('tab')).toBeNull();
   });
 
-  it('filtrar por Pie de cría deja solo esos ejemplares', async () => {
+  it('ofrece el alta corta y la completa, ya como venta', async () => {
     mockApi();
-    renderView();
+    renderView('sale');
 
     await screen.findByRole('link', { name: 'V-1' });
-    fireEvent.click(screen.getByRole('tab', { name: 'Pie de cría (2)' }));
-
-    expect(screen.getByRole('link', { name: 'B-1' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'B-2' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'V-1' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'C-1' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'S-1' })).not.toBeInTheDocument();
-
-    // la tarjeta también filtra
-    fireEvent.click(screen.getByRole('button', { name: /En crianza\s*1/ }));
-    expect(screen.getByRole('link', { name: 'C-1' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'B-1' })).not.toBeInTheDocument();
-  });
-
-  it('Mover a… → Poner en venta abre el diálogo', async () => {
-    mockApi();
-    renderView();
-
-    await screen.findByRole('link', { name: 'B-1' });
-    const row = rowOf('B-1');
-    expect(within(row).getByRole('link', { name: 'Anotar' })).toHaveAttribute(
+    expect(screen.getAllByRole('button', { name: 'Poner en venta' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Alta completa' })).toHaveAttribute(
       'href',
-      '/dashboard/animal/log?species=1'
+      '/dashboard/animal/new?purpose=sale'
     );
-    fireEvent.click(within(row).getByRole('button', { name: 'Mover a…' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: /Poner en venta/ }));
-
-    expect(await screen.findByText('Mover a En venta')).toBeInTheDocument();
-    // sin precio: lo pide al ponerlo en venta
-    expect(screen.getByLabelText(/Precio de venta/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Tabla de precios' })).toHaveAttribute(
+      'href',
+      '/dashboard/animal/sheet'
+    );
   });
 
   it('Mover a… deshabilitado para un apartado con su razón', async () => {
     mockApi();
-    renderView();
+    renderView('sale');
 
     await screen.findByRole('link', { name: 'V-3' });
     fireEvent.click(within(rowOf('V-3')).getByRole('button', { name: 'Mover a…' }));
@@ -168,21 +148,95 @@ describe('Mi criadero', () => {
     });
   });
 
-  it('paquetes en venta se cuentan en paquetes y animales; los vacíos solo en Todo', async () => {
-    mockApi([
-      animal('P-1', 'sale', 'available', { stock: 6, species_id: 2, species: ROACH }),
-      animal('P-0', 'growing', 'available', { stock: 0, species_id: 2, species: ROACH }),
-    ]);
-    renderView();
-
+  it('los paquetes se cuentan en paquetes y animales', async () => {
+    mockApi([animal('P-1', 'sale', 'available', { stock: 6, species_id: 2, species: ROACH })]);
+    renderView('sale');
     expect(await screen.findByText('6 paquetes en venta (36)')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'P-0' })).toBeInTheDocument();
-    expect(within(rowOf('P-0')).getByText('Vacío')).toBeInTheDocument();
+  });
 
+  it('sin nada en venta invita a poner algo', async () => {
+    mockApi([animal('B-9', 'breeder', 'available', { price: 0 })]);
+    renderView('sale');
+    expect(await screen.findByText('Todavía no hay nada en venta')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'B-9' })).toBeNull();
+  });
+});
+
+describe('Animales: Pie de cría y crianza', () => {
+  it('solo trae lo que no se vende, con filtro por destino', async () => {
+    mockApi();
+    renderView('breeding');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Pie de cría y crianza' })
+    ).toBeInTheDocument();
+    await screen.findByRole('link', { name: 'B-1' });
+    expect(codes()).toEqual(['B-1', 'B-2', 'C-1']);
+    expect(screen.getByRole('tab', { name: 'Todo' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Pie de cría (2)' }));
+    expect(codes()).toEqual(['B-1', 'B-2']);
+
+    // la tarjeta también filtra
+    fireEvent.click(screen.getByRole('button', { name: /En crianza\s*1/ }));
+    expect(codes()).toEqual(['C-1']);
+  });
+
+  it('el alta nace como pie de cría', async () => {
+    mockApi();
+    renderView('breeding');
+    await screen.findByRole('link', { name: 'B-1' });
+    expect(screen.getByRole('link', { name: 'Registrar ejemplar' })).toHaveAttribute(
+      'href',
+      '/dashboard/animal/new?purpose=breeder'
+    );
+    expect(screen.queryByRole('button', { name: 'Poner en venta' })).toBeNull();
+  });
+
+  it('Mover a… → Poner en venta abre el diálogo', async () => {
+    mockApi();
+    renderView('breeding');
+
+    await screen.findByRole('link', { name: 'B-1' });
+    const row = rowOf('B-1');
+    expect(within(row).getByRole('link', { name: 'Anotar' })).toHaveAttribute(
+      'href',
+      '/dashboard/animal/log?species=1'
+    );
+    fireEvent.click(within(row).getByRole('button', { name: 'Mover a…' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Poner en venta/ }));
+
+    expect(await screen.findByText('Mover a En venta')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Precio de venta/)).toBeInTheDocument();
+  });
+
+  it('un paquete vacío solo se ve en «Todo»', async () => {
+    mockApi([animal('P-0', 'growing', 'available', { stock: 0, species_id: 2, species: ROACH })]);
+    renderView('breeding');
+
+    expect(await screen.findByRole('link', { name: 'P-0' })).toBeInTheDocument();
+    expect(within(rowOf('P-0')).getByText('Vacío')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'En crianza (0)' }));
     expect(screen.queryByRole('link', { name: 'P-0' })).not.toBeInTheDocument();
   });
+});
 
+describe('Animales: Vendidos y bajas', () => {
+  it('es el historial: ni venta ni cría, y sin altas', async () => {
+    mockApi([...ANIMALS, animal('D-1', 'breeder', 'deceased', { price: 0 })]);
+    renderView('history');
+
+    expect(await screen.findByRole('heading', { name: 'Vendidos y bajas' })).toBeInTheDocument();
+    await screen.findByRole('link', { name: 'S-1' });
+    expect(codes()).toEqual(['S-1', 'D-1']);
+    fireEvent.click(screen.getByRole('tab', { name: 'Bajas (1)' }));
+    expect(codes()).toEqual(['D-1']);
+    expect(screen.queryByRole('link', { name: /Registrar|Alta/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Poner en venta' })).toBeNull();
+  });
+});
+
+describe('Animales: borrado', () => {
   it('borrado múltiple manda máximo 5 a la vez', async () => {
     let inFlight = 0;
     let maxInFlight = 0;

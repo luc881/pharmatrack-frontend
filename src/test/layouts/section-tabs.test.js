@@ -25,8 +25,13 @@ describe('findSection', () => {
   it('resuelve sub-pestañas y rutas extra (match)', () => {
     expect(where('/dashboard/product-brand')).toEqual(['productos', 'Categorías y marcas', 'Marcas']);
     expect(where('/dashboard/calendar')).toEqual(['productos', 'Avanzado', 'Calendario de caducidades']);
-    expect(where('/dashboard/animal')).toEqual(['animales', 'Mi criadero', null]);
-    expect(where('/dashboard/animal/species/3')).toEqual(['animales', 'Taxonomía y cultivos', null]);
+    expect(where('/dashboard/animal')).toEqual(['animales', 'En venta', null]);
+    // la tabla de precios es otra vista de lo que está en venta
+    expect(where('/dashboard/animal/sheet')).toEqual(['animales', 'En venta', null]);
+    expect(where('/dashboard/animal/breeding')).toEqual(['animales', 'Pie de cría y crianza', null]);
+    expect(where('/dashboard/animal/history')).toEqual(['animales', 'Vendidos y bajas', null]);
+    expect(where('/dashboard/animal/taxonomy')).toEqual(['animales', 'Especies y morphs', null]);
+    expect(where('/dashboard/animal/species/3')).toEqual(['animales', 'Especies y morphs', null]);
     expect(where('/dashboard/user/account')).toEqual(['ajustes', 'Usuarios', null]);
   });
 

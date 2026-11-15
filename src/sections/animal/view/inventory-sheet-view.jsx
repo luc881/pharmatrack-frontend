@@ -34,6 +34,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { AnimalCapAlert } from '../animal-cap-alert';
+import { SaleViewSwitch } from '../sale-view-switch';
 import { STATUS_LABELS, STATUS_COLORS } from '../utils';
 
 // ----------------------------------------------------------------------
@@ -302,14 +303,26 @@ export function InventorySheetView() {
   return (
     <DashboardContent maxWidth={false}>
       <CustomBreadcrumbs
-        heading="Hoja de inventario"
+        heading="En venta"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Animales', href: paths.dashboard.animal.root },
-          { name: 'Hoja de inventario' },
+          { name: 'Animales' },
+          { name: 'En venta', href: paths.dashboard.animal.root },
+          { name: 'Tabla de precios' },
         ]}
-        sx={{ mb: 3 }}
+        sx={{ mb: 2 }}
       />
+
+      <Stack
+        direction="row"
+        sx={{ mb: 3, gap: 2, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}
+      >
+        <Typography variant="body2" sx={{ maxWidth: 640, color: 'text.secondary' }}>
+          Lo mismo que la lista, en tabla: cambia precios y cantidades de corrido y mira lo vendido
+          en un rango de fechas.
+        </Typography>
+        <SaleViewSwitch value="sheet" />
+      </Stack>
 
       <HowItWorks
         storageKey="inventory-sheet-help-hidden"

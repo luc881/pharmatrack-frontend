@@ -1,0 +1,213 @@
+import { useState } from 'react';
+
+import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import Checkbox from '@mui/material/Checkbox';
+import TextField from '@mui/material/TextField';
+import DialogTitle from '@mui/material/DialogTitle';
+import Autocomplete from '@mui/material/Autocomplete';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import FormControlLabel from '@mui/material/FormControlLabel';
+
+import { matchesWords } from 'src/utils/plain';
+
+import { updateProduct } from 'src/actions/product';
+import { createAnimal, updateAnimal, useAllMorphs, useAllSpecies } from 'src/actions/animal';
+
+import { toast } from 'src/components/snackbar';
+
+import { purposeOf, speciesLabel } from './utils';
+
+// ----------------------------------------------------------------------
+
+const isBulk = (species) => !!species?.sale_format && species.sale_format !== 'individual';
+
+function quantityLabel(species) {
+  if (species?.sale_format === 'colony') return '¿Cuántas cepas?';
+  if (species?.sale_format === 'package') return `¿Cuántos paquetes de ${species.package_size}?`;
+  return '¿Cuántos ejemplares?';
+}
+
+const sameMorphs = (animal, morphIds) => {
+  const ids = (animal.morphs ?? []).map((m) => m.id);
+  return ids.length === morphIds.length && ids.every((id) => morphIds.includes(id));
+};
+
+// «Poner en venta» en corto: especie, cuántos y precio. Lo demás (sexo, fotos,
+// documentación, costo) queda con los valores por omisión y se completa
+// después con «Editar». `animals`: los que ya hay, para que una cepa o paquete
+// que ya está en venta sume existencias en vez de duplicarse.
+export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, onDone }) {
+  const { species: allSpecies } = useAllSpecies();
+  const [species, setSpecies] = useState(initialSpecies);
+  const { morphs } = useAllMorphs(species?.id);
+  const [morphIds, setMorphIds] = useState([]);
+  const [quantity, setQuantity] = useState('1');
+  const [price, setPrice] = useState('');
+  const [quickSale, setQuickSale] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const bulk = isBulk(species);
+  const speciesMorphs = species ? morphs.filter((m) => m.species_id === species.id) : [];
+
+  // Cepa o paquete que ya está en venta (misma especie y morphs): el servidor
+  // no admite dos registros iguales, así que se le suman existencias
+  const existing = bulk
+    ? animals.find(
+        (a) =>
+          a.species?.id === species.id &&
+          a.status === 'available' &&
+          purposeOf(a) === 'sale' &&
+          sameMorphs(a, morphIds)
+      )
+    : null;
+
+  const submit = async () => {
+    const amount = Number(String(quantity).trim());
+    const value = Number(String(price).trim().replace(',', '.'));
+    const next = {
+      species: species ? null : 'Elige la especie',
+      quantity:
+        Number.isInteger(amount) && amount >= 1 && (bulk || amount <= 50)
+          ? null
+          : bulk
+            ? 'Escribe cuántos (mínimo 1)'
+            : 'Escribe cuántos (de 1 a 50)',
+      // con existencias ya en venta el precio es opcional: se queda el que tiene
+      price:
+        (existing && String(price).trim() === '') || (Number.isFinite(value) && value > 0)
+          ? null
+          : 'Escribe un precio mayor a cero',
+    };
+    setErrors(next);
+    if (next.species || next.quantity || next.price || saving) return;
+
+    setSaving(true);
+    try {
+      if (existing) {
+        await updateAnimal(existing.id, {
+          stock: Number(existing.stock ?? 0) + amount,
+          ...(String(price).trim() === '' ? {} : { price: value }),
+        });
+        if (quickSale) await updateProduct(existing.product_id, { quick_sale: true });
+      } else {
+        await createAnimal({
+          species_id: species.id,
+          purpose: 'sale',
+          sex: 'unknown',
+          price: value,
+          price_cost: 0,
+          morph_ids: morphIds,
+          photos: [],
+          ...(bulk ? { stock: amount } : amount > 1 ? { count: amount } : {}),
+          quick_sale: quickSale,
+        });
+      }
+      toast.success(existing ? 'Existencias agregadas' : 'Ya está en venta');
+      onDone(species.id);
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo poner en venta');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Poner en venta</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Autocomplete
+            options={allSpecies}
+            value={species}
+            onChange={(_, option) => {
+              setSpecies(option);
+              setMorphIds([]);
+            }}
+            getOptionLabel={(option) => speciesLabel(option)}
+            isOptionEqualToValue={(option, selected) => option.id === selected.id}
+            // por nombre común o científico, sin acentos
+            filterOptions={(options, { inputValue }) =>
+              options.filter((option) => matchesWords(speciesLabel(option), inputValue))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                autoFocus={!initialSpecies}
+                label="Especie"
+                error={Boolean(errors.species)}
+                helperText={
+                  errors.species ??
+                  'Si no está en la lista, primero dala de alta en «Especies y morphs».'
+                }
+              />
+            )}
+          />
+
+          {speciesMorphs.length > 0 && (
+            <Autocomplete
+              multiple
+              options={speciesMorphs}
+              value={speciesMorphs.filter((m) => morphIds.includes(m.id))}
+              onChange={(_, options) => setMorphIds(options.map((m) => m.id))}
+              getOptionLabel={(option) => option.name}
+              isOptionEqualToValue={(option, selected) => option.id === selected.id}
+              renderInput={(params) => <TextField {...params} label="Morph (opcional)" />}
+            />
+          )}
+
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label={quantityLabel(species)}
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              error={Boolean(errors.quantity)}
+              helperText={errors.quantity}
+              slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+              sx={{ flex: 1 }}
+            />
+            <TextField
+              label="Precio de venta"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              error={Boolean(errors.price)}
+              helperText={
+                errors.price ??
+                (existing
+                  ? `Vacío = se queda en $${existing.price}`
+                  : bulk
+                    ? `Por ${species.sale_format === 'package' ? 'paquete' : 'cepa'}`
+                    : 'Por ejemplar')
+              }
+              slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+              sx={{ flex: 1 }}
+            />
+          </Stack>
+
+          {existing && (
+            <Alert severity="info" icon={false}>
+              Ya hay {existing.stock} en venta: lo que pongas aquí se suma a ese registro.
+            </Alert>
+          )}
+
+          <FormControlLabel
+            control={
+              <Checkbox checked={quickSale} onChange={(e) => setQuickSale(e.target.checked)} />
+            }
+            label="También en la venta rápida (botón para convenciones)"
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cerrar</Button>
+        <Button variant="contained" loading={saving} onClick={submit}>
+          Poner en venta
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
