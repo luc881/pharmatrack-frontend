@@ -312,6 +312,73 @@ describe('Animales: Vendidos y bajas', () => {
   });
 });
 
+describe('Animales: por dónde se vende (canales)', () => {
+  // V-1 solo tienda · V-2 tienda y venta rápida · V-3 solo venta rápida
+  const channels = () =>
+    ANIMALS.map((a) =>
+      a.code === 'V-1'
+        ? { ...a, show_public: true, quick_sale: false }
+        : a.code === 'V-2'
+          ? { ...a, show_public: true, quick_sale: true }
+          : a.code === 'V-3'
+            ? { ...a, show_public: false, quick_sale: true }
+            : a
+    );
+
+  it('cada ejemplar dice si está en la tienda, en la venta rápida o en las dos', async () => {
+    mockApi(channels());
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+    expect(within(rowOf('V-1')).getByText('Tienda')).toBeInTheDocument();
+    expect(within(rowOf('V-1')).queryByText('Venta rápida')).toBeNull();
+    expect(within(rowOf('V-2')).getByText('Tienda')).toBeInTheDocument();
+    expect(within(rowOf('V-2')).getByText('Venta rápida')).toBeInTheDocument();
+    expect(within(rowOf('V-3')).queryByText('Tienda')).toBeNull();
+  });
+
+  it('se filtra por canal', async () => {
+    const user = userEvent.setup();
+    mockApi(channels());
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+
+    await user.click(screen.getByLabelText('Dónde se vende'));
+    await user.click(await screen.findByRole('option', { name: 'Solo venta rápida' }));
+    expect(codes()).toEqual(['V-3']);
+
+    await user.click(screen.getByLabelText('Dónde se vende'));
+    await user.click(await screen.findByRole('option', { name: 'En la venta rápida' }));
+    expect(codes()).toEqual(['V-3', 'V-2']);
+  });
+
+  it('varios a la vez a la venta rápida, con un solo menú', async () => {
+    const user = userEvent.setup();
+    const sent = [];
+    mockApi(channels(), [
+      http.put(`${API}/animals/:id`, async ({ request, params }) => {
+        sent.push([Number(params.id), await request.json()]);
+        return HttpResponse.json({ id: Number(params.id) });
+      }),
+    ]);
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+
+    fireEvent.click(within(rowOf('V-1')).getByRole('checkbox'));
+    fireEvent.click(within(rowOf('V-2')).getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Canales (2)' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Agregar a la venta rápida' }));
+
+    const id = (code) => ANIMALS.find((a) => a.code === code).id;
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent).toEqual(
+      expect.arrayContaining([
+        [id('V-1'), { quick_sale: true }],
+        [id('V-2'), { quick_sale: true }],
+      ])
+    );
+  });
+});
+
 describe('Animales: borrar por bloque', () => {
   it('cada especie y cada variedad tienen su botón para borrar lo suyo', async () => {
     const user = userEvent.setup();

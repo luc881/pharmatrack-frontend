@@ -6,12 +6,14 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
 import Tabs from '@mui/material/Tabs';
+import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import Collapse from '@mui/material/Collapse';
 import TableRow from '@mui/material/TableRow';
@@ -35,6 +37,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import {
   updateMorph,
   deleteAnimal,
+  updateAnimal,
   useAllGenera,
   useAllMorphs,
   updateSpecies,
@@ -82,6 +85,27 @@ const isBulkSpecies = (species) => !!species?.sale_format && species.sale_format
 // Colonia o paquete que se quedó en 0: solo se ve en «Todo», en gris
 const isEmptyBulk = (animal) =>
   animal.status === 'available' && isBulkSpecies(animal.species) && Number(animal.stock) === 0;
+
+// Por dónde se vende un ejemplar en venta: la tienda en línea (show_public)
+// y la venta rápida de convenciones (quick_sale). Es un solo inventario; los
+// canales solo dicen dónde se ofrece.
+const onSite = (a) => a.show_public !== false;
+const onQuick = (a) => Boolean(a.quick_sale);
+const CHANNELS = [
+  { value: '', label: 'Todos', test: () => true },
+  { value: 'site', label: 'En la tienda', test: onSite },
+  { value: 'quick', label: 'En la venta rápida', test: onQuick },
+  { value: 'site-only', label: 'Solo tienda', test: (a) => onSite(a) && !onQuick(a) },
+  { value: 'quick-only', label: 'Solo venta rápida', test: (a) => onQuick(a) && !onSite(a) },
+  { value: 'none', label: 'En ninguno', test: (a) => !onSite(a) && !onQuick(a) },
+];
+// Cambios en bloque desde «Canales (N)»
+const CHANNEL_ACTIONS = [
+  { label: 'Agregar a la venta rápida', patch: { quick_sale: true } },
+  { label: 'Quitar de la venta rápida', patch: { quick_sale: false } },
+  { label: 'Mostrar en la tienda', patch: { show_public: true } },
+  { label: 'Ocultar de la tienda', patch: { show_public: false } },
+];
 
 const isLive = (animal) => animal.status === 'available' || animal.status === 'reserved';
 
@@ -242,6 +266,9 @@ export function AnimalListView({ area = 'sale' }) {
   // alta corta: null = cerrada; { species } = abierta (con o sin especie)
   // ids por borrar (selección de arriba o el botón de un bloque); null = cerrado
   const [toDelete, setToDelete] = useState(null);
+  // canal (solo En venta) y el menú de cambios en bloque
+  const [channel, setChannel] = useState('');
+  const [channelMenu, setChannelMenu] = useState(null);
   const [selected, setSelected] = useState(() => new Set()); // ids de ejemplares
   // recién dado de alta un ejemplar: su especie llega abierta
   const [expanded, setExpanded] = useState(() => new Set(navState?.expand ? [navState.expand] : []));
@@ -329,8 +356,9 @@ export function AnimalListView({ area = 'sale' }) {
     () =>
       animals
         .filter(FILTERS[destination])
-        .filter((a) => !morphFilter || a.morphs?.some((m) => m.id === morphFilter)),
-    [animals, destination, morphFilter]
+        .filter((a) => !morphFilter || a.morphs?.some((m) => m.id === morphFilter))
+        .filter(CHANNELS.find((c) => c.value === channel).test),
+    [animals, destination, morphFilter, channel]
   );
   const grouped = useMemo(() => groupBySpecies(visible), [visible]);
 
@@ -382,6 +410,23 @@ export function AnimalListView({ area = 'sale' }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toDelete, animalsMutate]);
 
+  const applyChannel = async (patch) => {
+    setChannelMenu(null);
+    const ids = [...selectedVisible];
+    const results = await runInBatches(ids, 5, (id) => updateAnimal(id, patch));
+    const failed = results.filter((r) => r.status === 'rejected');
+    await animalsMutate();
+    if (failed.length) {
+      toast.error(
+        failed.length === 1
+          ? failed[0].reason?.message || 'No se pudo cambiar'
+          : `${failed.length} no se pudieron cambiar`
+      );
+    } else {
+      toast.success(ids.length === 1 ? 'Listo' : `${ids.length} ejemplares actualizados`);
+    }
+  };
+
   // En venta no lleva contador: el conteo va en cada especie
   const renderSummary = () =>
     area === 'sale' ? null : (
@@ -413,6 +458,23 @@ export function AnimalListView({ area = 'sale' }) {
   // Grupo/Género/Especie con búsqueda al teclear (ignora acentos)
   const renderFilters = () => (
     <Stack direction="row" spacing={2} sx={{ p: 2.5, flexWrap: 'wrap', gap: 2 }}>
+      {area === 'sale' && (
+        <TextField
+          select
+          size="small"
+          label="Dónde se vende"
+          value={channel}
+          onChange={(e) => setChannel(e.target.value)}
+          slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+          sx={{ minWidth: 190 }}
+        >
+          {CHANNELS.map((c) => (
+            <MenuItem key={c.value} value={c.value}>
+              {c.label}
+            </MenuItem>
+          ))}
+        </TextField>
+      )}
       <Autocomplete
         size="small"
         options={groupsFlat}
@@ -471,6 +533,24 @@ export function AnimalListView({ area = 'sale' }) {
           ]}
           action={
             <Stack direction="row" spacing={1.5}>
+              {canUpdate && area === 'sale' && selectedVisible.length > 0 && (
+                <>
+                  <Button variant="outlined" onClick={(e) => setChannelMenu(e.currentTarget)}>
+                    Canales ({selectedVisible.length})
+                  </Button>
+                  <Menu
+                    anchorEl={channelMenu}
+                    open={Boolean(channelMenu)}
+                    onClose={() => setChannelMenu(null)}
+                  >
+                    {CHANNEL_ACTIONS.map((action) => (
+                      <MenuItem key={action.label} onClick={() => applyChannel(action.patch)}>
+                        {action.label}
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                </>
+              )}
               {canDelete && selectedVisible.length > 0 && (
                 <Button
                   variant="outlined"
@@ -608,6 +688,7 @@ export function AnimalListView({ area = 'sale' }) {
                         canCreate={canCreate}
                         canUpdate={canUpdate}
                         canDelete={canDelete}
+                        canSelect={canDelete || (canUpdate && area === 'sale')}
                         canUpdateSpecies={canUpdateSpecies}
                         onPrintLabels={() => setLabelsFor(entry)}
                         selected={selected}
@@ -703,7 +784,7 @@ function OnSiteSwitch({ name, checked, reason, disabled, onChange }) {
   );
 }
 
-function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
+function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, canSelect, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
   const { species, animals } = entry;
   const { pathname, search } = useLocation();
 
@@ -734,7 +815,7 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, ope
     });
     return [...map].sort(([x], [y]) => (x === 'Nominal' ? -1 : y === 'Nominal' ? 1 : x.localeCompare(y)));
   }, [animals]);
-  const columns = 7 + (canDelete ? 1 : 0) + (isBulk ? 1 : 0);
+  const columns = 7 + (canSelect ? 1 : 0) + (isBulk ? 1 : 0);
 
   return (
     <>
@@ -881,7 +962,7 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, ope
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    {canDelete && (
+                    {canSelect && (
                       <TableCell padding="checkbox">
                         <Checkbox
                           size="small"
@@ -897,7 +978,7 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, ope
                     <TableCell>Código</TableCell>
                     <TableCell>Variedad</TableCell>
                     <TableCell>Sexo</TableCell>
-                    <TableCell>Destino</TableCell>
+                    <TableCell>{area === 'sale' ? 'Dónde se vende' : 'Destino'}</TableCell>
                     <TableCell>Estado</TableCell>
                     {isBulk && <TableCell>Cantidad</TableCell>}
                     <TableCell>Precio</TableCell>
@@ -923,7 +1004,8 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, ope
                           showStock={isBulk}
                           canUpdate={canUpdate}
                           isSelected={selected.has(animal.id)}
-                          onToggleSelect={canDelete ? onToggleSelected : undefined}
+                          onToggleSelect={canSelect ? onToggleSelected : undefined}
+                          showChannels={area === 'sale'}
                           onMoved={onMoved}
                         />
                       )),
@@ -972,7 +1054,7 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, ope
 
 // Ejemplar en «Mi criadero»: acciones con texto (Mover a…, Editar, Anotar);
 // borrar va por la casilla y el botón «Eliminar (N)» de arriba
-function CriaderoRow({ animal, species, showStock, canUpdate, isSelected, onToggleSelect, onMoved }) {
+function CriaderoRow({ animal, species, showStock, showChannels, canUpdate, isSelected, onToggleSelect, onMoved }) {
   const purpose = purposeOf(animal);
   const empty = isEmptyBulk(animal);
 
@@ -1010,9 +1092,25 @@ function CriaderoRow({ animal, species, showStock, canUpdate, isSelected, onTogg
       <TableCell>{varietyName(animal.morphs)}</TableCell>
       <TableCell>{SEX_LABELS[animal.sex] ?? animal.sex}</TableCell>
       <TableCell>
-        <Label variant="soft" color={PURPOSE_COLORS[purpose]}>
-          {PURPOSE_LABELS[purpose]}
-        </Label>
+        {showChannels ? (
+          <Stack direction="row" spacing={0.5}>
+            {onSite(animal) && (
+              <Label variant="soft" color="info">
+                Tienda
+              </Label>
+            )}
+            {onQuick(animal) && (
+              <Label variant="soft" color="secondary">
+                Venta rápida
+              </Label>
+            )}
+            {!onSite(animal) && !onQuick(animal) && '—'}
+          </Stack>
+        ) : (
+          <Label variant="soft" color={PURPOSE_COLORS[purpose]}>
+            {PURPOSE_LABELS[purpose]}
+          </Label>
+        )}
       </TableCell>
       <TableCell>
         <Label variant="soft" color={empty ? 'default' : (STATUS_COLORS[animal.status] ?? 'default')}>

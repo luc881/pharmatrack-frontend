@@ -12,6 +12,10 @@ import { HusbandryLogView } from 'src/sections/animal/view/husbandry-log-view';
 import { server } from '../mocks/server';
 import { createWrapper } from '../utils';
 
+// Pantalla grande con muchos formularios: con toda la suite en paralelo pasa
+// de los 15 s por omisión (sola tarda unos segundos)
+vi.setConfig({ testTimeout: 45_000 });
+
 // ----------------------------------------------------------------------
 // Bitácora de manejo: especies con plan arriba (solo nombres); tocar una
 // despliega sus ejemplares por código, cada uno con su «Anotar».

@@ -211,6 +211,38 @@ test.describe('En venta', () => {
     expect(ids).not.toContain(nominal.id);
   });
 
+  test('se marcan varios para la venta rápida de una vez y se filtra por canal', async ({
+    page,
+    seed,
+    api,
+  }) => {
+    const { species } = await seed.species({ common: unique('Isópodo') });
+    const a = await seed.animal(species.id);
+    const b = await seed.animal(species.id);
+
+    await page.goto('/dashboard/animal');
+    await openSpecies(page, species.common_name);
+    for (const animal of [a, b]) {
+      const row = page
+        .getByRole('row')
+        .filter({ has: page.getByRole('link', { name: animal.code }) })
+        .last(); // la de la especie también lo contiene
+      await row.getByRole('checkbox').check();
+    }
+    await page.getByRole('button', { name: 'Canales (2)' }).click();
+    await page.getByRole('menuitem', { name: 'Agregar a la venta rápida' }).click();
+
+    await expect
+      .poll(async () =>
+        (await api.get(`/animals?species_id=${species.id}`)).data.every((x) => x.quick_sale)
+      )
+      .toBe(true);
+
+    await page.getByLabel('Dónde se vende').click();
+    await page.getByRole('option', { name: 'En la venta rápida' }).click();
+    await expect(page.getByRole('link', { name: species.common_name, exact: true })).toBeVisible();
+  });
+
   test('borrar una variedad desde su bloque deja las demás', async ({ page, seed, api }) => {
     const glacier = unique('Glacier');
     const { species, morphs } = await seed.species({

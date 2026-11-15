@@ -192,15 +192,14 @@ test.describe('Venta rápida', () => {
     const { species } = await seed.species({ common: unique('Gecko') });
 
     await openQuickSale(page);
-    await page.getByRole('button', { name: '+ Agregar productos' }).click();
-    const picker = page.getByRole('dialog', { name: /Qué se vende/ });
-    await picker.getByRole('button', { name: '+ Animal nuevo' }).click();
+    // directo desde la venta rápida, sin cambiar de pestaña
+    await page.getByRole('button', { name: '+ Animal nuevo' }).click();
     const form = page.getByRole('dialog', { name: 'Poner en venta' });
     await form.getByLabel('Especie y variedad').fill(species.common_name);
     await page.getByRole('option', { name: 'Nominal' }).click();
     await form.getByLabel('Precio de venta').fill('1500');
     await form.getByRole('button', { name: 'Poner en venta' }).click();
-    await picker.getByRole('button', { name: 'Listo' }).click();
+    await expect(form).toHaveCount(0);
 
     const [animal] = (await api.get(`/animals?species_id=${species.id}`)).data;
     expect(animal).toMatchObject({ quick_sale: true, show_public: false });

@@ -19,6 +19,8 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { toast } from 'src/components/snackbar';
 import { LoadingScreen } from 'src/components/loading-screen';
 
+import { PutOnSaleDialog } from 'src/sections/animal/put-on-sale-dialog';
+
 import { useAuthContext } from 'src/auth/hooks';
 
 import { useQuickSale } from '../use-quick-sale';
@@ -75,6 +77,8 @@ export function QuickSaleView() {
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const [shell, setShell] = useState(true);
   const [picking, setPicking] = useState(false);
+  const [newAnimal, setNewAnimal] = useState(false);
+  const canCreateAnimals = Boolean(user?.permissions?.includes('animals.create'));
   const [query, setQuery] = useState('');
   // null = cerrado; si no, el nombre con el que abre «Producto nuevo»
   const [creating, setCreating] = useState(null);
@@ -336,6 +340,12 @@ export function QuickSaleView() {
           <Button variant="outlined" onClick={() => setCreating('')}>
             + Producto nuevo
           </Button>
+          {/* un animal que aún no está en venta, sin salir de aquí (necesita internet) */}
+          {canCreateAnimals && (
+            <Button variant="outlined" disabled={!online} onClick={() => setNewAnimal(true)}>
+              + Animal nuevo
+            </Button>
+          )}
           <Button color="inherit" onClick={() => router.push(paths.dashboard.sale.root)}>
             Ver ventas
           </Button>
@@ -419,9 +429,20 @@ export function QuickSaleView() {
         />
       )}
 
+      {newAnimal && (
+        <PutOnSaleDialog
+          onClose={() => setNewAnimal(false)}
+          onDone={() => {
+            setNewAnimal(false);
+            // ya es botón de la venta rápida: se vuelve a bajar el catálogo
+            prepare();
+          }}
+        />
+      )}
+
       {picking && (
         <QuickSalePicker
-          canCreateAnimals={Boolean(user?.permissions?.includes('animals.create'))}
+          canCreateAnimals={canCreateAnimals}
           onClose={() => {
             setPicking(false);
             prepare();

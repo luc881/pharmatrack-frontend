@@ -17,6 +17,7 @@ import {
   createAnimal,
   updateAnimal,
   useAllGenera,
+  useGetAnimals,
   useAllSpecies,
   useAnimalGroupTree,
 } from 'src/actions/animal';
@@ -45,7 +46,10 @@ const sameMorphs = (animal, morphIds) => {
 // botón de la venta rápida. Lo demás (sexo, fotos, documentación, costo) se
 // completa después en Animales con «Editar»; el alta completa vive allá. `animals`: los que ya hay, para que una cepa o paquete
 // que ya está en venta sume existencias en vez de duplicarse.
-export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, onDone }) {
+export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose, onDone }) {
+  // los que ya hay, para sumar a una cepa o paquete en vez de duplicarlo
+  const { animals: fetched } = useGetAnimals({ page: 1, pageSize: 500 });
+  const animals = given ?? fetched;
   const { species: allSpecies } = useAllSpecies();
   const { genera: allGenera } = useAllGenera();
   const { groupTree } = useAnimalGroupTree();
