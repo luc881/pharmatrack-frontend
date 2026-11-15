@@ -133,6 +133,29 @@ describe('editar especie en su página', () => {
   });
 });
 
+describe('dificultad y rareza', () => {
+  it('se eligen de una lista fija, sin texto libre', async () => {
+    const user = userEvent.setup();
+    mount({ kind: 'species', id: '7' });
+    await screen.findByRole('heading', { name: 'Editar especie' });
+
+    await user.click(screen.getByLabelText('Dificultad'));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      'Sin dato',
+      'Fácil',
+      'Intermedia',
+      'Difícil',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'Intermedia' }));
+    await user.click(screen.getByLabelText('Rareza'));
+    await user.click(screen.getByRole('option', { name: 'Poco común' }));
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0][2]).toMatchObject({ difficulty: 'Intermedia', rarity: 'Poco común' });
+  });
+});
+
 describe('fotos por link', () => {
   it('un link externo se sube a Cloudinary; uno de Cloudinary se agrega tal cual', async () => {
     const user = userEvent.setup();

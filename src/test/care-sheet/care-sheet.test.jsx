@@ -127,7 +127,9 @@ describe('CareSheetForm', () => {
     await fillMinimal();
 
     type(screen.getByLabelText('Autoridad'), 'Linnaeus, 1758');
-    type(screen.getByLabelText('Dificultad'), 'Fácil');
+    // lista fija (no texto libre)
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Dificultad' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Fácil' }));
 
     // Ficha técnica: viene con Orden/Familia/Género/Especie; se llena una y se agrega otra
     const tax = region('Ficha técnica');

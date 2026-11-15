@@ -37,6 +37,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { speciesLabel } from './utils';
+import { RARITIES, DIFFICULTIES } from './levels';
 import { TaxonPhotosField } from './taxon-photos-field';
 
 // ----------------------------------------------------------------------
@@ -668,8 +669,35 @@ export function TaxonDialog({
               <TextField label="Temperatura" placeholder="24-28 °C" value={form.temperature} onChange={set('temperature')} />
               <TextField label="Humedad" placeholder="60-70 %" value={form.humidity} onChange={set('humidity')} />
               <TextField label="Tamaño adulto" placeholder="14 cm" value={form.adult_size} onChange={set('adult_size')} />
-              <TextField label="Dificultad" placeholder="Principiante" value={form.difficulty} onChange={set('difficulty')} />
-              <TextField label="Rareza" placeholder="Común" value={form.rarity} onChange={set('rarity')} />
+              {/* listas fijas: así no se juntan «Fácil», «sencilla», «Principiante»… */}
+              <TextField
+                select
+                label="Dificultad"
+                value={form.difficulty}
+                onChange={set('difficulty')}
+                slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+              >
+                <MenuItem value="">Sin dato</MenuItem>
+                {DIFFICULTIES.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                label="Rareza"
+                value={form.rarity}
+                onChange={set('rarity')}
+                slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+              >
+                <MenuItem value="">Sin dato</MenuItem>
+                {RARITIES.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Box>
 
             <TextField

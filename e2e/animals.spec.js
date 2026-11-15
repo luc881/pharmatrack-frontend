@@ -69,6 +69,41 @@ test.describe('Especies y morphs', () => {
   });
 });
 
+test.describe('Altas de especie y variedad', () => {
+  test('especie nueva, ya oculta en el sitio', async ({ page, seed, api }) => {
+    const { genus } = await seed.species();
+    const name = unique('caffrorum');
+
+    await page.goto('/dashboard/animal/species/new');
+    await page.getByLabel(/^Género/).click();
+    await page.getByRole('option', { name: genus.name }).click();
+    await page.getByLabel(/Especie \(nombre científico\)/).fill(name);
+    await page.getByLabel('Nombre común').fill(unique('Cucaracha cromada'));
+    await page.getByLabel('Visible en el sitio público').uncheck();
+    await page.getByLabel('Descripción').fill('La más sencilla de las cucarachas de porcelana.');
+    await page.getByRole('button', { name: 'Guardar' }).click();
+
+    await expect(page).toHaveURL(/\/dashboard\/animal\/taxonomy/);
+    const { data } = await api.get(`/species?genus_id=${genus.id}`);
+    const created = data.find((s) => s.name.toLowerCase().includes(name.split(' ').pop()));
+    expect(created).toMatchObject({ show_public: false });
+  });
+
+  test('variedad nueva desde la liga de su especie', async ({ page, seed, api }) => {
+    const { species } = await seed.species();
+    const name = unique('Glacier');
+
+    await page.goto(`/dashboard/animal/morph/new?species_id=${species.id}`);
+    await expect(page.getByRole('heading', { name: 'Nueva variedad' })).toBeVisible();
+    await page.getByLabel(/^Nombre/).fill(name);
+    await page.getByRole('button', { name: 'Guardar' }).click();
+
+    await expect(page).toHaveURL(/\/dashboard\/animal\/taxonomy/);
+    const { data } = await api.get(`/morphs?species_id=${species.id}`);
+    expect(data.map((m) => m.name.toLowerCase())).toContain(`'${name.toLowerCase()}'`);
+  });
+});
+
 test.describe('En venta', () => {
   test('alta completa con variedad: fuera del sitio y en la venta rápida', async ({
     page,

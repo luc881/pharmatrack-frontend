@@ -35,8 +35,16 @@ axiosInstance.interceptors.response.use(
     }
 
     const detail = error?.response?.data?.detail;
+    // 422: lista de errores por campo ({ field, message }) → «campo: motivo»
+    const fieldErrors = Array.isArray(detail)
+      ? detail
+          .map((d) => (d?.field ? `${d.field}: ${d.message}` : (d?.message ?? d?.msg)))
+          .filter(Boolean)
+          .join(' · ')
+      : null;
     const message =
       (typeof detail === 'string' ? detail : null) ||
+      fieldErrors ||
       error?.response?.data?.message ||
       error?.message ||
       'Something went wrong!';

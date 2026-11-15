@@ -9,6 +9,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -27,6 +28,7 @@ import { toast } from 'src/components/snackbar';
 import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 import { speciesLabel } from 'src/sections/animal/utils';
+import { DIFFICULTIES } from 'src/sections/animal/levels';
 
 // ----------------------------------------------------------------------
 
@@ -314,7 +316,19 @@ export function CareSheetForm({ current }) {
                 placeholder="Cumming, Bank, Le Tirant & Bradler, 2020"
               />
               <Field.Text name="origin" label="Origen" placeholder="Java, Indonesia" />
-              <Field.Text name="difficulty" label="Dificultad" placeholder="Fácil" />
+              {/* lista fija, la misma que en la especie */}
+              <Field.Select
+                name="difficulty"
+                label="Dificultad"
+                slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+              >
+                <MenuItem value="">Sin dato</MenuItem>
+                {DIFFICULTIES.map((option) => (
+                  <MenuItem key={option} value={option}>
+                    {option}
+                  </MenuItem>
+                ))}
+              </Field.Select>
               <Field.Text
                 name="summary"
                 label="Resumen *"
