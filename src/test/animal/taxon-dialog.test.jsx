@@ -108,7 +108,7 @@ describe('TaxonDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(sent).toMatchObject({ variety_mode: 'genes' });
+    expect(sent).toMatchObject({ variety_mode: 'genes', show_public: true });
   });
 
   it('no deja guardar un género sin grupo', async () => {

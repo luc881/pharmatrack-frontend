@@ -21,7 +21,15 @@ import { createWrapper } from '../utils';
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
 vi.mock('src/auth/hooks', () => ({
   useAuthContext: () => ({
-    user: { permissions: ['animals.create', 'animals.update', 'animals.delete'] },
+    user: {
+      permissions: [
+        'animals.create',
+        'animals.update',
+        'animals.delete',
+        'species.update',
+        'morphs.update',
+      ],
+    },
   }),
 }));
 vi.mock('src/components/snackbar', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -62,7 +70,7 @@ const animal = (code, purpose, status = 'available', extra = {}) => ({
   ...extra,
 });
 
-const TANGERINE = { id: 5, name: 'Tangerine', species_id: GECKO.id };
+const TANGERINE = { id: 5, name: 'Tangerine', species_id: GECKO.id, show_public: true };
 
 const ANIMALS = [
   animal('V-1', 'sale', 'available', { requires_legal_doc: true, legal_doc: null }),
@@ -185,6 +193,40 @@ describe('Animales: buscar por especie o variedad', () => {
     await user.type(screen.getByLabelText('Especie o variedad'), 'gecko');
     await user.click(await screen.findByRole('option', { name: 'Todas las variedades' }));
     expect(codes()).toEqual(['V-1', 'V-2', 'V-3']);
+  });
+});
+
+describe('Animales: si se ve en el sitio', () => {
+  const sent = [];
+  const record = (kind) => async ({ request, params }) => {
+    sent.push([kind, Number(params.id), await request.json()]);
+    return HttpResponse.json({ id: Number(params.id) });
+  };
+
+  it('En venta prende y apaga la especie y cada variedad en el sitio', async () => {
+    const user = userEvent.setup();
+    sent.length = 0;
+    mockApi(ANIMALS, [
+      http.put(`${API}/species/:id`, record('species')),
+      http.put(`${API}/morphs/:id`, record('morph')),
+    ]);
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+
+    const speciesSwitch = screen.getByRole('switch', { name: 'En el sitio: Gecko leopardo' });
+    expect(speciesSwitch).toBeChecked();
+    await user.click(speciesSwitch);
+    await waitFor(() => expect(sent).toEqual([['species', 1, { show_public: false }]]));
+
+    await user.click(screen.getByRole('switch', { name: 'En el sitio: Tangerine' }));
+    await waitFor(() => expect(sent.at(-1)).toEqual(['morph', 5, { show_public: false }]));
+  });
+
+  it('Pie de cría no anuncia nada: no hay interruptor del sitio', async () => {
+    mockApi();
+    renderView('breeding');
+    await screen.findByRole('link', { name: 'B-1' });
+    expect(screen.queryByRole('switch', { name: /En el sitio/ })).toBeNull();
   });
 });
 

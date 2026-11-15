@@ -11,6 +11,7 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
 import Collapse from '@mui/material/Collapse';
@@ -32,7 +33,16 @@ import { fCurrency } from 'src/utils/format-number';
 
 import { moduleOn } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { deleteAnimal, useAllGenera, useGetAnimals, useAllSpecies, useAnimalGroupTree } from 'src/actions/animal';
+import {
+  updateMorph,
+  deleteAnimal,
+  useAllGenera,
+  useAllMorphs,
+  updateSpecies,
+  useGetAnimals,
+  useAllSpecies,
+  useAnimalGroupTree,
+} from 'src/actions/animal';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -218,6 +228,7 @@ export function AnimalListView({ area = 'sale' }) {
   const canUpdate = user?.permissions?.includes('animals.update');
   const canDelete = user?.permissions?.includes('animals.delete');
   const canUpdateSpecies = user?.permissions?.includes('species.update');
+  const canUpdateMorphs = user?.permissions?.includes('morphs.update');
 
   // El breadcrumb del detalle enlaza aquí con ?genus_id= / ?species_id=
   const [searchParams] = useSearchParams();
@@ -238,9 +249,51 @@ export function AnimalListView({ area = 'sale' }) {
   const [labelsFor, setLabelsFor] = useState(null); // entry {species, animals} → diálogo de etiquetas QR
 
   const { genera: allGenera } = useAllGenera();
-  const { species: allSpecies } = useAllSpecies();
+  const { species: allSpecies, speciesMutate } = useAllSpecies();
+  const { morphs: allMorphs, morphsMutate } = useAllMorphs();
   const { groupTree } = useAnimalGroupTree();
   const groupsFlat = flattenGroupTree(groupTree);
+
+  // ¿Se ve en el sitio? Se decide aquí, junto a lo que está en venta. Un
+  // grupo oculto esconde todo lo de abajo (igual que el catálogo público).
+  const hiddenGroups = useMemo(() => {
+    const byId = Object.fromEntries(groupsFlat.map((g) => [g.id, g]));
+    return new Set(
+      groupsFlat
+        .filter((g) => g.show_public === false || g.ancestors.some((id) => byId[id]?.show_public === false))
+        .map((g) => g.id)
+    );
+  }, [groupsFlat]);
+  const site = useMemo(
+    () => ({
+      species: Object.fromEntries(allSpecies.map((s) => [s.id, s])),
+      morphsOf: (speciesId) =>
+        allMorphs.filter((m) => m.species_id === speciesId).sort((a, b) => a.name.localeCompare(b.name)),
+      hiddenGroups,
+    }),
+    [allSpecies, allMorphs, hiddenGroups]
+  );
+
+  // Optimista sobre la lista ({ data, total }) y luego se confirma
+  const setOnSite = async (kind, id, value) => {
+    const mutate = kind === 'morph' ? morphsMutate : speciesMutate;
+    const write = kind === 'morph' ? updateMorph : updateSpecies;
+    mutate(
+      (current) =>
+        current && {
+          ...current,
+          data: current.data.map((it) => (it.id === id ? { ...it, show_public: value } : it)),
+        },
+      { revalidate: false }
+    );
+    try {
+      await write(id, { show_public: value });
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo guardar');
+    } finally {
+      await mutate();
+    }
+  };
 
   const speciesOptions = genusFilter
     ? allSpecies.filter((s) => s.genus?.id === Number(genusFilter))
@@ -554,6 +607,7 @@ export function AnimalListView({ area = 'sale' }) {
                       <TableCell>Cantidad</TableCell>
                       <TableCell>Precio</TableCell>
                       <TableCell>Formato</TableCell>
+                      {area === 'sale' && <TableCell align="center">En el sitio</TableCell>}
                       <TableCell align="right"> </TableCell>
                     </TableRow>
                   </TableHead>
@@ -565,6 +619,9 @@ export function AnimalListView({ area = 'sale' }) {
                         open={expanded.has(entry.species.id) || grouped.length === 1}
                         onToggle={() => toggleExpanded(entry.species.id)}
                         area={area}
+                        site={area === 'sale' ? site : null}
+                        canSite={{ species: canUpdateSpecies, morph: canUpdateMorphs }}
+                        onSetOnSite={setOnSite}
                         onPutOnSale={() => setPutOnSale({ species: entry.species })}
                         canCreate={canCreate}
                         canUpdate={canUpdate}
@@ -656,7 +713,28 @@ function speciesChips(species, animals) {
   return chips;
 }
 
-function SpeciesRows({ entry, area, onPutOnSale, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
+// Interruptor «En el sitio». Si un grupo o la especie lo esconden de todos
+// modos, se dice por qué (el propio no basta).
+function OnSiteSwitch({ name, checked, reason, disabled, onChange }) {
+  const control = (
+    <Switch
+      size="small"
+      checked={checked}
+      disabled={disabled || Boolean(reason)}
+      onChange={(event) => onChange(event.target.checked)}
+      slotProps={{ input: { role: 'switch', 'aria-label': `En el sitio: ${name}` } }}
+    />
+  );
+  return reason ? (
+    <Tooltip title={`${reason}: se esconde aunque esté prendido`}>
+      <span>{control}</span>
+    </Tooltip>
+  ) : (
+    control
+  );
+}
+
+function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onPutOnSale, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
   const { species, animals } = entry;
   const { pathname, search } = useLocation();
 
@@ -736,6 +814,18 @@ function SpeciesRows({ entry, area, onPutOnSale, open, onToggle, canCreate, canU
 
         <TableCell>{format ?? '—'}</TableCell>
 
+        {site && (
+          <TableCell align="center" onClick={(event) => event.stopPropagation()}>
+            <OnSiteSwitch
+              name={species.common_name ?? scientific}
+              checked={site.species[species.id]?.show_public !== false}
+              reason={site.hiddenGroups.has(species.genus?.group?.id) ? 'Grupo oculto' : null}
+              disabled={!canSite.species}
+              onChange={(value) => onSetOnSite('species', species.id, value)}
+            />
+          </TableCell>
+        )}
+
         <TableCell align="right">
           <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
             {canCreate && area === 'sale' && (
@@ -794,8 +884,36 @@ function SpeciesRows({ entry, area, onPutOnSale, open, onToggle, canCreate, canU
       </TableRow>
 
       <TableRow>
-        <TableCell colSpan={7} sx={{ py: 0 }}>
+        <TableCell colSpan={site ? 8 : 7} sx={{ py: 0 }}>
           <Collapse in={open} timeout="auto" unmountOnExit>
+            {site && site.morphsOf(species.id).length > 0 && (
+              <Stack
+                direction="row"
+                sx={{ mt: 1, px: 1, gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}
+              >
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Variedades en el sitio:
+                </Typography>
+                {site.morphsOf(species.id).map((morph) => (
+                  <Stack key={morph.id} direction="row" sx={{ alignItems: 'center' }}>
+                    <OnSiteSwitch
+                      name={morph.name}
+                      checked={morph.show_public !== false}
+                      reason={
+                        site.hiddenGroups.has(species.genus?.group?.id)
+                          ? 'Grupo oculto'
+                          : site.species[species.id]?.show_public === false
+                            ? 'Especie oculta'
+                            : null
+                      }
+                      disabled={!canSite.morph}
+                      onChange={(value) => onSetOnSite('morph', morph.id, value)}
+                    />
+                    <Typography variant="body2">{morph.name}</Typography>
+                  </Stack>
+                ))}
+              </Stack>
+            )}
             <Box sx={{ my: 1, borderRadius: 1.5, overflow: 'hidden', bgcolor: 'background.neutral' }}>
               <Table size="small">
                 <TableHead>

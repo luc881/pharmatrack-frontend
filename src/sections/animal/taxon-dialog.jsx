@@ -374,6 +374,7 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           name: speciesName(),
           common_name: form.common_name || null,
           variety_mode: form.variety_mode,
+          show_public: form.show_public,
           // ficha de cuidados que muestra el sitio público
           description: form.description || null,
           origin: form.origin || null,
@@ -390,6 +391,7 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
         morphs: {
           species_id: Number(form.species_id),
           name: quoteMorph(form.name),
+          show_public: form.show_public,
           description: form.description || null,
           image: form.image || null,
         },
@@ -534,6 +536,23 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
             isOptionEqualToValue={(option, value) => option?.id === value?.id}
             renderInput={(params) => <TextField {...params} label="Especie *" sx={{ mt: 1 }} />}
           />
+        )}
+
+        {(tab === 'species' || tab === 'morphs') && (
+          <Box>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={form.show_public}
+                  onChange={(e) => setForm((f) => ({ ...f, show_public: e.target.checked }))}
+                />
+              }
+              label="Visible en el sitio público"
+            />
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', ml: 1.5 }}>
+              También se cambia en Animales → «En venta».
+            </Typography>
+          </Box>
         )}
 
         {(tab === 'species' || tab === 'morphs') && (

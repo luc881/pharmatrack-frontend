@@ -11,13 +11,10 @@ import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import ToggleButton from '@mui/material/ToggleButton';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { Toolbar, DataGrid, gridClasses, useGridApiRef } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
@@ -242,25 +239,6 @@ export function AnimalTaxonomyView() {
   // Todos los morphs: ahora cuelgan de su especie en la misma tabla.
   const { morphs, morphsLoading, morphsMutate } = useAllMorphs();
 
-  // Alterna show_public de una especie o morph sin abrir el diálogo.
-  // Optimista sobre la lista paginada ({ data, total }) que devuelven los hooks.
-  const handleWebFlag = async (row, value) => {
-    const isMorph = row.__kind === 'morph';
-    const write = isMorph ? updateMorph : updateSpecies;
-    const mutate = isMorph ? morphsMutate : speciesMutate;
-    mutate(
-      (current) =>
-        current && { ...current, data: current.data.map((it) => (it.id === row.id ? { ...it, show_public: value } : it)) },
-      { revalidate: false }
-    );
-    try {
-      await write(row.id, { show_public: value });
-    } catch (error) {
-      toast.error(error?.message || 'No se pudo guardar');
-    } finally {
-      await mutate();
-    }
-  };
 
   // "Cultivos" dentro de la pestaña Especies: unidades disponibles derivadas del
   // inventario más el estado de stock/cría por especie. Mismo cálculo que la
@@ -680,38 +658,6 @@ export function AnimalTaxonomyView() {
           },
         },
         { field: 'common_name', headerName: 'Nombre común / morph', flex: 1, minWidth: 180, sortable: false, valueGetter: (_, row) => (row.__kind === 'morph' ? row.description ?? '—' : row.common_name ?? '—') },
-        {
-          field: 'show_public',
-          headerName: 'En el sitio',
-          width: 130,
-          sortable: false,
-          align: 'center',
-          headerAlign: 'center',
-          renderCell: (params) => {
-            const { row } = params;
-            const kind = row.__kind === 'morph' ? 'morphs' : 'species';
-            const reason = webReason(row);
-            const control = (
-              <Switch
-                size="small"
-                checked={row.show_public !== false}
-                disabled={!canDo(kind, 'update') || !!reason}
-                onChange={(e) => handleWebFlag(row, e.target.checked)}
-              />
-            );
-            // Oculto por herencia: el switch propio no basta, se dice por qué
-            return reason ? (
-              <Tooltip title={`${reason}: se esconde aunque esté prendido`}>
-                <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                  <span>{control}</span>
-                  <Label variant="soft" color="default">{reason}</Label>
-                </Stack>
-              </Tooltip>
-            ) : (
-              control
-            );
-          },
-        },
         // Columnas de "Cultivos": aplican a especies y morphs (cría independiente)
         {
           field: 'units',
@@ -858,19 +804,6 @@ export function AnimalTaxonomyView() {
                       <Chip color="primary" variant="soft" label={filterLabel()} onDelete={() => goTo(tabValue, null)} />
                     )}
 
-                    {tabValue === 'species' && (
-                      <ToggleButtonGroup
-                        exclusive
-                        size="small"
-                        value={webFilter}
-                        onChange={(_, v) => v && goTo(tabValue, filter, { web: v })}
-                        aria-label="Visibilidad en el sitio"
-                      >
-                        <ToggleButton value="all">Todas</ToggleButton>
-                        <ToggleButton value="online">En el sitio</ToggleButton>
-                        <ToggleButton value="offline">Fuera del sitio</ToggleButton>
-                      </ToggleButtonGroup>
-                    )}
 
                     <ToolbarRightPanel>
                       {drillDown[tabValue] && (
