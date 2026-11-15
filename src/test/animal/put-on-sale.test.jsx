@@ -65,14 +65,8 @@ beforeEach(() => {
     };
   server.use(
     http.get(`${API}/species`, () => HttpResponse.json(page([GECKO, ROACH, MANTIS]))),
-    http.get(`${API}/morphs`, ({ request }) =>
-      HttpResponse.json(
-        page(
-          new URL(request.url).searchParams.get('species_id') === '1'
-            ? [{ id: 5, name: 'Tangerine', species_id: 1 }]
-            : []
-        )
-      )
+    http.get(`${API}/morphs`, () =>
+      HttpResponse.json(page([{ id: 5, name: 'Tangerine', species_id: 1 }]))
     ),
     http.get(`${API}/genera`, () =>
       HttpResponse.json(page([GECKO.genus, ROACH.genus, MANTIS.genus]))
@@ -91,10 +85,18 @@ beforeEach(() => {
   );
 });
 
-const pickSpecies = async (user, dialog, typed, option) => {
-  await user.type(dialog.getByLabelText('Especie'), typed);
+const PICKER = 'Especie y variedad';
+
+// escribe en el buscador y elige una variedad de lo que quedó
+const pick = async (user, dialog, typed, option = 'Nominal') => {
+  await user.clear(dialog.getByLabelText(PICKER));
+  await user.type(dialog.getByLabelText(PICKER), typed);
   await user.click(await screen.findByRole('option', { name: option }));
 };
+
+// encabezados de especie de la lista abierta
+const speciesShown = () =>
+  [...document.querySelectorAll('.MuiAutocomplete-groupLabel')].map((el) => el.textContent);
 
 describe('Poner en venta (alta corta)', () => {
   it('con especie, cuántos y precio da de alta los ejemplares en venta', async () => {
@@ -104,7 +106,10 @@ describe('Poner en venta (alta corta)', () => {
     const dialog = within(await screen.findByRole('dialog'));
 
     // se encuentra por nombre científico y sin acentos
-    await pickSpecies(user, dialog, 'eubleph', 'Gecko leopardo (Eublepharis macularius)');
+    await pick(user, dialog, 'eubleph');
+    expect(dialog.getByLabelText(PICKER)).toHaveValue(
+      'Gecko leopardo (Eublepharis macularius) · Nominal'
+    );
     await user.clear(dialog.getByLabelText('¿Cuántos ejemplares?'));
     await user.type(dialog.getByLabelText('¿Cuántos ejemplares?'), '3');
     await user.type(dialog.getByLabelText('Precio de venta'), '1500');
@@ -131,14 +136,19 @@ describe('Poner en venta (alta corta)', () => {
     ]);
   });
 
-  it('abre con la especie de la fila y deja elegir morph', async () => {
+  it('abre con la especie de la fila y deja elegir su variedad', async () => {
     const user = userEvent.setup();
     wrap(<PutOnSaleDialog initialSpecies={GECKO} onClose={() => {}} onDone={() => {}} />);
     const dialog = within(await screen.findByRole('dialog'));
 
-    expect(dialog.getByLabelText('Especie')).toHaveValue('Gecko leopardo (Eublepharis macularius)');
-    await user.click(await dialog.findByLabelText('Morph (opcional)'));
-    await user.click(await screen.findByRole('option', { name: 'Tangerine' }));
+    expect(dialog.getByLabelText(PICKER)).toHaveValue(
+      'Gecko leopardo (Eublepharis macularius) · Nominal'
+    );
+    // la variedad se busca por su nombre, sin pasar por la especie
+    await pick(user, dialog, 'tanger', 'Tangerine');
+    expect(dialog.getByLabelText(PICKER)).toHaveValue(
+      'Gecko leopardo (Eublepharis macularius) · Tangerine'
+    );
     await user.type(dialog.getByLabelText('Precio de venta'), '900');
     await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
 
@@ -207,8 +217,9 @@ describe('Poner en venta (alta corta)', () => {
     wrap(<PutOnSaleDialog onClose={() => {}} onDone={() => {}} />);
     const dialog = within(await screen.findByRole('dialog'));
     const options = async () => {
-      await user.click(dialog.getByLabelText('Especie'));
-      const names = (await screen.findAllByRole('option')).map((o) => o.textContent);
+      await user.click(dialog.getByLabelText(PICKER));
+      await screen.findAllByRole('option');
+      const names = speciesShown();
       await user.keyboard('{Escape}');
       return names;
     };
@@ -246,10 +257,9 @@ describe('Poner en venta (alta corta)', () => {
 
     await user.click(dialog.getByLabelText('Grupo'));
     await user.click(await screen.findByRole('option', { name: 'Insectos' }));
-    await user.click(dialog.getByLabelText('Especie'));
-    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual([
-      'Mantis orquídea (Pseudocreobotra wahlbergii)',
-    ]);
+    await user.click(dialog.getByLabelText(PICKER));
+    await screen.findAllByRole('option');
+    expect(speciesShown()).toEqual(['Mantis orquídea (Pseudocreobotra wahlbergii)']);
   });
 
   it('abierto desde una especie no estorba con filtros', async () => {

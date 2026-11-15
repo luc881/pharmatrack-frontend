@@ -12,21 +12,19 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
-import { matchesWords } from 'src/utils/plain';
-
 import { updateProduct } from 'src/actions/product';
 import {
   createAnimal,
   updateAnimal,
   useAllGenera,
-  useAllMorphs,
   useAllSpecies,
   useAnimalGroupTree,
 } from 'src/actions/animal';
 
 import { toast } from 'src/components/snackbar';
 
-import { purposeOf, speciesLabel, flattenGroupTree } from './utils';
+import { VarietyPicker } from './variety-picker';
+import { purposeOf, flattenGroupTree } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -55,7 +53,6 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
   // Filtros para acortar la lista de especies (no se guardan en el animal)
   const [group, setGroup] = useState(null);
   const [genus, setGenus] = useState(null);
-  const { morphs } = useAllMorphs(species?.id);
   const [morphIds, setMorphIds] = useState([]);
   const [quantity, setQuantity] = useState('1');
   const [price, setPrice] = useState('');
@@ -80,7 +77,6 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
   );
 
   const bulk = isBulk(species);
-  const speciesMorphs = species ? morphs.filter((m) => m.species_id === species.id) : [];
 
   // Cepa o paquete que ya está en venta (misma especie y morphs): el servidor
   // no admite dos registros iguales, así que se le suman existencias
@@ -191,44 +187,20 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
             </Stack>
           )}
 
-          <Autocomplete
-            options={speciesOptions}
-            value={species}
-            onChange={(_, option) => {
-              setSpecies(option);
-              setMorphIds([]);
+          <VarietyPicker
+            species={speciesOptions}
+            value={{ speciesId: species?.id, morphIds }}
+            onChange={(next) => {
+              setSpecies(next.species);
+              setMorphIds(next.morphIds);
             }}
-            getOptionLabel={(option) => speciesLabel(option)}
-            isOptionEqualToValue={(option, selected) => option.id === selected.id}
-            // por nombre común o científico, sin acentos
-            filterOptions={(options, { inputValue }) =>
-              options.filter((option) => matchesWords(speciesLabel(option), inputValue))
+            autoFocus={!initialSpecies}
+            error={errors.species}
+            helperText={
+              errors.species ??
+              'Busca por nombre común, científico o de la variedad. Si no está, dala de alta en «Especies y morphs».'
             }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                autoFocus={!initialSpecies}
-                label="Especie"
-                error={Boolean(errors.species)}
-                helperText={
-                  errors.species ??
-                  'Si no está en la lista, primero dala de alta en «Especies y morphs».'
-                }
-              />
-            )}
           />
-
-          {speciesMorphs.length > 0 && (
-            <Autocomplete
-              multiple
-              options={speciesMorphs}
-              value={speciesMorphs.filter((m) => morphIds.includes(m.id))}
-              onChange={(_, options) => setMorphIds(options.map((m) => m.id))}
-              getOptionLabel={(option) => option.name}
-              isOptionEqualToValue={(option, selected) => option.id === selected.id}
-              renderInput={(params) => <TextField {...params} label="Morph (opcional)" />}
-            />
-          )}
 
           <Stack direction="row" spacing={2}>
             <TextField
