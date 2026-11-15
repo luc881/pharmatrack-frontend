@@ -111,6 +111,42 @@ describe('TaxonDialog', () => {
     expect(sent).toMatchObject({ variety_mode: 'genes', show_public: true });
   });
 
+  it('un grupo se mueve a un grupo padre nuevo creado ahí mismo', async () => {
+    const calls = [];
+    server.use(
+      http.post(`${API}/animal-groups`, async ({ request }) => {
+        calls.push(['create', await request.json()]);
+        return HttpResponse.json({ id: 50, name: 'Otros artrópodos' }, { status: 201 });
+      }),
+      http.put(`${API}/animal-groups/12`, async ({ request }) => {
+        calls.push(['update', await request.json()]);
+        return HttpResponse.json({ id: 12 });
+      })
+    );
+    const onSaved = vi.fn();
+    renderDialog({
+      tab: 'groups',
+      singular: 'grupo',
+      onSaved,
+      groupsFlat: [
+        { id: 3, name: 'Insectos', depth: 0, ancestors: [] },
+        { id: 12, name: 'Colémbolos', depth: 1, ancestors: [3], parent_id: 3 },
+      ],
+      current: { id: 12, name: 'Colémbolos', parent_id: 3, show_public: true },
+    });
+
+    createNew('Grupo padre nuevo', 'Otros artrópodos');
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(calls[0]).toEqual([
+      'create',
+      { name: 'Otros artrópodos', parent_id: null, show_public: true, feature_home: false },
+    ]);
+    expect(calls[1][0]).toBe('update');
+    expect(calls[1][1]).toMatchObject({ name: 'Colémbolos', parent_id: 50 });
+  });
+
   it('no deja guardar un género sin grupo', async () => {
     renderDialog({ tab: 'genera', singular: 'género' });
     fireEvent.change(screen.getByLabelText(/^nombre/i), { target: { value: 'Phyllium' } });

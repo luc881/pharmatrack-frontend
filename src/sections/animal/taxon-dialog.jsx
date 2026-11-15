@@ -279,11 +279,13 @@ export function TaxonDialog({
   // Género/grupo escritos que todavía no existen: se crean al guardar
   const [newGenus, setNewGenus] = useState(null);
   const [newGroup, setNewGroup] = useState(null);
+  // pestaña Grupos: un grupo padre que todavía no existe (se crea al guardar)
+  const [newParent, setNewParent] = useState(null);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
   // Un subgrupo siempre puede destacarse; un raíz sólo si está visible
-  const canFeature = !!form.parent_id || form.show_public;
+  const canFeature = !!form.parent_id || newParent !== null || form.show_public;
 
   // Un grupo no puede colgar de sí mismo ni de sus descendientes
   const parentOptions = groupsFlat.filter(
@@ -305,7 +307,8 @@ export function TaxonDialog({
   const missingParent =
     (tab === 'species' && (!hasGenus || (genusNeedsGroup && !hasGroup))) ||
     (tab === 'genera' && !hasGroup) ||
-    (tab === 'morphs' && !form.species_id);
+    (tab === 'morphs' && !form.species_id) ||
+    (tab === 'groups' && newParent !== null && !!newNameError(newParent, groupsFlat));
 
   const pickGroup = (g) => {
     setNewGroup(null);
@@ -360,10 +363,23 @@ export function TaxonDialog({
     try {
       const genusId = tab === 'species' ? await ensureGenus() : null;
       const groupId = tab === 'genera' ? await ensureGroup() : null;
+      // grupo padre nuevo: se crea primero, como raíz
+      let parentId = form.parent_id ? Number(form.parent_id) : null;
+      if (tab === 'groups' && newParent !== null) {
+        const parent = await createAnimalGroup({
+          name: newParent.trim(),
+          parent_id: null,
+          show_public: true,
+          feature_home: false,
+        });
+        parentId = parent.id;
+        setNewParent(null);
+        setForm((f) => ({ ...f, parent_id: parent.id }));
+      }
       const payload = {
         groups: {
           name: form.name,
-          parent_id: form.parent_id ? Number(form.parent_id) : null,
+          parent_id: parentId,
           show_public: form.show_public,
           // un raíz oculto no puede destacarse; un subgrupo sí
           feature_home: canFeature && form.feature_home,
@@ -419,28 +435,36 @@ export function TaxonDialog({
   const body = (
     <>
         {tab === 'groups' && (
-          <Autocomplete
-            options={parentOptions}
-            value={parentOptions.find((g) => g.id === Number(form.parent_id)) ?? null}
-            onChange={(_, option) => setForm((f) => ({ ...f, parent_id: option?.id ?? '' }))}
-            getOptionLabel={(option) => option?.name ?? ''}
-            isOptionEqualToValue={(option, value) => option?.id === value?.id}
-            renderOption={({ key, ...props }, option) => (
-              <li key={key} {...props} style={{ ...props.style, paddingLeft: 16 + option.depth * 16 }}>
-                {option.depth > 0 && '└ '}
-                {option.name}
-              </li>
-            )}
-            renderInput={(params) => (
-              <TextField {...params} label="Grupo padre" placeholder="— Raíz —" sx={{ mt: 1 }} />
-            )}
-          />
+          <Box sx={{ mt: 1 }}>
+            {/* Se elige uno existente o se crea ahí mismo (p. ej. «Otros artrópodos») */}
+            <CreatableField
+              options={parentOptions}
+              value={parentOptions.find((g) => g.id === Number(form.parent_id)) ?? null}
+              newName={newParent}
+              label="Grupo padre"
+              newLabel="Grupo padre nuevo"
+              helperText={
+                newParent !== null
+                  ? 'Se crea al guardar, como grupo raíz.'
+                  : 'Vacío = este es un grupo raíz.'
+              }
+              renderOption={groupOption}
+              onPick={(g) => {
+                setNewParent(null);
+                setForm((f) => ({ ...f, parent_id: g?.id ?? '' }));
+              }}
+              onNewName={(name) => {
+                setNewParent(name);
+                setForm((f) => ({ ...f, parent_id: '' }));
+              }}
+            />
+          </Box>
         )}
 
         {tab === 'groups' && (
           <Box>
             {/* Visibilidad: solo a nivel raíz (oculta todo el subárbol) */}
-            {!form.parent_id && (
+            {!form.parent_id && newParent === null && (
               <>
                 <FormControlLabel
                   control={

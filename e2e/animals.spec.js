@@ -70,6 +70,29 @@ test.describe('Especies y morphs', () => {
 });
 
 test.describe('Altas de especie y variedad', () => {
+  test('un grupo se mueve a un grupo padre nuevo creado ahí mismo', async ({ page, api }) => {
+    const insects = await api.post('/animal-groups', { name: unique('Insectos') });
+    const springtails = await api.post('/animal-groups', {
+      name: unique('Colémbolos'),
+      parent_id: insects.id,
+    });
+    const parent = unique('Otros artrópodos');
+
+    await page.goto('/dashboard/animal/taxonomy?tab=groups');
+    const row = page.getByRole('row').filter({ hasText: new RegExp(springtails.name, 'i') });
+    await row.getByRole('menuitem', { name: 'Editar' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByRole('button', { name: 'Grupo padre nuevo' }).click();
+    await dialog.getByLabel('Nombre del grupo padre nuevo *').fill(parent);
+    await dialog.getByRole('button', { name: 'Guardar' }).click();
+    await expect(dialog).toHaveCount(0);
+
+    const tree = await api.get('/animal-groups/tree');
+    const created = tree.find((g) => g.name.toLowerCase() === parent.toLowerCase());
+    expect(created).toBeTruthy();
+    expect(created.children.map((c) => c.id)).toEqual([springtails.id]);
+  });
+
   test('otro grupo raíz se crea y aparece en la tabla', async ({ page, api }) => {
     await api.post('/animal-groups', { name: unique('Existente') });
     const name = unique('Otro raíz');
