@@ -25,6 +25,7 @@ import { toast } from 'src/components/snackbar';
 
 import { VarietyPicker } from './variety-picker';
 import { purposeOf, flattenGroupTree } from './utils';
+import { useOnSite, OnSiteField } from './on-site-field';
 
 // ----------------------------------------------------------------------
 
@@ -57,6 +58,9 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
   const [quantity, setQuantity] = useState('1');
   const [price, setPrice] = useState('');
   const [quickSale, setQuickSale] = useState(false);
+  // null = como está hoy la especie o variedad en el sitio
+  const [showOnSite, setShowOnSite] = useState(null);
+  const onSite = useOnSite(species?.id, morphIds);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -131,6 +135,7 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
           quick_sale: quickSale,
         });
       }
+      if (showOnSite !== null) await onSite.apply(showOnSite);
       toast.success(existing ? 'Existencias agregadas' : 'Ya está en venta');
       onDone(species.id);
     } catch (error) {
@@ -193,6 +198,7 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
             onChange={(next) => {
               setSpecies(next.species);
               setMorphIds(next.morphIds);
+              setShowOnSite(null);
             }}
             autoFocus={!initialSpecies}
             error={errors.species}
@@ -235,6 +241,8 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
               Ya hay {existing.stock} en venta: lo que pongas aquí se suma a ese registro.
             </Alert>
           )}
+
+          <OnSiteField onSite={onSite} value={showOnSite} onChange={setShowOnSite} />
 
           <FormControlLabel
             control={

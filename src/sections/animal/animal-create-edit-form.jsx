@@ -40,6 +40,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { TaxonDialog } from './taxon-dialog';
 import { MoveAnimalMenu } from './move-animal-dialog';
+import { useOnSite, OnSiteField } from './on-site-field';
 import { VarietyPicker, isGeneSpecies } from './variety-picker';
 import {
   PURPOSES,
@@ -197,6 +198,11 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const isSale = purpose === 'sale';
   const speciesId = watch('species_id');
   const morphIds = watch('morphs');
+  // «Mostrar en el sitio» al dar de alta (null = como está hoy la variedad)
+  const [showOnSite, setShowOnSite] = useState(null);
+  const onSite = useOnSite(speciesId, morphIds);
+  const varietyKey = `${speciesId}:${(morphIds ?? []).join(',')}`;
+  useEffect(() => setShowOnSite(null), [varietyKey]);
   const { morphsMutate } = useAllMorphs();
 
   const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));
@@ -324,6 +330,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         await updateAnimal(currentAnimal.id, payload);
       } else {
         await createAnimal({ ...payload, purpose: data.purpose });
+        // al dar de alta en venta ya se decide si se anuncia en el sitio
+        if (isSale && showOnSite !== null) await onSite.apply(showOnSite);
       }
 
       toast.success(
@@ -625,6 +633,12 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 type="date"
                 slotProps={{ inputLabel: { shrink: true } }}
               />
+            )}
+
+            {isSale && !isEdit && (
+              <Box sx={{ gridColumn: { sm: 'span 2' } }}>
+                <OnSiteField onSite={onSite} value={showOnSite} onChange={setShowOnSite} />
+              </Box>
             )}
 
             {isSale && (
