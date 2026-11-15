@@ -10,11 +10,13 @@ import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 
@@ -40,7 +42,6 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { TaxonDialog } from './taxon-dialog';
 import { MoveAnimalMenu } from './move-animal-dialog';
-import { useOnSite, OnSiteField } from './on-site-field';
 import { VarietyPicker, isGeneSpecies } from './variety-picker';
 import {
   PURPOSES,
@@ -76,6 +77,9 @@ const schema = zod.object({
   requires_legal_doc: zod.boolean(),
   legal_doc: zod.string().optional(),
   legal_doc_url: zod.string().optional(),
+  // Del ejemplar, solo en venta: se anuncia en el sitio / botón en la venta rápida
+  show_public: zod.boolean(),
+  quick_sale: zod.boolean(),
   // Unidades idénticas (solo especies en cepa/paquete)
   // 0 = ya no hay (agotado); el backend lo marca como vendido y el sitio dice "Agotado"
   stock: zod.number({ coerce: true }).int('Solo números enteros').min(0, 'No puede ser negativo').optional(),
@@ -136,6 +140,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       requires_legal_doc: false,
       legal_doc: '',
       legal_doc_url: '',
+      show_public: true,
+      quick_sale: false,
       stock: 1,
       count: 1,
     },
@@ -157,6 +163,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           requires_legal_doc: !!currentAnimal.requires_legal_doc,
           legal_doc: currentAnimal.legal_doc ?? '',
           legal_doc_url: currentAnimal.legal_doc_url ?? '',
+          show_public: currentAnimal.show_public ?? true,
+          quick_sale: !!currentAnimal.quick_sale,
           stock: currentAnimal.stock ?? 1,
           count: 1,
         }
@@ -199,10 +207,6 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const speciesId = watch('species_id');
   const morphIds = watch('morphs');
   // «Mostrar en el sitio» al dar de alta (null = como está hoy la variedad)
-  const [showOnSite, setShowOnSite] = useState(null);
-  const onSite = useOnSite(speciesId, morphIds);
-  const varietyKey = `${speciesId}:${(morphIds ?? []).join(',')}`;
-  useEffect(() => setShowOnSite(null), [varietyKey]);
   const { morphsMutate } = useAllMorphs();
 
   const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));
@@ -312,6 +316,8 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         requires_legal_doc: legalDoc,
         legal_doc: legalDoc ? data.legal_doc || null : null,
         legal_doc_url: legalDoc ? data.legal_doc_url || null : null,
+        // solo cuentan en venta (pie de cría y crianza nunca se anuncian)
+        ...(isSale ? { show_public: data.show_public, quick_sale: data.quick_sale } : {}),
         // si se omite el código, el backend genera uno "AN-XXXXXXXX" (siempre, con varios)
         ...(data.code && count === 1 ? { code: data.code } : {}),
         ...(count > 1 ? { count } : {}),
@@ -330,8 +336,6 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         await updateAnimal(currentAnimal.id, payload);
       } else {
         await createAnimal({ ...payload, purpose: data.purpose });
-        // al dar de alta en venta ya se decide si se anuncia en el sitio
-        if (isSale && showOnSite !== null) await onSite.apply(showOnSite);
       }
 
       toast.success(
@@ -635,9 +639,29 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               />
             )}
 
-            {isSale && !isEdit && (
-              <Box sx={{ gridColumn: { sm: 'span 2' } }}>
-                <OnSiteField onSite={onSite} value={showOnSite} onChange={setShowOnSite} />
+            {isSale && (
+              <Box sx={{ gridColumn: { sm: 'span 2' }, display: 'flex', flexDirection: 'column' }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={watch('show_public')}
+                      onChange={(e) => setValue('show_public', e.target.checked, { shouldDirty: true })}
+                    />
+                  }
+                  label="Mostrar en el sitio"
+                />
+                <Typography variant="caption" sx={{ ml: 4, mt: -0.5, color: 'text.secondary' }}>
+                  Apagado: se vende en mostrador o en la venta rápida sin anunciarse en la tienda.
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={watch('quick_sale')}
+                      onChange={(e) => setValue('quick_sale', e.target.checked, { shouldDirty: true })}
+                    />
+                  }
+                  label="También en la venta rápida (botón para convenciones)"
+                />
               </Box>
             )}
 

@@ -34,6 +34,7 @@ import {
 import { toast } from 'src/components/snackbar';
 
 import { purposeOf } from 'src/sections/animal/utils';
+import { PutOnSaleDialog } from 'src/sections/animal/put-on-sale-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -132,8 +133,9 @@ function Toolbar({ search, onSearch, suggestions, filterLabel, filter, onFilter,
 
 function AnimalsTab({ search, onSearch, busy, onToggle }) {
   const [group, setGroup] = useState('');
+  const [creating, setCreating] = useState(false);
   // ponytail: una página de 500 (tope del API), igual que la lista de animales
-  const { animals, animalsLoading } = useGetAnimals({ page: 1, pageSize: 500 });
+  const { animals, animalsLoading, animalsMutate } = useGetAnimals({ page: 1, pageSize: 500 });
   // Lo ya marcado sale del catálogo de la venta rápida (una sola petición)
   const { data: catalog, mutate } = useSWR(endpoints.product.quickSale, fetcher, {
     revalidateOnFocus: false,
@@ -186,15 +188,31 @@ function AnimalsTab({ search, onSearch, busy, onToggle }) {
   }, [onSale, group, search]);
 
   const toolbar = (
-    <Toolbar
-      search={search}
-      onSearch={onSearch}
-      suggestions={suggestions}
-      filterLabel="Grupo"
-      filter={group}
-      onFilter={setGroup}
-      filterOptions={groupOptions}
-    />
+    <>
+      <Toolbar
+        search={search}
+        onSearch={onSearch}
+        suggestions={suggestions}
+        filterLabel="Grupo"
+        filter={group}
+        onFilter={setGroup}
+        filterOptions={groupOptions}
+      />
+      {/* algo que aún no está en venta: alta corta, ya como botón */}
+      <Button size="small" onClick={() => setCreating(true)} sx={{ mt: 1 }}>
+        + Animal nuevo
+      </Button>
+      {creating && (
+        <PutOnSaleDialog
+          animals={animals}
+          onClose={() => setCreating(false)}
+          onDone={async () => {
+            setCreating(false);
+            await Promise.all([animalsMutate(), mutate()]);
+          }}
+        />
+      )}
+    </>
   );
 
   if (!animalsLoading && groups.length === 0) {

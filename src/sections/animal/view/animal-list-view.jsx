@@ -1,4 +1,3 @@
-import { useBoolean } from 'minimal-shared/hooks';
 import { useMemo, useState, useCallback } from 'react';
 import { useLocation, useSearchParams } from 'react-router';
 
@@ -58,7 +57,6 @@ import { AnimalCapAlert } from '../animal-cap-alert';
 import { SaleViewSwitch } from '../sale-view-switch';
 import { QrLabelsDialog } from '../qr-labels-dialog';
 import { MoveAnimalMenu } from '../move-animal-dialog';
-import { PutOnSaleDialog } from '../put-on-sale-dialog';
 import { varietyName, VarietyPicker } from '../variety-picker';
 import {
   PURPOSES,
@@ -221,7 +219,6 @@ function printPriceList(grouped) {
 // página a otra.
 export function AnimalListView({ area = 'sale' }) {
   const config = AREAS[area];
-  const confirmDialog = useBoolean();
 
   const { user } = useAuthContext();
   const canCreate = user?.permissions?.includes('animals.create');
@@ -242,7 +239,8 @@ export function AnimalListView({ area = 'sale' }) {
   // filtro dentro de la página; el del área es «Todo»
   const [destination, setDestination] = useState(area);
   // alta corta: null = cerrada; { species } = abierta (con o sin especie)
-  const [putOnSale, setPutOnSale] = useState(null);
+  // ids por borrar (selección de arriba o el botón de un bloque); null = cerrado
+  const [toDelete, setToDelete] = useState(null);
   const [selected, setSelected] = useState(() => new Set()); // ids de ejemplares
   // recién dado de alta un ejemplar: su especie llega abierta
   const [expanded, setExpanded] = useState(() => new Set(navState?.expand ? [navState.expand] : []));
@@ -359,7 +357,7 @@ export function AnimalListView({ area = 'sale' }) {
     return [...selected].filter((id) => ids.has(id));
   }, [visible, selected]);
 
-  const deleteIds = selectedVisible;
+  const deleteIds = toDelete ?? [];
 
   const handleConfirmDelete = useCallback(async () => {
     // allSettled y no all: el backend rechaza los vendidos o los que están en
@@ -378,23 +376,14 @@ export function AnimalListView({ area = 'sale' }) {
       );
     }
 
-    setSelected(new Set());
-    confirmDialog.onFalse();
+    setSelected((prev) => new Set([...prev].filter((id) => !deleteIds.includes(id))));
+    setToDelete(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVisible, animalsMutate, confirmDialog]);
+  }, [toDelete, animalsMutate]);
 
+  // En venta no lleva contador: el conteo va en cada especie
   const renderSummary = () =>
-    area === 'sale' ? (
-      <Card variant="outlined" sx={{ p: 2.5, mb: 3, maxWidth: 360 }}>
-        <Typography component="p" variant="subtitle2" sx={{ color: 'text.secondary' }}>
-          Ejemplares en venta
-        </Typography>
-        <Typography variant="h3">{counts.sale}</Typography>
-        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {`${plural(counts.saleAvailable, 'disponible', 'disponibles')} · ${plural(counts.reserved, 'apartado', 'apartados')}`}
-        </Typography>
-      </Card>
-    ) : (
+    area === 'sale' ? null : (
       <Box
         sx={{
           gap: 2,
@@ -486,7 +475,7 @@ export function AnimalListView({ area = 'sale' }) {
                   variant="outlined"
                   color="error"
                   startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                  onClick={confirmDialog.onTrue}
+                  onClick={() => setToDelete(selectedVisible)}
                 >
                   Eliminar ({selectedVisible.length})
                 </Button>
@@ -501,24 +490,15 @@ export function AnimalListView({ area = 'sale' }) {
                 </Button>
               )}
               {canCreate && area === 'sale' && (
-                <>
-                  {/* el formulario largo: sexo, fotos, documentación, costo… */}
-                  <Button
-                    component={RouterLink}
-                    href={`${paths.dashboard.animal.new}?purpose=sale`}
-                    state={{ from: config.path }}
-                    variant="outlined"
-                  >
-                    Alta completa
-                  </Button>
-                  <Button
-                    variant="contained"
-                    startIcon={<Iconify icon="mingcute:add-line" />}
-                    onClick={() => setPutOnSale({ species: null })}
-                  >
-                    Poner en venta
-                  </Button>
-                </>
+                <Button
+                  component={RouterLink}
+                  href={`${paths.dashboard.animal.new}?purpose=sale`}
+                  state={{ from: config.path }}
+                  variant="contained"
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                >
+                  Nuevo ejemplar en venta
+                </Button>
               )}
               {canCreate && area === 'breeding' && (
                 <Button
@@ -584,11 +564,12 @@ export function AnimalListView({ area = 'sale' }) {
                 action={
                   canCreate && area === 'sale' ? (
                     <Button
+                      component={RouterLink}
+                      href={`${paths.dashboard.animal.new}?purpose=sale`}
                       variant="contained"
-                      onClick={() => setPutOnSale({ species: null })}
                       sx={{ mt: 3 }}
                     >
-                      Poner en venta
+                      Nuevo ejemplar en venta
                     </Button>
                   ) : null
                 }
@@ -622,7 +603,7 @@ export function AnimalListView({ area = 'sale' }) {
                         site={area === 'sale' ? site : null}
                         canSite={{ species: canUpdateSpecies, morph: canUpdateMorphs }}
                         onSetOnSite={setOnSite}
-                        onPutOnSale={() => setPutOnSale({ species: entry.species })}
+                        onDeleteIds={setToDelete}
                         canCreate={canCreate}
                         canUpdate={canUpdate}
                         canDelete={canDelete}
@@ -641,19 +622,6 @@ export function AnimalListView({ area = 'sale' }) {
         </Card>
       </DashboardContent>
 
-      {putOnSale && (
-        <PutOnSaleDialog
-          initialSpecies={putOnSale.species}
-          animals={animals}
-          onClose={() => setPutOnSale(null)}
-          onDone={(speciesId) => {
-            setPutOnSale(null);
-            setExpanded((prev) => new Set(prev).add(speciesId));
-            animalsMutate();
-          }}
-        />
-      )}
-
       {labelsFor && (
         <QrLabelsDialog
           species={labelsFor.species}
@@ -663,8 +631,8 @@ export function AnimalListView({ area = 'sale' }) {
       )}
 
       <ConfirmDialog
-        open={confirmDialog.value}
-        onClose={confirmDialog.onFalse}
+        open={Boolean(toDelete)}
+        onClose={() => setToDelete(null)}
         title="Eliminar"
         content={
           <>
@@ -734,7 +702,7 @@ function OnSiteSwitch({ name, checked, reason, disabled, onChange }) {
   );
 }
 
-function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onPutOnSale, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
+function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
   const { species, animals } = entry;
   const { pathname, search } = useLocation();
 
@@ -753,6 +721,18 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onPutOnSale, ope
 
   const isBulk = isBulkSpecies(species);
   const chips = speciesChips(species, animals);
+  const speciesName = species.common_name ?? scientific;
+  // sub-bloques por variedad (Nominal primero), solo si hay más de una
+  const byVariety = useMemo(() => {
+    const map = new Map();
+    animals.forEach((a) => {
+      const key = varietyName(a.morphs);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(a);
+    });
+    return [...map].sort(([x], [y]) => (x === 'Nominal' ? -1 : y === 'Nominal' ? 1 : x.localeCompare(y)));
+  }, [animals]);
+  const columns = 7 + (canDelete ? 1 : 0) + (isBulk ? 1 : 0);
 
   return (
     <>
@@ -828,27 +808,13 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onPutOnSale, ope
 
         <TableCell align="right">
           <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
-            {canCreate && area === 'sale' && (
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onPutOnSale();
-                }}
-                sx={{ whiteSpace: 'nowrap' }}
-              >
-                Poner en venta
-              </Button>
-            )}
-            {canCreate && area === 'breeding' && (
+            {canCreate && area !== 'history' && (
               <Button
                 size="small"
                 variant="outlined"
                 startIcon={<Iconify icon="mingcute:add-line" />}
                 component={RouterLink}
-                href={`${paths.dashboard.animal.new}?species_id=${species.id}&purpose=breeder`}
+                href={`${paths.dashboard.animal.new}?species_id=${species.id}&purpose=${area === 'sale' ? 'sale' : 'breeder'}`}
                 state={{ from: `${pathname}${search}` }}
                 onClick={(event) => event.stopPropagation()}
                 sx={{ whiteSpace: 'nowrap' }}
@@ -899,13 +865,7 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onPutOnSale, ope
                     <OnSiteSwitch
                       name={morph.name}
                       checked={morph.show_public !== false}
-                      reason={
-                        site.hiddenGroups.has(species.genus?.group?.id)
-                          ? 'Grupo oculto'
-                          : site.species[species.id]?.show_public === false
-                            ? 'Especie oculta'
-                            : null
-                      }
+                      reason={site.hiddenGroups.has(species.genus?.group?.id) ? 'Grupo oculto' : null}
                       disabled={!canSite.morph}
                       onChange={(value) => onSetOnSite('morph', morph.id, value)}
                     />
@@ -942,20 +902,61 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onPutOnSale, ope
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {animals.map((animal) => (
-                    <CriaderoRow
-                      key={animal.id}
-                      animal={animal}
-                      species={species}
-                      showStock={isBulk}
-                      canUpdate={canUpdate}
-                      isSelected={selected.has(animal.id)}
-                      onToggleSelect={canDelete ? onToggleSelected : undefined}
-                      onMoved={onMoved}
-                    />
-                  ))}
+                  {byVariety.map(([variety, list]) => {
+                    const removable = list.filter((a) => !isClosedStatus(a.status));
+                    return [
+                      byVariety.length > 1 && (
+                        <TableRow key={`h-${variety}`}>
+                          <TableCell colSpan={columns} sx={{ py: 0.75, typography: 'overline', color: 'text.secondary' }}>
+                            {variety} · {list.length}
+                          </TableCell>
+                        </TableRow>
+                      ),
+                      ...list.map((animal) => (
+                        <CriaderoRow
+                          key={animal.id}
+                          animal={animal}
+                          species={species}
+                          showStock={isBulk}
+                          canUpdate={canUpdate}
+                          isSelected={selected.has(animal.id)}
+                          onToggleSelect={canDelete ? onToggleSelected : undefined}
+                          onMoved={onMoved}
+                        />
+                      )),
+                      // fin del sub-bloque: borrar solo esta variedad
+                      byVariety.length > 1 && canDelete && removable.length > 0 && (
+                        <TableRow key={`d-${variety}`}>
+                          <TableCell colSpan={columns} align="right" sx={{ py: 0.5 }}>
+                            <Button
+                              size="small"
+                              color="error"
+                              onClick={() => onDeleteIds(removable.map((a) => a.id))}
+                            >
+                              Eliminar {variety} ({removable.length})
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ),
+                    ];
+                  })}
                 </TableBody>
               </Table>
+              {/* fin del bloque: borrar todo lo de esta especie que se puede borrar */}
+              {canDelete && deletable.length > 0 && (
+                <Stack direction="row" sx={{ px: 1, py: 0.75, justifyContent: 'flex-end' }}>
+                  <Button
+                    size="small"
+                    color="error"
+                    variant="outlined"
+                    onClick={() => onDeleteIds(deletable.map((a) => a.id))}
+                  >
+                    {deletable.length === 1
+                      ? `Eliminar 1 de ${speciesName}`
+                      : `Eliminar los ${deletable.length} de ${speciesName}`}
+                  </Button>
+                </Stack>
+              )}
             </Box>
           </Collapse>
         </TableCell>

@@ -112,23 +112,22 @@ describe('Formulario de animal: destino', () => {
     expect(body.sent).toMatchObject({ species_id: 1, morph_ids: [5], price: 700 });
   });
 
-  it('en venta ya decide si la variedad se ve en el sitio', async () => {
+  it('en venta decide si va a la venta rápida y si se ve en el sitio', async () => {
     const body = {};
-    const hide = {};
-    mockApi([capture('post', '/animals', body), capture('put', '/morphs/5', hide)]);
-    wrap(<AnimalCreateEditForm />, '/new?species_id=1&morph_id=5');
+    mockApi([capture('post', '/animals', body)]);
+    wrap(<AnimalCreateEditForm />, '/new?species_id=1&purpose=sale');
 
-    await waitFor(() =>
-      expect(screen.getByLabelText(/Especie y variedad/)).toHaveValue(
-        'Gecko leopardo (Eublepharis macularius) · Tangerine'
-      )
-    );
-    fireEvent.click(screen.getByRole('checkbox', { name: /Mostrar en el sitio/ }));
+    const site = await screen.findByRole('checkbox', { name: /Mostrar en el sitio/ });
+    expect(site).toBeChecked();
+    const quick = screen.getByRole('checkbox', { name: /También en la venta rápida/ });
+    expect(quick).not.toBeChecked();
+    fireEvent.click(site);
+    fireEvent.click(quick);
     fireEvent.change(screen.getByLabelText(/Precio de venta/), { target: { value: '700' } });
     fireEvent.click(screen.getByRole('button', { name: 'Registrar animal' }));
 
-    await waitFor(() => expect(hide.sent).toEqual({ show_public: false }));
-    expect(body.sent).toMatchObject({ morph_ids: [5] });
+    await waitFor(() => expect(body.sent).toBeDefined());
+    expect(body.sent).toMatchObject({ show_public: false, quick_sale: true });
   });
 
   it('da de alta varios iguales: manda count y nunca un código manual', async () => {

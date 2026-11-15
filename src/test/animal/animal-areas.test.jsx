@@ -106,7 +106,7 @@ function renderView(area = 'sale') {
   );
 }
 
-const rowOf = (code) => screen.getByRole('link', { name: code }).closest('tr');
+const rowOf = (name) => screen.getByRole('link', { name }).closest('tr');
 const codes = () =>
   screen
     .getAllByRole('link')
@@ -120,8 +120,10 @@ describe('Animales: En venta', () => {
 
     expect(await screen.findByRole('heading', { name: 'En venta' })).toBeInTheDocument();
     await screen.findByRole('link', { name: 'V-1' });
-    expect(codes()).toEqual(['V-1', 'V-2', 'V-3']);
-    expect(screen.getByText('2 disponibles · 1 apartado')).toBeInTheDocument();
+    // agrupados por variedad: la nominal primero
+    expect(codes()).toEqual(['V-1', 'V-3', 'V-2']);
+    // sin contador arriba: el conteo va en cada especie
+    expect(screen.queryByText(/disponibles ·/)).toBeNull();
     expect(screen.getByText('3 en venta')).toBeInTheDocument();
     // pide documento y no tiene folio
     expect(screen.getByText('1 doc. pendiente')).toBeInTheDocument();
@@ -129,15 +131,20 @@ describe('Animales: En venta', () => {
     expect(screen.queryByRole('tab')).toBeNull();
   });
 
-  it('ofrece el alta corta y la completa, ya como venta', async () => {
+  it('el alta es la completa, ya como venta; no hay alta corta', async () => {
     mockApi();
     renderView('sale');
 
     await screen.findByRole('link', { name: 'V-1' });
-    expect(screen.getAllByRole('button', { name: 'Poner en venta' }).length).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: 'Alta completa' })).toHaveAttribute(
+    expect(screen.queryByRole('button', { name: 'Poner en venta' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Nuevo ejemplar en venta' })).toHaveAttribute(
       'href',
       '/dashboard/animal/new?purpose=sale'
+    );
+    // por especie, ya con la especie elegida
+    expect(within(rowOf('Gecko leopardo')).getByRole('link', { name: 'Nuevo ejemplar' })).toHaveAttribute(
+      'href',
+      '/dashboard/animal/new?species_id=1&purpose=sale'
     );
     expect(screen.getByRole('link', { name: 'Tabla de precios' })).toHaveAttribute(
       'href',
@@ -192,7 +199,8 @@ describe('Animales: buscar por especie o variedad', () => {
     await user.clear(screen.getByLabelText('Especie o variedad'));
     await user.type(screen.getByLabelText('Especie o variedad'), 'gecko');
     await user.click(await screen.findByRole('option', { name: 'Todas las variedades' }));
-    expect(codes()).toEqual(['V-1', 'V-2', 'V-3']);
+    // agrupados por variedad: la nominal primero
+    expect(codes()).toEqual(['V-1', 'V-3', 'V-2']);
   });
 });
 
@@ -301,6 +309,29 @@ describe('Animales: Vendidos y bajas', () => {
     expect(codes()).toEqual(['D-1']);
     expect(screen.queryByRole('link', { name: /Registrar|Alta/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Poner en venta' })).toBeNull();
+  });
+});
+
+describe('Animales: borrar por bloque', () => {
+  it('cada especie y cada variedad tienen su botón para borrar lo suyo', async () => {
+    const user = userEvent.setup();
+    const deleted = [];
+    mockApi(ANIMALS, [
+      http.delete(`${API}/animals/:id`, ({ params }) => {
+        deleted.push(Number(params.id));
+        return new HttpResponse(null, { status: 204 });
+      }),
+    ]);
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+
+    // la especie entera (los 3 en venta) y, dentro, cada variedad
+    expect(screen.getByRole('button', { name: 'Eliminar los 3 de Gecko leopardo' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Eliminar Tangerine (1)' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Eliminar' }));
+
+    const v2 = ANIMALS.find((a) => a.code === 'V-2').id;
+    await waitFor(() => expect(deleted).toEqual([v2]));
   });
 });
 

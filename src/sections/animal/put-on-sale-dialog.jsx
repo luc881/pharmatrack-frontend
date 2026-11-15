@@ -25,7 +25,6 @@ import { toast } from 'src/components/snackbar';
 
 import { VarietyPicker } from './variety-picker';
 import { purposeOf, flattenGroupTree } from './utils';
-import { useOnSite, OnSiteField } from './on-site-field';
 
 // ----------------------------------------------------------------------
 
@@ -42,9 +41,9 @@ const sameMorphs = (animal, morphIds) => {
   return ids.length === morphIds.length && ids.every((id) => morphIds.includes(id));
 };
 
-// «Poner en venta» en corto: especie, cuántos y precio. Lo demás (sexo, fotos,
-// documentación, costo) queda con los valores por omisión y se completa
-// después con «Editar». `animals`: los que ya hay, para que una cepa o paquete
+// Alta corta para la venta rápida: especie, cuántos y precio. Entra ya como
+// botón de la venta rápida. Lo demás (sexo, fotos, documentación, costo) se
+// completa después en Animales con «Editar»; el alta completa vive allá. `animals`: los que ya hay, para que una cepa o paquete
 // que ya está en venta sume existencias en vez de duplicarse.
 export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, onDone }) {
   const { species: allSpecies } = useAllSpecies();
@@ -57,10 +56,9 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
   const [morphIds, setMorphIds] = useState([]);
   const [quantity, setQuantity] = useState('1');
   const [price, setPrice] = useState('');
-  const [quickSale, setQuickSale] = useState(false);
-  // null = como está hoy la especie o variedad en el sitio
-  const [showOnSite, setShowOnSite] = useState(null);
-  const onSite = useOnSite(species?.id, morphIds);
+  // Es el alta de la venta rápida: entra como botón y, salvo que se pida,
+  // sin anunciarse en el sitio
+  const [showOnSite, setShowOnSite] = useState(false);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -121,7 +119,7 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
           stock: Number(existing.stock ?? 0) + amount,
           ...(String(price).trim() === '' ? {} : { price: value }),
         });
-        if (quickSale) await updateProduct(existing.product_id, { quick_sale: true });
+        await updateProduct(existing.product_id, { quick_sale: true });
       } else {
         await createAnimal({
           species_id: species.id,
@@ -132,10 +130,10 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
           morph_ids: morphIds,
           photos: [],
           ...(bulk ? { stock: amount } : amount > 1 ? { count: amount } : {}),
-          quick_sale: quickSale,
+          quick_sale: true,
+          show_public: showOnSite,
         });
       }
-      if (showOnSite !== null) await onSite.apply(showOnSite);
       toast.success(existing ? 'Existencias agregadas' : 'Ya está en venta');
       onDone(species.id);
     } catch (error) {
@@ -198,7 +196,6 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
             onChange={(next) => {
               setSpecies(next.species);
               setMorphIds(next.morphIds);
-              setShowOnSite(null);
             }}
             autoFocus={!initialSpecies}
             error={errors.species}
@@ -242,13 +239,11 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
             </Alert>
           )}
 
-          <OnSiteField onSite={onSite} value={showOnSite} onChange={setShowOnSite} />
-
           <FormControlLabel
             control={
-              <Checkbox checked={quickSale} onChange={(e) => setQuickSale(e.target.checked)} />
+              <Checkbox checked={showOnSite} onChange={(e) => setShowOnSite(e.target.checked)} />
             }
-            label="También en la venta rápida (botón para convenciones)"
+            label="Mostrar también en el sitio"
           />
         </Stack>
       </DialogContent>

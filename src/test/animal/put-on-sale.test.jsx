@@ -115,7 +115,6 @@ describe('Poner en venta (alta corta)', () => {
     await user.clear(dialog.getByLabelText('¿Cuántos ejemplares?'));
     await user.type(dialog.getByLabelText('¿Cuántos ejemplares?'), '3');
     await user.type(dialog.getByLabelText('Precio de venta'), '1500');
-    await user.click(dialog.getByRole('checkbox', { name: /También en la venta rápida/ }));
     await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
 
     await waitFor(() => expect(onDone).toHaveBeenCalledWith(1));
@@ -132,7 +131,9 @@ describe('Poner en venta (alta corta)', () => {
           morph_ids: [],
           photos: [],
           count: 3,
+          // es el alta de la venta rápida: entra como botón y fuera del sitio
           quick_sale: true,
+          show_public: false,
         },
       ],
     ]);
@@ -159,7 +160,7 @@ describe('Poner en venta (alta corta)', () => {
       species_id: 1,
       morph_ids: [5],
       price: 900,
-      quick_sale: false,
+      quick_sale: true,
     });
     expect(sent[0][2].count).toBeUndefined();
   });
@@ -204,7 +205,6 @@ describe('Poner en venta (alta corta)', () => {
     expect(dialog.getByText(/Ya hay 6 en venta/)).toBeInTheDocument();
     await user.clear(dialog.getByLabelText('¿Cuántos paquetes de 6?'));
     await user.type(dialog.getByLabelText('¿Cuántos paquetes de 6?'), '2');
-    await user.click(dialog.getByRole('checkbox', { name: /También en la venta rápida/ }));
     await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
 
     await waitFor(() => expect(sent).toHaveLength(2));
@@ -270,51 +270,18 @@ describe('Poner en venta (alta corta)', () => {
     expect(dialog.queryByLabelText('Grupo')).toBeNull();
   });
 
-  it('ya decide si se ve en el sitio: apagarlo esconde esa variedad', async () => {
+  it('si se pide, también se anuncia en el sitio', async () => {
     const user = userEvent.setup();
     wrap(<PutOnSaleDialog initialSpecies={GECKO} onClose={() => {}} onDone={() => {}} />);
     const dialog = within(await screen.findByRole('dialog'));
-
-    await pick(user, dialog, 'tanger', 'Tangerine');
-    const onSite = dialog.getByRole('checkbox', { name: /Mostrar en el sitio/ });
-    expect(onSite).toBeChecked();
-    expect(dialog.getByText(/toda la variedad «Tangerine»/)).toBeInTheDocument();
-    await user.click(onSite);
-    await user.type(dialog.getByLabelText('Precio de venta'), '900');
-    await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
-
-    await waitFor(() => expect(sent).toHaveLength(2));
-    expect(sent[0][1]).toBe('/animals');
-    expect(sent[1]).toEqual(['PUT', '/morphs/5', { show_public: false }]);
-  });
-
-  it('en la nominal el ajuste es de la especie; sin cambiarlo no toca nada', async () => {
-    const user = userEvent.setup();
-    wrap(<PutOnSaleDialog initialSpecies={GECKO} onClose={() => {}} onDone={() => {}} />);
-    const dialog = within(await screen.findByRole('dialog'));
-    expect(await dialog.findByText(/toda la especie, con sus variedades/)).toBeInTheDocument();
+    const site = dialog.getByRole('checkbox', { name: /Mostrar también en el sitio/ });
+    expect(site).not.toBeChecked();
+    await user.click(site);
     await user.type(dialog.getByLabelText('Precio de venta'), '900');
     await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
 
     await waitFor(() => expect(sent).toHaveLength(1));
-    expect(sent[0][1]).toBe('/animals');
-  });
-
-  it('una especie oculta se puede volver a mostrar desde aquí', async () => {
-    const user = userEvent.setup();
-    const hidden = { ...GECKO, show_public: false };
-    server.use(http.get(`${API}/species`, () => HttpResponse.json(page([hidden, ROACH, MANTIS]))));
-    wrap(<PutOnSaleDialog initialSpecies={hidden} onClose={() => {}} onDone={() => {}} />);
-    const dialog = within(await screen.findByRole('dialog'));
-
-    const onSite = await dialog.findByRole('checkbox', { name: /Mostrar en el sitio/ });
-    await waitFor(() => expect(onSite).not.toBeChecked());
-    await user.click(onSite);
-    await user.type(dialog.getByLabelText('Precio de venta'), '900');
-    await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
-
-    await waitFor(() => expect(sent).toHaveLength(2));
-    expect(sent[1]).toEqual(['PUT', '/species/1', { show_public: true }]);
+    expect(sent[0][2]).toMatchObject({ show_public: true, quick_sale: true });
   });
 
   it('no manda nada si falta la especie o el precio', async () => {
@@ -407,6 +374,14 @@ describe('Venta rápida: elegir qué se vende', () => {
     await user.click(await dialog.findByRole('button', { name: 'Marcar todos: Gecko leopardo' }));
     // G-2 ya estaba marcado: solo falta G-1
     await waitFor(() => expect(sent).toEqual([['PATCH', '/products/701/toggle-quick-sale', null]]));
+  });
+
+  it('desde aquí se pone en venta un animal nuevo', async () => {
+    const user = userEvent.setup();
+    wrap(<QuickSalePicker onClose={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog', { name: /Qué se vende/ }));
+    await user.click(await dialog.findByRole('button', { name: '+ Animal nuevo' }));
+    expect(await screen.findByRole('dialog', { name: 'Poner en venta' })).toBeInTheDocument();
   });
 
   it('los productos van sin los animales y se pueden ver más de 30', async () => {
