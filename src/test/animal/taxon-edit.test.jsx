@@ -24,8 +24,10 @@ vi.mock('src/routes/hooks', async (original) => ({
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
 vi.mock('src/components/snackbar', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 let uploaded = 0;
+const sources = [];
 vi.mock('src/lib/cloudinary', () => ({
-  uploadToCloudinary: async () => {
+  uploadToCloudinary: async (source) => {
+    sources.push(source);
     uploaded += 1;
     return `https://x/nueva-${uploaded}.jpg`;
   },
@@ -65,6 +67,7 @@ function mount(props, entry = '/') {
 beforeEach(() => {
   sent = [];
   uploaded = 0;
+  sources.length = 0;
   push.mockClear();
   const record =
     (method) =>
@@ -127,6 +130,44 @@ describe('editar especie en su página', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0][2].photos).toEqual(['https://x/b.jpg', 'https://x/a.jpg']);
+  });
+});
+
+describe('fotos por link', () => {
+  it('un link externo se sube a Cloudinary; uno de Cloudinary se agrega tal cual', async () => {
+    const user = userEvent.setup();
+    mount({ kind: 'species', id: '7' });
+    const photos = within(await screen.findByRole('group', { name: 'Fotos' }));
+
+    await user.type(photos.getByLabelText('o pega un link'), 'https://otra-pagina.com/murina.jpg');
+    await user.click(photos.getByRole('button', { name: 'Subir link' }));
+    await waitFor(() => expect(photos.getAllByRole('img')).toHaveLength(3));
+    expect(sources).toEqual(['https://otra-pagina.com/murina.jpg']);
+
+    const cloud = 'https://res.cloudinary.com/demo/image/upload/glacier.jpg';
+    await user.type(photos.getByLabelText('o pega un link'), cloud);
+    await user.click(photos.getByRole('button', { name: 'Subir link' }));
+    await waitFor(() => expect(photos.getAllByRole('img')).toHaveLength(4));
+    expect(sources).toHaveLength(1);
+
+    await user.click(screen.getByRole('button', { name: 'Guardar' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0][2].photos).toEqual([
+      'https://x/a.jpg',
+      'https://x/b.jpg',
+      'https://x/nueva-1.jpg',
+      cloud,
+    ]);
+  });
+
+  it('algo que no es un link no se sube', async () => {
+    const user = userEvent.setup();
+    mount({ kind: 'species', id: '7' });
+    const photos = within(await screen.findByRole('group', { name: 'Fotos' }));
+    await user.type(photos.getByLabelText('o pega un link'), 'murina.jpg');
+    await user.click(photos.getByRole('button', { name: 'Subir link' }));
+    expect(photos.getByText('Pega un link que empiece con https://')).toBeInTheDocument();
+    expect(sources).toEqual([]);
   });
 });
 
