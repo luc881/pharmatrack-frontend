@@ -400,34 +400,12 @@ describe('Venta rápida: elegir qué se vende', () => {
     await waitFor(() => expect(sent).toEqual([['PATCH', '/products/701/toggle-quick-sale', null]]));
   });
 
-  it('desde aquí se pone en venta un animal nuevo', async () => {
-    const user = userEvent.setup();
-    wrap(<QuickSalePicker canCreateAnimals onClose={() => {}} />);
-    const dialog = within(await screen.findByRole('dialog', { name: /Qué se vende/ }));
-    await user.click(await dialog.findByRole('button', { name: '+ Alta rápida de animal' }));
-    expect(await screen.findByRole('dialog', { name: 'Alta rápida de animal' })).toBeInTheDocument();
-  });
-
-  it('la alta completa se abre en otra pestaña, ya marcada para la venta rápida', async () => {
-    const user = userEvent.setup();
-    wrap(<QuickSalePicker canCreateAnimals onClose={() => {}} />);
-    const dialog = within(await screen.findByRole('dialog', { name: /Qué se vende/ }));
-
-    const full = await dialog.findByRole('link', { name: /Alta completa de animal/ });
-    expect(full).toHaveAttribute('href', '/dashboard/animal/new?purpose=sale&quick_sale=1');
-    expect(full).toHaveAttribute('target', '_blank');
-
-    await user.click(dialog.getByRole('tab', { name: 'Productos' }));
-    const product = await dialog.findByRole('link', { name: /Producto nuevo en el catálogo/ });
-    expect(product).toHaveAttribute('href', '/dashboard/product/new?quick_sale=1');
-    expect(product).toHaveAttribute('target', '_blank');
-  });
-
-  it('sin permiso de dar de alta animales no ofrece el alta', async () => {
+  it('solo elige lo que ya hay: las altas viven fuera del selector', async () => {
     wrap(<QuickSalePicker onClose={() => {}} />);
     const dialog = within(await screen.findByRole('dialog', { name: /Qué se vende/ }));
     await dialog.findByText('Gecko leopardo');
-    expect(dialog.queryByRole('button', { name: '+ Alta rápida de animal' })).toBeNull();
+    expect(dialog.queryByRole('button', { name: /Alta/ })).toBeNull();
+    expect(dialog.queryByRole('link', { name: /Alta|catálogo/ })).toBeNull();
   });
 
   it('los productos van sin los animales y se pueden ver más de 30', async () => {

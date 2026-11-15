@@ -30,6 +30,7 @@ import { getKV, setKV } from '../quick-sale-store';
 import { QuickSalePicker } from '../quick-sale-picker';
 import { QuickSaleStatus } from '../quick-sale-status';
 import { QuickSaleNewProduct } from '../quick-sale-new-product';
+import { QuickSaleAddButtons } from '../quick-sale-add-buttons';
 import {
   retrySale,
   syncQueue,
@@ -78,7 +79,6 @@ export function QuickSaleView() {
   const [shell, setShell] = useState(true);
   const [picking, setPicking] = useState(false);
   const [newAnimal, setNewAnimal] = useState(false);
-  const canCreateAnimals = Boolean(user?.permissions?.includes('animals.create'));
   const [query, setQuery] = useState('');
   // null = cerrado; si no, el nombre con el que abre «Producto nuevo»
   const [creating, setCreating] = useState(null);
@@ -281,10 +281,15 @@ export function QuickSaleView() {
     );
   }
 
-  const addButton = (
-    <Button variant="outlined" disabled={!online} onClick={() => setPicking(true)}>
-      + Agregar productos
-    </Button>
+  // Los mismos tres botones arriba y en la pantalla vacía
+  const addButtons = (
+    <QuickSaleAddButtons
+      online={online}
+      permissions={user?.permissions ?? []}
+      onPick={() => setPicking(true)}
+      onQuickProduct={() => setCreating('')}
+      onQuickAnimal={() => setNewAnimal(true)}
+    />
   );
 
   // Los que aún se pueden quitar: sin subir y sin ventas en este equipo
@@ -306,10 +311,14 @@ export function QuickSaleView() {
     ) : (
       <>
         <Typography variant="h6">Aún no hay productos en la venta rápida</Typography>
-        <Typography variant="body2" sx={{ maxWidth: 420, color: 'text.secondary' }}>
-          Marca los productos, animales o paquetes que vas a vender y aparecerán aquí como botones.
+        <Typography variant="body2" sx={{ maxWidth: 460, color: 'text.secondary' }}>
+          Elige lo que ya tienes en el inventario con «Agregar productos», o da de alta algo nuevo:
+          «Alta rápida» pide lo mínimo aquí mismo; «Alta completa» abre el formulario entero en otra
+          pestaña. Todo aparecerá aquí como botones.
         </Typography>
-        {addButton}
+        <Stack direction="row" sx={{ gap: 1.5, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {addButtons}
+        </Stack>
       </>
     );
 
@@ -343,17 +352,7 @@ export function QuickSaleView() {
               ))}
             </TextField>
           )}
-          {addButton}
-          {/* temporal: solo para cobrar ahora; se revisa en Productos → Por revisar */}
-          <Button variant="outlined" onClick={() => setCreating('')}>
-            + Producto temporal
-          </Button>
-          {/* un animal que aún no está en venta, sin salir de aquí (necesita internet) */}
-          {canCreateAnimals && (
-            <Button variant="outlined" disabled={!online} onClick={() => setNewAnimal(true)}>
-              + Alta rápida de animal
-            </Button>
-          )}
+          {addButtons}
           <Button color="inherit" onClick={() => router.push(paths.dashboard.sale.root)}>
             Ver ventas
           </Button>
@@ -450,7 +449,6 @@ export function QuickSaleView() {
 
       {picking && (
         <QuickSalePicker
-          canCreateAnimals={canCreateAnimals}
           onClose={() => {
             setPicking(false);
             prepare();

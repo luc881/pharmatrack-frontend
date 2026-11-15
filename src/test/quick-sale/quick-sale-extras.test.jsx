@@ -30,7 +30,7 @@ vi.mock('src/routes/hooks', async (original) => ({
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
 vi.mock('src/auth/hooks', () => ({
   useAuthContext: () => ({
-    user: { id: 3, email: 'a@b.mx', role: 'admin', permissions: ['sales.create'] },
+    user: { id: 3, email: 'a@b.mx', role: 'admin', permissions: ['sales.create', 'animals.create', 'products.create'] },
   }),
 }));
 
@@ -291,12 +291,18 @@ const cart = () => within(screen.getByRole('region', { name: 'Cuenta' }));
 const names = () =>
   screen.getAllByRole('button', { name: /^Agregar / }).map((b) => b.getAttribute('aria-label'));
 
+// «+ Alta rápida» → una de sus opciones
+async function openQuick(user, option) {
+  await user.click(screen.getByRole('button', { name: '+ Alta rápida' }));
+  await user.click(await screen.findByRole('menuitem', { name: new RegExp(option) }));
+}
+
 describe('venta rápida: producto nuevo y buscador (pantalla)', () => {
   it('«+ Producto nuevo» lo deja como botón, lo mete a la cuenta y se cobra', async () => {
     const user = userEvent.setup();
     mount();
     await product('Musgo');
-    await user.click(screen.getByRole('button', { name: '+ Producto temporal' }));
+    await openQuick(user, 'Producto temporal');
 
     const dialog = within(await screen.findByRole('dialog'));
     await user.type(dialog.getByLabelText('Nombre'), 'Tronco de corcho');
@@ -319,11 +325,42 @@ describe('venta rápida: producto nuevo y buscador (pantalla)', () => {
     expect(checkouts[0].items).toEqual([{ product_id: 900, quantity: 1, discount: 0 }]);
   });
 
+  it('arriba hay un alta rápida y un alta completa, sin rutas repetidas', async () => {
+    const user = userEvent.setup();
+    mount();
+    await product('Musgo');
+
+    await user.click(screen.getByRole('button', { name: '+ Alta rápida' }));
+    expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent)).toEqual([
+      expect.stringMatching(/^Producto temporal/),
+      expect.stringMatching(/^Animal/),
+    ]);
+    await user.keyboard('{Escape}');
+
+    await user.click(screen.getByRole('button', { name: '+ Alta completa' }));
+    const animal = await screen.findByRole('menuitem', { name: /Animal/ });
+    expect(animal).toHaveAttribute('href', '/dashboard/animal/new?purpose=sale&quick_sale=1');
+    expect(animal).toHaveAttribute('target', '_blank');
+    expect(screen.getByRole('menuitem', { name: /Producto/ })).toHaveAttribute(
+      'href',
+      '/dashboard/product/new?quick_sale=1'
+    );
+  });
+
+  it('la pantalla vacía ofrece los mismos botones', async () => {
+    catalog = [];
+    mount();
+    expect(await screen.findByText(/Aún no hay productos en la venta rápida/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: '+ Alta rápida' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: '+ Alta completa' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: '+ Agregar productos' })).toHaveLength(2);
+  });
+
   it('el producto temporal dice que no entra al catálogo y se revisa después', async () => {
     const user = userEvent.setup();
     mount();
     await product('Musgo');
-    await user.click(screen.getByRole('button', { name: '+ Producto temporal' }));
+    await openQuick(user, 'Producto temporal');
     const dialog = within(await screen.findByRole('dialog', { name: 'Producto temporal' }));
     expect(dialog.getByText(/Por revisar/)).toBeInTheDocument();
   });
@@ -348,7 +385,7 @@ describe('venta rápida: producto nuevo y buscador (pantalla)', () => {
     const user = userEvent.setup();
     mount();
     await product('Musgo');
-    await user.click(screen.getByRole('button', { name: '+ Producto temporal' }));
+    await openQuick(user, 'Producto temporal');
     const dialog = within(await screen.findByRole('dialog'));
     await user.click(dialog.getByRole('button', { name: 'Agregar a la cuenta' }));
 

@@ -20,8 +20,6 @@ import ListItemText from '@mui/material/ListItemText';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
-import { paths } from 'src/routes/paths';
-
 import { matchesWords } from 'src/utils/plain';
 import { fCurrency } from 'src/utils/format-number';
 
@@ -36,7 +34,6 @@ import {
 import { toast } from 'src/components/snackbar';
 
 import { purposeOf } from 'src/sections/animal/utils';
-import { PutOnSaleDialog } from 'src/sections/animal/put-on-sale-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -51,7 +48,7 @@ const animalName = (animal) => [animal.code, ...(animal.morphs ?? []).map((m) =>
 // salir de ella. Los animales van aparte de los productos: se buscan por
 // especie (nombre común o científico) y no por el título de su producto
 // gemelo. Necesita internet.
-export function QuickSalePicker({ onClose, canCreateAnimals = false }) {
+export function QuickSalePicker({ onClose }) {
   const [tab, setTab] = useState('animals');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(() => new Set());
@@ -83,7 +80,6 @@ export function QuickSalePicker({ onClose, canCreateAnimals = false }) {
             onSearch={setSearch}
             busy={busy}
             onToggle={toggle}
-            canCreate={canCreateAnimals}
           />
         ) : (
           <ProductsTab search={search} onSearch={setSearch} busy={busy} onToggle={toggle} />
@@ -139,11 +135,10 @@ function Toolbar({ search, onSearch, suggestions, filterLabel, filter, onFilter,
 
 // ----------------------------------------------------------------------
 
-function AnimalsTab({ search, onSearch, busy, onToggle, canCreate }) {
+function AnimalsTab({ search, onSearch, busy, onToggle }) {
   const [group, setGroup] = useState('');
-  const [creating, setCreating] = useState(false);
   // ponytail: una página de 500 (tope del API), igual que la lista de animales
-  const { animals, animalsLoading, animalsMutate } = useGetAnimals({ page: 1, pageSize: 500 });
+  const { animals, animalsLoading } = useGetAnimals({ page: 1, pageSize: 500 });
   // Lo ya marcado sale del catálogo de la venta rápida (una sola petición)
   const { data: catalog, mutate } = useSWR(endpoints.product.quickSale, fetcher, {
     revalidateOnFocus: false,
@@ -196,8 +191,7 @@ function AnimalsTab({ search, onSearch, busy, onToggle, canCreate }) {
   }, [onSale, group, search]);
 
   const toolbar = (
-    <>
-      <Toolbar
+    <Toolbar
         search={search}
         onSearch={onSearch}
         suggestions={suggestions}
@@ -206,36 +200,6 @@ function AnimalsTab({ search, onSearch, busy, onToggle, canCreate }) {
         onFilter={setGroup}
         filterOptions={groupOptions}
       />
-      {/* algo que aún no está en venta: alta corta, ya como botón */}
-      {canCreate && (
-        <Stack direction="row" sx={{ mt: 1, gap: 1, flexWrap: 'wrap' }}>
-          <Button size="small" onClick={() => setCreating(true)}>
-            + Alta rápida de animal
-          </Button>
-          {/* en otra pestaña: la cuenta en curso no se pierde y al volver
-              el catálogo de la venta rápida se actualiza solo */}
-          <Button
-            size="small"
-            component="a"
-            href={`${paths.dashboard.animal.new}?purpose=sale&quick_sale=1`}
-            target="_blank"
-            rel="noopener"
-          >
-            Alta completa de animal ↗
-          </Button>
-        </Stack>
-      )}
-      {creating && (
-        <PutOnSaleDialog
-          animals={animals}
-          onClose={() => setCreating(false)}
-          onDone={async () => {
-            setCreating(false);
-            await Promise.all([animalsMutate(), mutate()]);
-          }}
-        />
-      )}
-    </>
   );
 
   if (!animalsLoading && groups.length === 0) {
@@ -336,16 +300,6 @@ function ProductsTab({ search, onSearch, busy, onToggle }) {
 
   return (
     <>
-      <Button
-        size="small"
-        component="a"
-        href={`${paths.dashboard.product.new}?quick_sale=1`}
-        target="_blank"
-        rel="noopener"
-        sx={{ mb: 1 }}
-      >
-        Producto nuevo en el catálogo ↗
-      </Button>
       <Toolbar
         search={search}
         onSearch={onSearch}

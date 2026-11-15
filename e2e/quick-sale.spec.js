@@ -80,7 +80,8 @@ test.describe('Venta rápida', () => {
 
     await openQuickSale(page);
     await page.context().setOffline(true);
-    await page.getByRole('button', { name: '+ Producto temporal' }).click();
+    await page.getByRole('button', { name: '+ Alta rápida' }).click();
+    await page.getByRole('menuitem', { name: /Producto temporal/ }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByLabel('Nombre').fill(title);
     await dialog.getByLabel('Precio').fill('120,50');
@@ -184,7 +185,7 @@ test.describe('Venta rápida', () => {
     await expect(button(page, b.title)).toHaveCount(0);
   });
 
-  test('«+ Alta rápida de animal» lo pone en venta rápida sin anunciarlo en el sitio', async ({
+  test('«+ Alta rápida» → Animal lo pone en venta rápida sin anunciarlo en el sitio', async ({
     page,
     seed,
     api,
@@ -193,7 +194,8 @@ test.describe('Venta rápida', () => {
 
     await openQuickSale(page);
     // directo desde la venta rápida, sin cambiar de pestaña
-    await page.getByRole('button', { name: '+ Alta rápida de animal' }).click();
+    await page.getByRole('button', { name: '+ Alta rápida' }).click();
+    await page.getByRole('menuitem', { name: /^Animal/ }).click();
     const form = page.getByRole('dialog', { name: 'Alta rápida de animal' });
     await form.getByLabel('Especie y variedad').fill(species.common_name);
     await page.getByRole('option', { name: 'Nominal' }).click();

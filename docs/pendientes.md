@@ -9,7 +9,7 @@ Contexto (2026-11-15): hay **un solo inventario**. Cada ejemplar en venta tiene
 dos interruptores independientes, `show_public` (se anuncia en la tienda) y
 `quick_sale` (es botón de la venta rápida). Ya existe: ver y filtrar por canal en
 Animales → «En venta», cambiarlos en bloque con «Canales (N)», y dar de alta
-desde la venta rápida con «+ Alta rápida de animal». Se decidió no separar inventarios
+desde la venta rápida con «+ Alta rápida» → Animal. Se decidió no separar inventarios
 para no vender dos veces lo mismo.
 
 ### 1. Apartar parte de una cepa o paquete para la convención
