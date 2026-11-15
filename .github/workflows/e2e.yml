@@ -1,0 +1,80 @@
+name: Recorridos (Playwright)
+
+# Pruebas de punta a punta: el dashboard compilado contra el API real (rama
+# main de pharmatrack-api) con una base Postgres propia. Ver playwright.config.js.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      E2E_API_DIR: ${{ github.workspace }}/pharmatrack-api
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/pharmatrack_e2e
+
+    steps:
+      - name: Checkout dashboard
+        uses: actions/checkout@v4
+
+      - name: Checkout API
+        uses: actions/checkout@v4
+        with:
+          repository: luc881/pharmatrack-api
+          path: pharmatrack-api
+
+      - name: Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Dependencias del API
+        working-directory: pharmatrack-api
+        run: |
+          pip install poetry
+          poetry install --no-interaction
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'yarn'
+
+      - name: Dependencias del dashboard
+        run: yarn install --frozen-lockfile
+
+      - name: Navegador de Playwright
+        run: yarn playwright install --with-deps chromium
+
+      - name: Recorridos
+        run: yarn e2e
+
+      - name: Reporte (si algo falló)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

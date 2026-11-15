@@ -42,3 +42,7 @@ Thumbs.db
 # Cache
 .eslintcache
 .cache/
+# Playwright
+dist-e2e/
+test-results/
+playwright-report/

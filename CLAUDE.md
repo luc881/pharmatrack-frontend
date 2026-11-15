@@ -99,6 +99,15 @@ Tests use Vitest + Testing Library + MSW. The MSW server is started globally in 
 
 Path alias `src/` resolves to `./src/` in both Vite and Vitest configs.
 
+### Recorridos de punta a punta — `e2e/` (Playwright)
+
+`yarn e2e` levanta solo el API (`../pharmatrack-api`, con `poetry install`) sobre una base propia `pharmatrack_e2e` que se borra y se recrea en cada corrida (`scripts/e2e_reset_db.py` del API; se niega a borrar una base que no termine en `_e2e`), compila el dashboard (`dist-e2e/`, con su service worker) y corre los recorridos en Chromium. Requiere Postgres en `localhost:5432` (`postgres`/`postgres`). `yarn e2e:ui` abre el modo visual para repetir paso a paso.
+
+- `e2e/fixtures.js`: `page` ya con sesión (y falla si la página lanza un error de JavaScript), `api` para preparar datos por el API, `seed` con atajos (especie, animal, producto). Nombres únicos con `unique()`: los recorridos comparten la base.
+- `window.print` no hace nada en las pruebas (cuenta las llamadas en `window.__printed`).
+- Sin red: `page.context().setOffline(true)`.
+- En GitHub corre en `.github/workflows/e2e.yml` contra el API de `main`.
+
 ## Venta rápida sin internet
 
 `/dashboard/quick-sale` (`src/sections/quick-sale/`) vende con botones los productos marcados con `quick_sale` y funciona sin red:

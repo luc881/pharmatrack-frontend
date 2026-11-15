@@ -1,5 +1,5 @@
 import path from 'path';
-import { defineConfig } from 'vitest/config';
+import { defineConfig, configDefaults } from 'vitest/config';
 import react from '@vitejs/plugin-react-swc';
 
 // ----------------------------------------------------------------------
@@ -13,6 +13,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
+    // e2e/ son recorridos de Playwright (yarn e2e), no de vitest
+    exclude: [...configDefaults.exclude, 'e2e/**'],
     // Las pruebas de formularios MUI completos pasan de 5 s con toda la suite en paralelo
     testTimeout: 15000,
     env: {
