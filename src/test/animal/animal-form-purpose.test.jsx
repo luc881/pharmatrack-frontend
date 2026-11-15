@@ -130,6 +130,40 @@ describe('Formulario de animal: destino', () => {
     expect(body.sent).toMatchObject({ show_public: false, quick_sale: true });
   });
 
+  it('sin fotos propias muestra las heredadas; al agregar una se ocultan y al quitarla vuelven', async () => {
+    mockApi();
+    // los de esta prueba ganan a los de mockApi
+    server.use(
+      http.get(`${API}/species`, () =>
+        HttpResponse.json(page([{ ...GECKO, photos: ['https://x/sp.jpg'], image: 'https://x/sp.jpg' }]))
+      ),
+      http.get(`${API}/morphs`, () =>
+        HttpResponse.json(
+          page([{ id: 5, name: 'Tangerine', species_id: 1, photos: ['https://x/t1.jpg', 'https://x/t2.jpg'] }])
+        )
+      )
+    );
+    wrap(<AnimalCreateEditForm />, '/new?species_id=1');
+
+    // de la especie
+    expect(await screen.findByText(/Heredadas de Gecko leopardo$/)).toBeInTheDocument();
+    expect(screen.getByAltText('Foto heredada 1')).toHaveAttribute('src', 'https://x/sp.jpg');
+
+    // con variedad, las de la variedad
+    const picker = screen.getByLabelText(/Especie y variedad/);
+    fireEvent.change(picker, { target: { value: 'tangerine' } });
+    fireEvent.click(await screen.findByRole('option', { name: 'Tangerine' }));
+    expect(await screen.findByText(/Heredadas de Gecko leopardo · Tangerine/)).toBeInTheDocument();
+    expect(screen.getAllByAltText(/Foto heredada/)).toHaveLength(2);
+
+    // una propia manda; quitarla regresa a las heredadas
+    fireEvent.change(screen.getByLabelText('o pega una URL'), { target: { value: 'https://x/own.jpg' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
+    expect(screen.queryByAltText(/Foto heredada/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar foto 1' }));
+    expect(await screen.findAllByAltText(/Foto heredada/)).toHaveLength(2);
+  });
+
   it('da de alta varios iguales: manda count y nunca un código manual', async () => {
     const body = {};
     mockApi([capture('post', '/animals', body)]);

@@ -1,8 +1,8 @@
 import { mutate } from 'swr';
 import { z as zod } from 'zod';
-import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, FormProvider } from 'react-hook-form';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 
 import Box from '@mui/material/Box';
@@ -206,9 +206,25 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const isSale = purpose === 'sale';
   const speciesId = watch('species_id');
   const morphIds = watch('morphs');
-  const { morphsMutate } = useAllMorphs();
+  const { morphs: allMorphs, morphsMutate } = useAllMorphs();
 
   const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));
+
+  // Fotos que usa el ejemplar mientras no tenga propias: las de su variedad
+  // (la primera que tenga) o las de su especie. Se ven aquí para saber qué
+  // saldrá en la tienda y en la venta rápida.
+  const inherited = useMemo(() => {
+    if (!selectedSpecies) return null;
+    const speciesName =
+      selectedSpecies.common_name ??
+      [selectedSpecies.genus?.name, selectedSpecies.name].filter(Boolean).join(' ');
+    const photosOf = (taxon) => (taxon?.photos?.length ? taxon.photos : taxon?.image ? [taxon.image] : []);
+    const morph = (morphIds ?? [])
+      .map((id) => allMorphs.find((m) => m.id === id))
+      .find((m) => photosOf(m).length);
+    if (morph) return { from: `${speciesName} · ${morph.name}`, photos: photosOf(morph) };
+    return { from: speciesName, photos: photosOf(selectedSpecies) };
+  }, [selectedSpecies, allMorphs, morphIds]);
 
   // Atributos de venta de la especie (formato, tamaño de paquete y escalas de
   // precio). Se editan aquí y al guardar se aplican a la especie (afectan a
@@ -794,6 +810,35 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 Fotos
               </Typography>
 
+              {/* Sin fotos propias: las heredadas, en gris */}
+              {photos.length === 0 && !watch('image') && inherited && (
+                <Box sx={{ mb: 2 }}>
+                  {inherited.photos.length > 0 ? (
+                    <>
+                      <Box sx={{ mb: 1, gap: 1, display: 'flex', flexWrap: 'wrap' }}>
+                        {inherited.photos.map((url, index) => (
+                          <Box
+                            key={url}
+                            component="img"
+                            src={url}
+                            alt={`Foto heredada ${index + 1}`}
+                            sx={{ width: 96, height: 96, borderRadius: 1, objectFit: 'cover', opacity: 0.55 }}
+                          />
+                        ))}
+                      </Box>
+                      <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                        Heredadas de {inherited.from}
+                      </Typography>
+                    </>
+                  ) : (
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                      Ni la variedad ni la especie tienen fotos todavía: súbelas en «Especies y morphs»
+                      o pon aquí las de este ejemplar.
+                    </Typography>
+                  )}
+                </Box>
+              )}
+
               {photos.length > 0 && (
                 <Box sx={{ mb: 2, gap: 1, display: 'flex', flexWrap: 'wrap' }}>
                   {photos.map((url, index) => (
@@ -806,6 +851,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                       />
                       <IconButton
                         size="small"
+                        aria-label={`Quitar foto ${index + 1}`}
                         onClick={() => removePhoto(index)}
                         sx={{
                           top: 2,
