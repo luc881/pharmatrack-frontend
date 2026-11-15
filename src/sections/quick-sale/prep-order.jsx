@@ -15,8 +15,20 @@ const CSS = `
 .od-order .meta { display: flex; justify-content: space-between; gap: 2mm; font-size: 0.6em; font-weight: 400; }
 .od-order hr { border: 0; border-top: 1px dashed #000; margin: 2.5mm 0; }
 .od-order .line { margin-top: 1.5mm; }
+.od-order .sample { justify-content: center; margin-top: 3mm; font-weight: 700; }
 @media print { .od-order--after { border-top: 0; } }
 `;
+
+// Para «Imprimir prueba»: así sale la orden y así corta la impresora
+export const SAMPLE_ORDER = {
+  folio: 'VR-PRUEBA-0001',
+  sold_at: new Date().toISOString(),
+  sample: true,
+  lines: [
+    { product_id: 'a', quantity: 3, title: 'Slushie limón $100', needs_prep: true },
+    { product_id: 'b', quantity: 2, title: 'Slushie mango $50', needs_prep: true },
+  ],
+};
 
 export const prepLines = (sale) => (sale?.lines ?? []).filter((line) => line.needs_prep);
 
@@ -42,6 +54,7 @@ export function PrepOrder({ sale, width = 80, after = false }) {
           {line.quantity} × {line.title}
         </div>
       ))}
+      {sale.sample && <div className="meta sample">— PRUEBA · DATOS FICTICIOS —</div>}
     </div>
   );
 }

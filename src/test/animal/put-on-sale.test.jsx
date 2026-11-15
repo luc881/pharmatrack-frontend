@@ -74,6 +74,16 @@ beforeEach(() => {
         )
       )
     ),
+    http.get(`${API}/genera`, () =>
+      HttpResponse.json(page([GECKO.genus, ROACH.genus, MANTIS.genus]))
+    ),
+    http.get(`${API}/animal-groups/tree`, () =>
+      HttpResponse.json([
+        { id: 1, name: 'Reptiles', children: [] },
+        // «Mantis» cuelga de «Insectos»: elegir el grupo padre también la trae
+        { id: 2, name: 'Insectos', children: [{ id: 3, name: 'Mantis', children: [] }] },
+      ])
+    ),
     http.post(`${API}/animals`, record('POST')),
     http.put(`${API}/animals/:id`, record('PUT')),
     http.put(`${API}/products/:id`, record('PUT')),
@@ -192,6 +202,62 @@ describe('Poner en venta (alta corta)', () => {
     ]);
   });
 
+  it('los filtros de grupo y género acortan la lista de especies', async () => {
+    const user = userEvent.setup();
+    wrap(<PutOnSaleDialog onClose={() => {}} onDone={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog'));
+    const options = async () => {
+      await user.click(dialog.getByLabelText('Especie'));
+      const names = (await screen.findAllByRole('option')).map((o) => o.textContent);
+      await user.keyboard('{Escape}');
+      return names;
+    };
+
+    expect(await options()).toHaveLength(3);
+
+    await user.click(dialog.getByLabelText('Grupo'));
+    await user.click(await screen.findByRole('option', { name: 'Insectos' }));
+    expect(await options()).toEqual([
+      'Cucaracha Dubia (Blaptica dubia)',
+      'Mantis orquídea (Pseudocreobotra wahlbergii)',
+    ]);
+
+    // el género solo ofrece los del grupo elegido
+    await user.click(dialog.getByLabelText('Género'));
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual([
+      'Blaptica',
+      'Pseudocreobotra',
+    ]);
+    await user.click(screen.getByRole('option', { name: 'Pseudocreobotra' }));
+    expect(await options()).toEqual(['Mantis orquídea (Pseudocreobotra wahlbergii)']);
+  });
+
+  it('un grupo padre trae también las especies de sus subgrupos', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${API}/species`, () =>
+        HttpResponse.json(
+          page([GECKO, { ...MANTIS, genus: { ...MANTIS.genus, group: { id: 3, name: 'Mantis' } } }])
+        )
+      )
+    );
+    wrap(<PutOnSaleDialog onClose={() => {}} onDone={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog'));
+
+    await user.click(dialog.getByLabelText('Grupo'));
+    await user.click(await screen.findByRole('option', { name: 'Insectos' }));
+    await user.click(dialog.getByLabelText('Especie'));
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual([
+      'Mantis orquídea (Pseudocreobotra wahlbergii)',
+    ]);
+  });
+
+  it('abierto desde una especie no estorba con filtros', async () => {
+    wrap(<PutOnSaleDialog initialSpecies={GECKO} onClose={() => {}} onDone={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(dialog.queryByLabelText('Grupo')).toBeNull();
+  });
+
   it('no manda nada si falta la especie o el precio', async () => {
     const user = userEvent.setup();
     wrap(<PutOnSaleDialog onClose={() => {}} onDone={() => {}} />);
@@ -297,5 +363,50 @@ describe('Venta rápida: elegir qué se vende', () => {
     await user.click(dialog.getByRole('button', { name: 'Ver más (15)' }));
     expect(await dialog.findByText('Producto 45')).toBeInTheDocument();
     expect(dialog.queryByRole('button', { name: /Ver más/ })).toBeNull();
+  });
+
+  it('los animales se filtran por grupo y el buscador sugiere las especies', async () => {
+    const user = userEvent.setup();
+    wrap(<QuickSalePicker onClose={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog'));
+    await dialog.findByText('Gecko leopardo');
+
+    await user.click(dialog.getByLabelText('Grupo'));
+    await user.click(await screen.findByRole('option', { name: 'Insectos' }));
+    expect(dialog.queryByText('Gecko leopardo')).toBeNull();
+    expect(dialog.getByText('Mantis orquídea')).toBeInTheDocument();
+
+    // quitar el filtro y elegir una sugerencia
+    await user.click(dialog.getByLabelText('Grupo'));
+    await user.click(await screen.findByRole('option', { name: 'Todos' }));
+    await user.type(dialog.getByLabelText('Buscar'), 'gec');
+    await user.click(await screen.findByRole('option', { name: 'Gecko leopardo' }));
+    expect(dialog.getByLabelText('Buscar')).toHaveValue('Gecko leopardo');
+    expect(dialog.queryByText('Mantis orquídea')).toBeNull();
+  });
+
+  it('los productos se filtran por categoría y el buscador sugiere sus nombres', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${API}/productscategories`, () =>
+        HttpResponse.json(
+          page([
+            { id: 8, name: 'Sustratos' },
+            { id: 9, name: 'Decoración' },
+          ])
+        )
+      )
+    );
+    wrap(<QuickSalePicker onClose={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.click(dialog.getByRole('tab', { name: 'Productos' }));
+    await dialog.findByText('Producto 01');
+
+    await user.click(dialog.getByLabelText('Categoría'));
+    await user.click(await screen.findByRole('option', { name: 'Decoración' }));
+    await waitFor(() => expect(sent.at(-1)[2]).toMatchObject({ category_id: '9' }));
+
+    await user.type(dialog.getByLabelText('Buscar'), 'Producto 0');
+    expect(await screen.findByRole('option', { name: 'Producto 07' })).toBeInTheDocument();
   });
 });

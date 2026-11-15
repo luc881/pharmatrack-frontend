@@ -36,4 +36,27 @@ describe('ajuste de la impresora de tickets', () => {
     await waitFor(() => expect(saved).toEqual({ width: 58, offset: -1.2 }), { timeout: 3000 });
     expect(getByText(/-1\.2 mm/)).toBeInTheDocument();
   });
+
+  it('el ticket de prueba trae también un talón de orden de ejemplo', async () => {
+    server.use(
+      http.get(URL, () => HttpResponse.json({ width: 80, offset: 0, saved: true })),
+      http.get('https://api.opuntiaden.com/api/v1/settings/email-ticket', () =>
+        HttpResponse.json({ business_name: 'Opuntia Den' })
+      )
+    );
+    const { findByTestId, getByText } = render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <MemoryRouter>
+          <SaleTicketView />
+        </MemoryRouter>
+      </SWRConfig>
+    );
+
+    const order = await findByTestId('prep-order');
+    expect(order).toHaveTextContent('ORDEN');
+    expect(order).toHaveTextContent('3 × Slushie limón $100');
+    expect(order).toHaveTextContent('PRUEBA');
+    // y el ticket de siempre sigue ahí
+    expect(getByText('Gracias por tu compra')).toBeInTheDocument();
+  });
 });

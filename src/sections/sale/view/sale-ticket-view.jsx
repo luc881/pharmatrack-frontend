@@ -19,6 +19,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
 import { SaleTicket } from '../sale-ticket';
+import { PrepOrder, SAMPLE_ORDER } from '../../quick-sale/prep-order';
 import { SAMPLE_TICKET, useSaleTicket, useTicketTemplate } from '../print-ticket';
 
 // ----------------------------------------------------------------------
@@ -101,6 +102,10 @@ export function SaleTicketView({ saleId }) {
 
   return (
     <TicketPrintPage
+      // La prueba trae también un talón de orden (lo que se prepara al
+      // momento en la venta rápida): sirve para ver cómo sale y si la
+      // impresora corta entre el ticket y la orden
+      extra={!saleId && ticket ? <PrepOrder sale={SAMPLE_ORDER} width={width} after /> : null}
       ticket={ticket}
       business={business}
       width={width}

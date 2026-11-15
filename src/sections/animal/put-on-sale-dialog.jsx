@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
@@ -15,11 +15,18 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { matchesWords } from 'src/utils/plain';
 
 import { updateProduct } from 'src/actions/product';
-import { createAnimal, updateAnimal, useAllMorphs, useAllSpecies } from 'src/actions/animal';
+import {
+  createAnimal,
+  updateAnimal,
+  useAllGenera,
+  useAllMorphs,
+  useAllSpecies,
+  useAnimalGroupTree,
+} from 'src/actions/animal';
 
 import { toast } from 'src/components/snackbar';
 
-import { purposeOf, speciesLabel } from './utils';
+import { purposeOf, speciesLabel, flattenGroupTree } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -42,7 +49,12 @@ const sameMorphs = (animal, morphIds) => {
 // que ya está en venta sume existencias en vez de duplicarse.
 export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, onDone }) {
   const { species: allSpecies } = useAllSpecies();
+  const { genera: allGenera } = useAllGenera();
+  const { groupTree } = useAnimalGroupTree();
   const [species, setSpecies] = useState(initialSpecies);
+  // Filtros para acortar la lista de especies (no se guardan en el animal)
+  const [group, setGroup] = useState(null);
+  const [genus, setGenus] = useState(null);
   const { morphs } = useAllMorphs(species?.id);
   const [morphIds, setMorphIds] = useState([]);
   const [quantity, setQuantity] = useState('1');
@@ -50,6 +62,22 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
   const [quickSale, setQuickSale] = useState(false);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  const groups = useMemo(() => flattenGroupTree(groupTree), [groupTree]);
+  // Un grupo padre trae también lo de sus subgrupos
+  const groupIds = useMemo(
+    () =>
+      group
+        ? groups.filter((g) => g.id === group.id || g.ancestors.includes(group.id)).map((g) => g.id)
+        : null,
+    [group, groups]
+  );
+  const inGroup = (genusLike) =>
+    !groupIds || groupIds.includes(genusLike?.group?.id ?? genusLike?.group_id);
+  const genusOptions = allGenera.filter(inGroup);
+  const speciesOptions = allSpecies.filter(
+    (s) => inGroup(s.genus) && (!genus || s.genus?.id === genus.id)
+  );
 
   const bulk = isBulk(species);
   const speciesMorphs = species ? morphs.filter((m) => m.species_id === species.id) : [];
@@ -121,8 +149,50 @@ export function PutOnSaleDialog({ initialSpecies = null, animals = [], onClose, 
       <DialogTitle>Poner en venta</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
+          {/* Abierto desde la fila de una especie ya no hay nada que buscar */}
+          {!initialSpecies && (
+            <Stack direction="row" spacing={2}>
+              <Autocomplete
+                size="small"
+                options={groups}
+                value={group}
+                onChange={(_, option) => {
+                  setGroup(option);
+                  setGenus(null);
+                  setSpecies(null);
+                }}
+                getOptionLabel={(option) => option.name}
+                isOptionEqualToValue={(option, selected) => option.id === selected.id}
+                renderOption={({ key, ...props }, option) => (
+                  <li
+                    key={key}
+                    {...props}
+                    style={{ ...props.style, paddingLeft: 16 + option.depth * 16 }}
+                  >
+                    {option.name}
+                  </li>
+                )}
+                renderInput={(params) => <TextField {...params} label="Grupo" />}
+                sx={{ flex: 1 }}
+              />
+              <Autocomplete
+                size="small"
+                options={genusOptions}
+                value={genus}
+                onChange={(_, option) => {
+                  setGenus(option);
+                  setSpecies(null);
+                }}
+                getOptionLabel={(option) => option.name}
+                isOptionEqualToValue={(option, selected) => option.id === selected.id}
+                renderInput={(params) => <TextField {...params} label="Género" />}
+                sx={{ flex: 1 }}
+              />
+            </Stack>
+          )}
+
           <Autocomplete
-            options={allSpecies}
+            options={speciesOptions}
             value={species}
             onChange={(_, option) => {
               setSpecies(option);

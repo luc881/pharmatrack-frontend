@@ -11,9 +11,11 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Switch from '@mui/material/Switch';
 import ListItem from '@mui/material/ListItem';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import Autocomplete from '@mui/material/Autocomplete';
 import ListItemText from '@mui/material/ListItemText';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -23,7 +25,11 @@ import { fCurrency } from 'src/utils/format-number';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { useGetAnimals } from 'src/actions/animal';
-import { useGetProducts, toggleProductQuickSale } from 'src/actions/product';
+import {
+  useGetProducts,
+  toggleProductQuickSale,
+  useGetProductCategories,
+} from 'src/actions/product';
 
 import { toast } from 'src/components/snackbar';
 
@@ -68,18 +74,10 @@ export function QuickSalePicker({ onClose }) {
           <Tab value="animals" label="Animales" />
           <Tab value="products" label="Productos" />
         </Tabs>
-        <TextField
-          autoFocus
-          fullWidth
-          size="small"
-          label="Buscar"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
         {tab === 'animals' ? (
-          <AnimalsTab search={search} busy={busy} onToggle={toggle} />
+          <AnimalsTab search={search} onSearch={setSearch} busy={busy} onToggle={toggle} />
         ) : (
-          <ProductsTab search={search} busy={busy} onToggle={toggle} />
+          <ProductsTab search={search} onSearch={setSearch} busy={busy} onToggle={toggle} />
         )}
       </DialogContent>
       <DialogActions>
@@ -93,7 +91,47 @@ export function QuickSalePicker({ onClose }) {
 
 // ----------------------------------------------------------------------
 
-function AnimalsTab({ search, busy, onToggle }) {
+// Buscador con sugerencias (se puede escribir cualquier cosa) y un filtro al
+// lado: grupo para los animales, categoría para los productos
+function Toolbar({ search, onSearch, suggestions, filterLabel, filter, onFilter, filterOptions }) {
+  return (
+    <Stack direction="row" spacing={2}>
+      <Autocomplete
+        freeSolo
+        size="small"
+        options={suggestions}
+        inputValue={search}
+        onInputChange={(_, value) => onSearch(value)}
+        filterOptions={(options, { inputValue }) =>
+          options.filter((option) => matchesWords(option, inputValue)).slice(0, 8)
+        }
+        renderInput={(params) => <TextField {...params} autoFocus label="Buscar" />}
+        sx={{ flex: 2 }}
+      />
+      <TextField
+        select
+        size="small"
+        label={filterLabel}
+        value={filter}
+        onChange={(e) => onFilter(e.target.value)}
+        slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+        sx={{ flex: 1, minWidth: 140 }}
+      >
+        <MenuItem value="">Todos</MenuItem>
+        {filterOptions.map((option) => (
+          <MenuItem key={option.id} value={option.id}>
+            {option.name}
+          </MenuItem>
+        ))}
+      </TextField>
+    </Stack>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+function AnimalsTab({ search, onSearch, busy, onToggle }) {
+  const [group, setGroup] = useState('');
   // ponytail: una página de 500 (tope del API), igual que la lista de animales
   const { animals, animalsLoading } = useGetAnimals({ page: 1, pageSize: 500 });
   // Lo ya marcado sale del catálogo de la venta rápida (una sola petición)
@@ -102,11 +140,33 @@ function AnimalsTab({ search, busy, onToggle }) {
   });
   const marked = useMemo(() => new Set((catalog ?? []).map((item) => item.id)), [catalog]);
 
+  // solo lo que se puede cobrar: en venta y disponible
+  const onSale = useMemo(
+    () => animals.filter((a) => a.species && a.status === 'available' && purposeOf(a) === 'sale'),
+    [animals]
+  );
+
+  // Filtro y sugerencias salen de lo que hay en venta, no del catálogo entero
+  const groupOptions = useMemo(() => {
+    const byId = new Map();
+    onSale.forEach((a) => {
+      const g = a.species.genus?.group;
+      if (g) byId.set(g.id, g);
+    });
+    return [...byId.values()].sort((x, y) => x.name.localeCompare(y.name));
+  }, [onSale]);
+  const suggestions = useMemo(
+    () =>
+      [...new Set(onSale.map((a) => a.species.common_name ?? scientific(a.species)))].sort((x, y) =>
+        x.localeCompare(y)
+      ),
+    [onSale]
+  );
+
   const groups = useMemo(() => {
     const bySpecies = new Map();
-    animals
-      // solo lo que se puede cobrar: en venta y disponible
-      .filter((a) => a.species && a.status === 'available' && purposeOf(a) === 'sale')
+    onSale
+      .filter((a) => group === '' || a.species.genus?.group?.id === group)
       .filter((a) =>
         matchesWords(
           `${a.species.common_name ?? ''} ${scientific(a.species)} ${animalName(a)}`,
@@ -123,19 +183,34 @@ function AnimalsTab({ search, busy, onToggle }) {
         y.species.common_name ?? scientific(y.species)
       )
     );
-  }, [animals, search]);
+  }, [onSale, group, search]);
+
+  const toolbar = (
+    <Toolbar
+      search={search}
+      onSearch={onSearch}
+      suggestions={suggestions}
+      filterLabel="Grupo"
+      filter={group}
+      onFilter={setGroup}
+      filterOptions={groupOptions}
+    />
+  );
 
   if (!animalsLoading && groups.length === 0) {
     return (
-      <Typography variant="body2" sx={{ mt: 3, color: 'text.secondary' }}>
-        {search
-          ? 'Ningún animal en venta coincide con la búsqueda.'
-          : 'No hay animales en venta. Ponlos en venta en Animales → «En venta».'}
-      </Typography>
+      <>
+        {toolbar}
+        <Typography variant="body2" sx={{ mt: 3, color: 'text.secondary' }}>
+          {search || group !== ''
+            ? 'Ningún animal en venta coincide con la búsqueda.'
+            : 'No hay animales en venta. Ponlos en venta en Animales → «En venta».'}
+        </Typography>
+      </>
     );
   }
 
-  return groups.map(({ species, animals: list }) => {
+  const sections = groups.map(({ species, animals: list }) => {
     const name = species.common_name ?? scientific(species);
     const pending = list.filter((a) => !marked.has(a.product_id)).map((a) => a.product_id);
     return (
@@ -191,18 +266,28 @@ function AnimalsTab({ search, busy, onToggle }) {
       </Box>
     );
   });
+
+  return (
+    <>
+      {toolbar}
+      {sections}
+    </>
+  );
 }
 
 // ----------------------------------------------------------------------
 
-function ProductsTab({ search, busy, onToggle }) {
+function ProductsTab({ search, onSearch, busy, onToggle }) {
   const debounced = useDebounce(search, 300);
   const [size, setSize] = useState(PAGE);
+  const [category, setCategory] = useState('');
+  const { categories } = useGetProductCategories();
   const { products, productsTotal, productsLoading, productsMutate } = useGetProducts({
     search: debounced,
     pageSize: size,
     isActive: true,
     ordering: 'title',
+    categoryId: category || null,
     // los animales tienen su propia pestaña
     excludeAnimalTwins: true,
   });
@@ -210,6 +295,15 @@ function ProductsTab({ search, busy, onToggle }) {
 
   return (
     <>
+      <Toolbar
+        search={search}
+        onSearch={onSearch}
+        suggestions={products.map((product) => product.title)}
+        filterLabel="Categoría"
+        filter={category}
+        onFilter={setCategory}
+        filterOptions={categories}
+      />
       <List>
         {products.map((product) => (
           <ListItem
