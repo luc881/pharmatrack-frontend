@@ -70,6 +70,27 @@ test.describe('Especies y morphs', () => {
 });
 
 test.describe('Altas de especie y variedad', () => {
+  test('otro grupo raíz se crea y aparece en la tabla', async ({ page, api }) => {
+    await api.post('/animal-groups', { name: unique('Existente') });
+    const name = unique('Otro raíz');
+
+    await page.goto('/dashboard/animal/taxonomy?tab=groups');
+    await page
+      .getByRole('button', { name: /Nuevo grupo/ })
+      .first()
+      .click();
+    await page
+      .getByRole('dialog')
+      .getByLabel(/Nombre/)
+      .fill(name);
+    await page.getByRole('dialog').getByRole('button', { name: 'Guardar' }).click();
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('gridcell', { name: new RegExp(name, 'i') })).toBeVisible();
+    const roots = (await api.get('/animal-groups/tree')).map((g) => g.name.toLowerCase());
+    expect(roots).toContain(name.toLowerCase());
+  });
+
   test('especie nueva, ya oculta en el sitio', async ({ page, seed, api }) => {
     const { genus } = await seed.species();
     const name = unique('caffrorum');
