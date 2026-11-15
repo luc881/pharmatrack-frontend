@@ -11,11 +11,9 @@ import Chip from '@mui/material/Chip';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
-import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import Autocomplete from '@mui/material/Autocomplete';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
@@ -42,6 +40,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { TaxonDialog } from './taxon-dialog';
 import { MoveAnimalMenu } from './move-animal-dialog';
+import { VarietyPicker, isGeneSpecies } from './variety-picker';
 import {
   PURPOSES,
   purposeOf,
@@ -117,13 +116,6 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const canCreate = (resource) => user?.permissions?.includes(`${resource}.create`);
   const canUpdateSpecies = user?.permissions?.includes('species.update');
 
-  // El género no viaja en el payload (solo species_id); es un filtro en cascada
-  const [genusId, setGenusId] = useState('');
-
-  useEffect(() => {
-    if (currentAnimal?.species?.genus?.id) setGenusId(currentAnimal.species.genus.id);
-  }, [currentAnimal]);
-
   const methods = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -177,7 +169,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
     setValue,
     getValues,
     handleSubmit,
-    formState: { isSubmitting, dirtyFields },
+    formState: { isSubmitting, dirtyFields, errors },
   } = methods;
 
   // Alta desde taxonomía: /animal/new?species_id=12&morph_id=44 llega con la
@@ -195,7 +187,6 @@ export function AnimalCreateEditForm({ currentAnimal }) {
     const sp = allSpecies.find((s) => s.id === Number(searchParams.get('species_id')));
     if (!sp) return;
     prefilledRef.current = true;
-    setGenusId(sp.genus?.id ?? sp.genus_id ?? '');
     setValue('species_id', sp.id, { shouldValidate: true });
     const morphId = Number(searchParams.get('morph_id'));
     if (morphId) setValue('morphs', [morphId]);
@@ -206,7 +197,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const isSale = purpose === 'sale';
   const speciesId = watch('species_id');
   const morphIds = watch('morphs');
-  const { morphs: speciesMorphs, morphsMutate } = useAllMorphs(speciesId ? Number(speciesId) : undefined);
+  const { morphsMutate } = useAllMorphs();
 
   const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));
 
@@ -238,19 +229,6 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   // el backend rechaza con 400 morphs de otra especie). El ref distingue la
   // primera carga (editar: los values llegan después del primer render y
   // antes borraban los morphs guardados) de un cambio real del usuario.
-  const prevSpeciesRef = useRef(null);
-  useEffect(() => {
-    if (!speciesId) return;
-    if (prevSpeciesRef.current === null) {
-      prevSpeciesRef.current = speciesId;
-      return;
-    }
-    if (prevSpeciesRef.current !== speciesId) {
-      prevSpeciesRef.current = speciesId;
-      if (getValues('morphs').length) setValue('morphs', []);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speciesId]);
 
   // vendido o murió: el estado no se edita aquí (no se puede revivir ni regresar a la venta)
   const isSold = isClosedStatus(currentAnimal?.status);
@@ -444,54 +422,27 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           </Typography>
 
           <Box sx={{ gap: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
-            <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
-              {/* Con escritura: teclea para filtrar (ignora acentos) */}
-              <Autocomplete
-                fullWidth
-                options={genera}
-                value={genera.find((g) => g.id === Number(genusId)) ?? null}
-                onChange={(_, option) => {
-                  setGenusId(option?.id ?? '');
-                  setValue('species_id', '');
+            {/* Especie y variedad en un solo buscador (nombre común, científico o
+                de la variedad); las especies de genes marcan varios debajo */}
+            <Box
+              sx={{ gap: 1, display: 'flex', alignItems: 'flex-start', gridColumn: { sm: 'span 2' } }}
+            >
+              <VarietyPicker
+                sx={{ flex: 1 }}
+                value={{ speciesId, morphIds }}
+                onChange={(next) => {
+                  setValue('species_id', next.species?.id ?? '', {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  });
+                  setValue('morphs', next.morphIds, { shouldDirty: true });
                 }}
-                getOptionLabel={(option) => option?.name ?? ''}
-                isOptionEqualToValue={(option, value) => option?.id === value?.id}
-                renderInput={(params) => <TextField {...params} label="Género *" />}
-              />
-              {canCreate('genera') && (
-                <Button
-                  variant="outlined"
-                  startIcon={<Iconify icon="mingcute:add-line" />}
-                  onClick={() => setQuickCreate({ tab: 'genera' })}
-                  sx={NEW_BUTTON_SX}
-                >
-                  Género nuevo
-                </Button>
-              )}
-            </Box>
-
-            <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
-              <Autocomplete
-                fullWidth
-                disabled={!genusId}
-                options={allSpecies.filter((s) => s.genus?.id === Number(genusId))}
-                value={allSpecies.find((s) => s.id === Number(speciesId)) ?? null}
-                onChange={(_, option) =>
-                  setValue('species_id', option?.id ?? '', { shouldValidate: true })
+                label="Especie y variedad *"
+                error={errors.species_id?.message}
+                helperText={
+                  errors.species_id?.message ??
+                  'Busca por nombre común, científico o de la variedad (Glacier, Papaya…).'
                 }
-                getOptionLabel={(option) =>
-                  option ? `${option.name}${option.common_name ? ` — ${option.common_name}` : ''}` : ''
-                }
-                isOptionEqualToValue={(option, value) => option?.id === value?.id}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Especie *"
-                    helperText={
-                      genusId ? '' : 'Elige primero el género, o usa «Especie nueva» para crear todo junto'
-                    }
-                  />
-                )}
               />
               {canCreate('species') && (
                 <Button
@@ -501,6 +452,17 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                   sx={NEW_BUTTON_SX}
                 >
                   Especie nueva
+                </Button>
+              )}
+              {canCreate('morphs') && (
+                <Button
+                  variant="outlined"
+                  disabled={!speciesId}
+                  startIcon={<Iconify icon="mingcute:add-line" />}
+                  onClick={() => setQuickCreate({ tab: 'morphs' })}
+                  sx={NEW_BUTTON_SX}
+                >
+                  {isGeneSpecies(selectedSpecies) ? 'Gen nuevo' : 'Variedad nueva'}
                 </Button>
               )}
             </Box>
@@ -619,52 +581,6 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 )}
               </Box>
             )}
-
-            <Box sx={{ gap: 1, display: 'flex', alignItems: 'flex-start' }}>
-              {/* Con escritura y checkboxes; los elegidos se listan como texto (no tags) */}
-              <Autocomplete
-                multiple
-                fullWidth
-                disableCloseOnSelect
-                disabled={!speciesId}
-                options={speciesMorphs}
-                value={speciesMorphs.filter((m) => morphIds.includes(m.id))}
-                onChange={(_, options) =>
-                  setValue('morphs', options.map((m) => m.id), { shouldDirty: true })
-                }
-                getOptionLabel={(option) => option?.name ?? ''}
-                isOptionEqualToValue={(option, value) => option?.id === value?.id}
-                renderOption={({ key, ...props }, option, { selected }) => (
-                  <li key={key} {...props}>
-                    <Checkbox size="small" disableRipple checked={selected} sx={{ mr: 1 }} />
-                    {option.name}
-                  </li>
-                )}
-                renderTags={(value) => (
-                  <Box component="span" sx={{ pl: 0.5, typography: 'body2' }}>
-                    {value.map((m) => m.name).join(', ')}
-                  </Box>
-                )}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Morphs"
-                    helperText={speciesId ? '' : 'Selecciona primero una especie'}
-                  />
-                )}
-              />
-              {canCreate('morphs') && (
-                <Button
-                  variant="outlined"
-                  disabled={!speciesId}
-                  startIcon={<Iconify icon="mingcute:add-line" />}
-                  onClick={() => setQuickCreate({ tab: 'morphs' })}
-                  sx={NEW_BUTTON_SX}
-                >
-                  Morph nuevo
-                </Button>
-              )}
-            </Box>
 
             {!isBulk && (
               <Field.Select name="sex" label="Sexo">
@@ -932,7 +848,10 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           tab={quickCreate.tab}
           singular={{ genera: 'género', species: 'especie', morphs: 'morph' }[quickCreate.tab]}
           current={quickCreate.current ?? null}
-          initial={{ genus_id: genusId || '', species_id: speciesId || '' }}
+          initial={{
+            genus_id: selectedSpecies?.genus?.id ?? selectedSpecies?.genus_id ?? '',
+            species_id: speciesId || '',
+          }}
           genera={genera}
           allSpecies={allSpecies}
           groupsFlat={groupsFlat}
@@ -940,18 +859,21 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           onSaved={async (saved) => {
             if (quickCreate.tab === 'genera') {
               await generaMutate();
-              setGenusId(saved.id);
-              setValue('species_id', '');
             } else if (quickCreate.tab === 'species') {
               await speciesMutate();
               // editar (p. ej. cambiar el formato de venta) conserva la selección
               if (!quickCreate.current) {
-                setGenusId(saved.genus_id);
                 setValue('species_id', saved.id, { shouldValidate: true });
+                setValue('morphs', []);
               }
             } else {
               await morphsMutate();
-              setValue('morphs', [...getValues('morphs'), saved.id], { shouldDirty: true });
+              // con nombre es una sola variedad; los genes se suman
+              setValue(
+                'morphs',
+                isGeneSpecies(selectedSpecies) ? [...getValues('morphs'), saved.id] : [saved.id],
+                { shouldDirty: true }
+              );
             }
           }}
         />

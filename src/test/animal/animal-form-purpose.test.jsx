@@ -46,7 +46,9 @@ function mockApi(extra = []) {
   server.use(
     http.get(`${API}/species`, () => HttpResponse.json(page([GECKO]))),
     http.get(`${API}/genera`, () => HttpResponse.json(page([GECKO.genus]))),
-    http.get(`${API}/morphs`, () => HttpResponse.json(page([]))),
+    http.get(`${API}/morphs`, () =>
+      HttpResponse.json(page([{ id: 5, name: 'Tangerine', species_id: 1 }]))
+    ),
     http.get(`${API}/animal-groups/tree`, () => HttpResponse.json([])),
     ...extra
   );
@@ -83,12 +85,31 @@ describe('Formulario de animal: destino', () => {
     expect(screen.getByText(/Requiere documentación legal/)).toBeInTheDocument();
 
     await waitFor(() =>
-      expect(screen.getByLabelText(/Especie/)).toHaveValue('macularius — Gecko leopardo')
+      expect(screen.getByLabelText(/Especie y variedad/)).toHaveValue(
+        'Gecko leopardo (Eublepharis macularius) · Nominal'
+      )
     );
     fireEvent.click(screen.getByRole('button', { name: 'Registrar animal' }));
 
     await waitFor(() => expect(body.sent).toBeDefined());
     expect(body.sent).toMatchObject({ purpose: 'breeder', price: 0, species_id: 1 });
+  });
+
+  it('la variedad se elige en el mismo buscador y viaja como su morph', async () => {
+    const body = {};
+    mockApi([capture('post', '/animals', body)]);
+    wrap(<AnimalCreateEditForm />, '/new');
+
+    const picker = await screen.findByLabelText(/Especie y variedad/);
+    fireEvent.change(picker, { target: { value: 'tangerine' } });
+    fireEvent.click(await screen.findByRole('option', { name: 'Tangerine' }));
+    expect(picker).toHaveValue('Gecko leopardo (Eublepharis macularius) · Tangerine');
+
+    fireEvent.change(screen.getByLabelText(/Precio de venta/), { target: { value: '700' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar animal' }));
+
+    await waitFor(() => expect(body.sent).toBeDefined());
+    expect(body.sent).toMatchObject({ species_id: 1, morph_ids: [5], price: 700 });
   });
 
   it('da de alta varios iguales: manda count y nunca un código manual', async () => {
@@ -97,7 +118,9 @@ describe('Formulario de animal: destino', () => {
     wrap(<AnimalCreateEditForm />, '/new?species_id=1');
 
     await waitFor(() =>
-      expect(screen.getByLabelText(/Especie/)).toHaveValue('macularius — Gecko leopardo')
+      expect(screen.getByLabelText(/Especie y variedad/)).toHaveValue(
+        'Gecko leopardo (Eublepharis macularius) · Nominal'
+      )
     );
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'PH-1' } });
     fireEvent.change(screen.getByLabelText(/¿Cuántos ejemplares iguales\?/), {
@@ -118,7 +141,9 @@ describe('Formulario de animal: destino', () => {
     wrap(<AnimalCreateEditForm />, '/new?species_id=1');
 
     await waitFor(() =>
-      expect(screen.getByLabelText(/Especie/)).toHaveValue('macularius — Gecko leopardo')
+      expect(screen.getByLabelText(/Especie y variedad/)).toHaveValue(
+        'Gecko leopardo (Eublepharis macularius) · Nominal'
+      )
     );
     fireEvent.change(screen.getByLabelText('Código'), { target: { value: 'G-1' } });
     fireEvent.change(screen.getByLabelText(/Precio de venta/), { target: { value: '900' } });
@@ -126,7 +151,9 @@ describe('Formulario de animal: destino', () => {
 
     await waitFor(() => expect(body.sent).toMatchObject({ code: 'G-1', price: 900 }));
     await waitFor(() => expect(screen.getByLabelText('Código')).toHaveValue(''));
-    expect(screen.getByLabelText(/Especie/)).toHaveValue('macularius — Gecko leopardo');
+    expect(screen.getByLabelText(/Especie y variedad/)).toHaveValue(
+        'Gecko leopardo (Eublepharis macularius) · Nominal'
+      );
     expect(screen.getByLabelText(/Precio de venta/)).toHaveValue('900');
   });
 

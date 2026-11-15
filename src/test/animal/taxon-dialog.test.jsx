@@ -79,7 +79,36 @@ describe('TaxonDialog', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(calls.map(([k]) => k)).toEqual(['group', 'genus', 'species']);
     expect(calls[1][1]).toEqual({ name: 'Phyllium', group_id: 11 });
-    expect(calls[2][1]).toMatchObject({ genus_id: 22, name: 'gardabagusi' });
+    // por omisión, variedades con nombre (una por ejemplar)
+    expect(calls[2][1]).toMatchObject({
+      genus_id: 22,
+      name: 'gardabagusi',
+      variety_mode: 'named',
+    });
+  });
+
+  it('una especie de reptil se puede marcar como de genes combinables', async () => {
+    let sent;
+    server.use(
+      http.put(`${API}/species/7`, async ({ request }) => {
+        sent = await request.json();
+        return HttpResponse.json({ id: 7 });
+      })
+    );
+    const onSaved = vi.fn();
+    renderDialog({
+      onSaved,
+      genera: [{ id: 1, name: 'Python', group_id: 1, group: { id: 1, name: 'Reptiles' } }],
+      groupsFlat: [{ id: 1, name: 'Reptiles', depth: 0, ancestors: [] }],
+      current: { id: 7, name: 'regius', genus_id: 1, genus: { id: 1, name: 'Python' }, variety_mode: 'named' },
+    });
+
+    fireEvent.mouseDown(screen.getByLabelText('Tipo de variedades'));
+    fireEvent.click(await screen.findByRole('option', { name: /Genes combinables/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(sent).toMatchObject({ variety_mode: 'genes' });
   });
 
   it('no deja guardar un género sin grupo', async () => {

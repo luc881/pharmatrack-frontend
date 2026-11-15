@@ -6,6 +6,7 @@ import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -237,6 +238,7 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
   const [form, setForm] = useState({
     name: base?.name ?? '',
     common_name: base?.common_name ?? '',
+    variety_mode: base?.variety_mode ?? 'named',
     description: base?.description ?? '',
     genus_id: base?.genus_id ?? base?.genus?.id ?? '',
     species_id: base?.species_id ?? '',
@@ -371,6 +373,7 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
           genus_id: genusId,
           name: speciesName(),
           common_name: form.common_name || null,
+          variety_mode: form.variety_mode,
           // ficha de cuidados que muestra el sitio público
           description: form.description || null,
           origin: form.origin || null,
@@ -654,6 +657,21 @@ export function TaxonDialog({ tab, singular, current, initial, genera, allSpecie
         {tab === 'species' && (
           <>
             <TextField label="Nombre común" value={form.common_name} onChange={set('common_name')} />
+
+            <TextField
+              select
+              label="Tipo de variedades"
+              value={form.variety_mode}
+              onChange={set('variety_mode')}
+              helperText={
+                form.variety_mode === 'genes'
+                  ? 'Cada ejemplar combina varios genes (Banana + Pastel). Los genes se dan de alta como morphs.'
+                  : 'Cada ejemplar es una sola variedad con nombre (Glacier, Papaya) o la forma base, «Nominal».'
+              }
+            >
+              <MenuItem value="named">Variedades con nombre (una por ejemplar)</MenuItem>
+              <MenuItem value="genes">Genes combinables (varios por ejemplar)</MenuItem>
+            </TextField>
 
             <Divider sx={{ borderStyle: 'dashed' }}>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>
