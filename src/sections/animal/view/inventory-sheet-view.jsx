@@ -33,6 +33,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { varietyName } from '../variety-picker';
 import { AnimalCapAlert } from '../animal-cap-alert';
 import { SaleViewSwitch } from '../sale-view-switch';
 import { STATUS_LABELS, STATUS_COLORS } from '../utils';
@@ -107,7 +108,7 @@ export function InventorySheetView() {
           category: categoryOf(a.species),
           species: [a.species?.genus?.name, a.species?.name].filter(Boolean).join(' '),
           common: a.species?.common_name ?? '',
-          morph: a.morphs.map((m) => m.name).join(', '),
+          morph: varietyName(a.morphs),
           code: a.code,
           perPackage:
             a.species?.sale_format === 'package'
@@ -226,7 +227,7 @@ export function InventorySheetView() {
           </Stack>
         ),
       },
-      { field: 'morph', headerName: 'Variedad / Morph', width: 150 },
+      { field: 'morph', headerName: 'Variedad', width: 150 },
       {
         field: 'price',
         headerName: 'Precio',

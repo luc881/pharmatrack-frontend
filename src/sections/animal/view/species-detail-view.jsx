@@ -455,7 +455,7 @@ export function SpeciesDetailView({ species, loading, error, onMutate }) {
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Morph</TableCell>
+                      <TableCell>Variedad</TableCell>
                       <TableCell>Descripción</TableCell>
                       <TableCell align="right">En venta</TableCell>
                       <TableCell>Stock</TableCell>

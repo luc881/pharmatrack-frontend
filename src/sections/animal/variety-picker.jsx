@@ -34,7 +34,7 @@ export const varietyName = (morphs) =>
 
 // Las opciones del buscador: por especie, la nominal y luego sus variedades;
 // una especie de genes es una sola opción (los genes se marcan aparte)
-export function varietyOptions(species, morphs) {
+export function varietyOptions(species, morphs, { genesAsOptions = false } = {}) {
   const bySpecies = new Map();
   morphs.forEach((m) => {
     if (!bySpecies.has(m.species_id)) bySpecies.set(m.species_id, []);
@@ -44,24 +44,33 @@ export function varietyOptions(species, morphs) {
     .sort((a, b) => speciesLabel(a).localeCompare(speciesLabel(b)))
     .flatMap((sp) => {
       const base = { key: `s${sp.id}`, species: sp, morph: null };
-      if (isGeneSpecies(sp)) return [base];
+      if (isGeneSpecies(sp) && !genesAsOptions) return [base];
       const own = [...(bySpecies.get(sp.id) ?? [])].sort((a, b) => a.name.localeCompare(b.name));
       return [base, ...own.map((m) => ({ key: `m${m.id}`, species: sp, morph: m }))];
     });
 }
 
-const optionName = (option) =>
-  option.morph ? option.morph.name : isGeneSpecies(option.species) ? 'Elegir genes…' : NOMINAL;
+// baseLabel: cómo se llama la opción base de cada especie. Al dar de alta es
+// «Nominal»; en un filtro, «Todas las variedades».
+const nameOf = (option, baseLabel) =>
+  option.morph
+    ? option.morph.name
+    : isGeneSpecies(option.species) && baseLabel === NOMINAL
+      ? 'Elegir genes…'
+      : baseLabel;
 
 // Lo que queda escrito en el campo al elegir
-const optionLabel = (option) =>
-  isGeneSpecies(option.species)
+const labelOf = (option, baseLabel) =>
+  isGeneSpecies(option.species) && !option.morph
     ? speciesLabel(option.species)
-    : `${speciesLabel(option.species)} · ${optionName(option)}`;
+    : `${speciesLabel(option.species)} · ${nameOf(option, baseLabel)}`;
 
 // value: { speciesId, morphIds }   onChange({ species, morphIds })
-// `species`: lista ya filtrada (por grupo o género); por omisión, todas
+// `species`: lista ya filtrada (por grupo o género); por omisión, todas.
+// `filter`: es un filtro de búsqueda, no un alta: la opción base es «todas
+// las variedades» y una especie de genes también lista sus genes sueltos.
 export function VarietyPicker({
+  filter = false,
   value,
   onChange,
   species,
@@ -77,24 +86,28 @@ export function VarietyPicker({
   const { morphs } = useAllMorphs();
   const list = species ?? allSpecies;
 
-  const options = useMemo(() => varietyOptions(list, morphs), [list, morphs]);
+  const baseLabel = filter ? 'Todas las variedades' : NOMINAL;
+  const options = useMemo(
+    () => varietyOptions(list, morphs, { genesAsOptions: filter }),
+    [list, morphs, filter]
+  );
+  const optionName = (option) => nameOf(option, baseLabel);
 
   const speciesId = value?.speciesId ? Number(value.speciesId) : null;
   const morphIds = value?.morphIds ?? [];
   // La especie elegida puede no estar en una lista filtrada: se busca en todas
   const selectedSpecies = allSpecies.find((s) => s.id === speciesId) ?? null;
-  const genes = isGeneSpecies(selectedSpecies);
+  // en un filtro los genes ya van como opciones sueltas
+  const genes = !filter && isGeneSpecies(selectedSpecies);
   const geneOptions = useMemo(
     () =>
-      morphs
-        .filter((m) => m.species_id === speciesId)
-        .sort((a, b) => a.name.localeCompare(b.name)),
+      morphs.filter((m) => m.species_id === speciesId).sort((a, b) => a.name.localeCompare(b.name)),
     [morphs, speciesId]
   );
 
   const selected = !selectedSpecies
     ? null
-    : genes || !morphIds.length
+    : (genes && !filter) || !morphIds.length
       ? { key: `s${speciesId}`, species: selectedSpecies, morph: null }
       : {
           key: `m${morphIds[0]}`,
@@ -118,7 +131,7 @@ export function VarietyPicker({
                   morphIds: option.morph
                     ? [option.morph.id]
                     : // misma especie de genes: no se pierden los ya marcados
-                      isGeneSpecies(option.species) && option.species.id === speciesId
+                      genes && option.species.id === speciesId
                       ? morphIds
                       : [],
                 }
@@ -126,7 +139,7 @@ export function VarietyPicker({
           )
         }
         groupBy={(option) => speciesLabel(option.species)}
-        getOptionLabel={optionLabel}
+        getOptionLabel={(option) => labelOf(option, baseLabel)}
         isOptionEqualToValue={(option, current) => option.key === current.key}
         // nombre común, científico o de la variedad; sin acentos
         filterOptions={(all, { inputValue }) =>

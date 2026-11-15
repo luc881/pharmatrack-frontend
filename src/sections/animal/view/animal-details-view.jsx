@@ -210,7 +210,7 @@ export function AnimalDetailsView({ animal, animalError }) {
             <InfoRow label="Género">{animal.species?.genus?.name ?? '—'}</InfoRow>
             <InfoRow label="Especie">{animal.species?.name ?? '—'}</InfoRow>
             {group && <InfoRow label="Grupo">{group.name}</InfoRow>}
-            <InfoRow label="Morphs">
+            <InfoRow label="Variedad">
               {animal.morphs?.length ? (
                 <Box sx={{ gap: 0.5, display: 'flex', flexWrap: 'wrap' }}>
                   {animal.morphs.map((m) => (
@@ -218,7 +218,7 @@ export function AnimalDetailsView({ animal, animalError }) {
                   ))}
                 </Box>
               ) : (
-                '—'
+                'Nominal'
               )}
             </InfoRow>
             <InfoRow label="Sexo">{SEX_LABELS[animal.sex] ?? animal.sex}</InfoRow>

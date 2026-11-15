@@ -1,6 +1,7 @@
 import { MemoryRouter } from 'react-router';
 import { http, delay, HttpResponse } from 'msw';
 import { it, vi, expect, describe } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { render, screen, within, waitFor, fireEvent } from '@testing-library/react';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -61,9 +62,11 @@ const animal = (code, purpose, status = 'available', extra = {}) => ({
   ...extra,
 });
 
+const TANGERINE = { id: 5, name: 'Tangerine', species_id: GECKO.id };
+
 const ANIMALS = [
   animal('V-1', 'sale', 'available', { requires_legal_doc: true, legal_doc: null }),
-  animal('V-2', 'sale'),
+  animal('V-2', 'sale', 'available', { morphs: [TANGERINE] }),
   animal('V-3', 'sale', 'reserved'),
   animal('B-1', 'breeder', 'available', { price: 0 }),
   animal('B-2', 'breeder', 'available', { price: 0 }),
@@ -77,6 +80,7 @@ function mockApi(animals = ANIMALS, extra = []) {
     http.get(`${API}/species`, () => HttpResponse.json(page([GECKO, ROACH]))),
     http.get(`${API}/genera`, () => HttpResponse.json(page([]))),
     http.get(`${API}/animal-groups/tree`, () => HttpResponse.json([])),
+    http.get(`${API}/morphs`, () => HttpResponse.json(page([TANGERINE]))),
     ...extra
   );
 }
@@ -159,6 +163,28 @@ describe('Animales: En venta', () => {
     renderView('sale');
     expect(await screen.findByText('Todavía no hay nada en venta')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'B-9' })).toBeNull();
+  });
+});
+
+describe('Animales: buscar por especie o variedad', () => {
+  it('escribir la variedad filtra a ella; la nominal se ve como tal', async () => {
+    const user = userEvent.setup();
+    mockApi();
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+    // en la lista, sin morph se dice «Nominal»
+    expect(within(rowOf('V-1')).getByText('Nominal')).toBeInTheDocument();
+    expect(within(rowOf('V-2')).getByText('Tangerine')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Especie o variedad'), 'tanger');
+    await user.click(await screen.findByRole('option', { name: 'Tangerine' }));
+    expect(codes()).toEqual(['V-2']);
+
+    // la opción base de la especie trae todas sus variedades
+    await user.clear(screen.getByLabelText('Especie o variedad'));
+    await user.type(screen.getByLabelText('Especie o variedad'), 'gecko');
+    await user.click(await screen.findByRole('option', { name: 'Todas las variedades' }));
+    expect(codes()).toEqual(['V-1', 'V-2', 'V-3']);
   });
 });
 

@@ -49,6 +49,7 @@ import { SaleViewSwitch } from '../sale-view-switch';
 import { QrLabelsDialog } from '../qr-labels-dialog';
 import { MoveAnimalMenu } from '../move-animal-dialog';
 import { PutOnSaleDialog } from '../put-on-sale-dialog';
+import { varietyName, VarietyPicker } from '../variety-picker';
 import {
   PURPOSES,
   purposeOf,
@@ -225,6 +226,8 @@ export function AnimalListView({ area = 'sale' }) {
   const [groupFilter, setGroupFilter] = useState('');
   const [genusFilter, setGenusFilter] = useState(() => Number(searchParams.get('genus_id')) || '');
   const [speciesFilter, setSpeciesFilter] = useState(() => Number(searchParams.get('species_id')) || '');
+  // variedad: se filtra aquí (el API filtra por especie)
+  const [morphFilter, setMorphFilter] = useState(null);
   // filtro dentro de la página; el del área es «Todo»
   const [destination, setDestination] = useState(area);
   // alta corta: null = cerrada; { species } = abierta (con o sin especie)
@@ -271,8 +274,11 @@ export function AnimalListView({ area = 'sale' }) {
   }, [animals]);
 
   const visible = useMemo(
-    () => animals.filter(FILTERS[destination]),
-    [animals, destination]
+    () =>
+      animals
+        .filter(FILTERS[destination])
+        .filter((a) => !morphFilter || a.morphs?.some((m) => m.id === morphFilter)),
+    [animals, destination, morphFilter]
   );
   const grouped = useMemo(() => groupBySpecies(visible), [visible]);
 
@@ -386,19 +392,24 @@ export function AnimalListView({ area = 'sale' }) {
         onChange={(_, option) => {
           setGenusFilter(option?.id ?? '');
           setSpeciesFilter('');
+          setMorphFilter(null);
         }}
         getOptionLabel={(option) => option?.name ?? ''}
         renderInput={(params) => <TextField {...params} label="Género" />}
         sx={{ minWidth: 180 }}
       />
-      <Autocomplete
+      {/* Por nombre común, científico o de la variedad (Glacier, Papaya…) */}
+      <VarietyPicker
+        filter
         size="small"
-        options={speciesOptions}
-        value={speciesOptions.find((s) => s.id === Number(speciesFilter)) ?? null}
-        onChange={(_, option) => setSpeciesFilter(option?.id ?? '')}
-        getOptionLabel={(option) => speciesLabel(option)}
-        renderInput={(params) => <TextField {...params} label="Especie" />}
-        sx={{ minWidth: 240 }}
+        label="Especie o variedad"
+        species={speciesOptions}
+        value={{ speciesId: speciesFilter || null, morphIds: morphFilter ? [morphFilter] : [] }}
+        onChange={(next) => {
+          setSpeciesFilter(next.species?.id ?? '');
+          setMorphFilter(next.morphIds[0] ?? null);
+        }}
+        sx={{ minWidth: 280 }}
       />
     </Stack>
   );
@@ -511,7 +522,7 @@ export function AnimalListView({ area = 'sale' }) {
                 description={animalsError.message}
                 sx={{ py: 10 }}
               />
-            ) : groupFilter || genusFilter || speciesFilter || destination !== area ? (
+            ) : groupFilter || genusFilter || speciesFilter || morphFilter || destination !== area ? (
               <EmptyContent title="Sin animales con esos filtros" sx={{ py: 10 }} />
             ) : (
               <EmptyContent
@@ -803,7 +814,7 @@ function SpeciesRows({ entry, area, onPutOnSale, open, onToggle, canCreate, canU
                       </TableCell>
                     )}
                     <TableCell>Código</TableCell>
-                    <TableCell>Morph</TableCell>
+                    <TableCell>Variedad</TableCell>
                     <TableCell>Sexo</TableCell>
                     <TableCell>Destino</TableCell>
                     <TableCell>Estado</TableCell>
@@ -874,7 +885,7 @@ function CriaderoRow({ animal, species, showStock, canUpdate, isSelected, onTogg
           </Link>
         </Box>
       </TableCell>
-      <TableCell>{animal.morphs?.length ? animal.morphs.map((m) => m.name).join(', ') : '—'}</TableCell>
+      <TableCell>{varietyName(animal.morphs)}</TableCell>
       <TableCell>{SEX_LABELS[animal.sex] ?? animal.sex}</TableCell>
       <TableCell>
         <Label variant="soft" color={PURPOSE_COLORS[purpose]}>
@@ -971,7 +982,7 @@ export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onD
           </Link>
         </Box>
       </TableCell>
-      <TableCell>{animal.morphs?.length ? animal.morphs.map((m) => m.name).join(', ') : '—'}</TableCell>
+      <TableCell>{varietyName(animal.morphs)}</TableCell>
       <TableCell>{SEX_LABELS[animal.sex] ?? animal.sex}</TableCell>
       <TableCell>{animal.birth_date ?? '—'}</TableCell>
       <TableCell>

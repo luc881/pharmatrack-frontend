@@ -71,8 +71,7 @@ const mount = (props) => {
 };
 
 const field = () => screen.getByLabelText('Especie y variedad');
-const optionNames = async () =>
-  (await screen.findAllByRole('option')).map((o) => o.textContent);
+const optionNames = async () => (await screen.findAllByRole('option')).map((o) => o.textContent);
 const groups = () =>
   [...document.querySelectorAll('.MuiAutocomplete-groupLabel')].map((el) => el.textContent);
 

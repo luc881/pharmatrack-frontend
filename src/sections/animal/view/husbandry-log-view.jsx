@@ -70,6 +70,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { varietyName } from '../variety-picker';
 import { PlanDialog } from '../husbandry-plan-card';
 import {
   purposeOf,
@@ -454,7 +455,7 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan, onRemovePlan
           <TableHead>
             <TableRow>
               <TableCell>Código</TableCell>
-              <TableCell>Morph</TableCell>
+              <TableCell>Variedad</TableCell>
               <TableCell>Sexo</TableCell>
               <TableCell>Destino</TableCell>
               <TableCell>Última comida</TableCell>
@@ -473,7 +474,7 @@ function SpecimenPanel({ sp, plan, status, canEdit, onOpen, onPlan, onRemovePlan
               return (
                 <TableRow key={a.id} sx={dead ? { '& td': { color: 'text.disabled' } } : undefined}>
                   <TableCell sx={{ fontWeight: 600 }}>{a.code}</TableCell>
-                  <TableCell>{a.morphs?.map((m) => m.name).join(', ')}</TableCell>
+                  <TableCell>{varietyName(a.morphs)}</TableCell>
                   <TableCell>{SEX_LABELS[a.sex] ?? ''}</TableCell>
                   <TableCell>
                     <Label variant="soft" color={PURPOSE_COLORS[purposeOf(a)]}>
@@ -702,7 +703,7 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
               <TextField
                 select
                 fullWidth
-                label="Morph (opcional)"
+                label="Variedad"
                 value={form.morph_id}
                 onChange={set('morph_id')}
                 disabled={!morphs.length}
@@ -1174,7 +1175,7 @@ function LogTable({ logs, canEdit, editingId, onEdit, onDelete, onPickAnimal }) 
             <TableCell>Especie</TableCell>
             <TableCell>Nombre científico</TableCell>
             <TableCell>Ejemplar</TableCell>
-            <TableCell>Morph</TableCell>
+            <TableCell>Variedad</TableCell>
             <TableCell>¿Comió?</TableCell>
             <TableCell>Alimento</TableCell>
             <TableCell align="right">Piezas</TableCell>
