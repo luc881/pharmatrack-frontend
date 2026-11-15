@@ -52,6 +52,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { AnimalCapAlert } from '../animal-cap-alert';
 import { TaxonDialog, TAXON_ACTIONS } from '../taxon-dialog';
+import { searchText, buildSpeciesTree } from '../taxonomy-rows';
 import { purposeOf, speciesLabel, flattenGroupTree } from '../utils';
 import {
   STOCK,
@@ -340,20 +341,15 @@ export function AnimalTaxonomyView() {
       return next;
     });
 
-  const speciesTree = useMemo(() => {
-    const rows = [];
-    allSpecies.forEach((sp) => {
-      rows.push({ ...sp, _rowId: `s${sp.id}`, __kind: 'species', depth: 0 });
-      // Con el filtro de sitio activo se incluyen todos los morphs para poder
-      // filtrarlos (si no, un morph oculto de una especie visible no aparecería)
-      if (expanded.has(sp.id) || webFilter !== 'all') {
-        (morphsBySpecies[sp.id] ?? []).forEach((m) =>
-          rows.push({ ...m, _rowId: `m${m.id}`, __kind: 'morph', depth: 1, __speciesId: sp.id })
-        );
-      }
-    });
-    return rows;
-  }, [allSpecies, morphsBySpecies, expanded, webFilter]);
+  // Texto del buscador de la tabla: con algo escrito van todas las variedades
+  // (si no, «glacier» no encontraría nada con la especie plegada)
+  const [search, setSearch] = useState('');
+  const showAllMorphs = webFilter !== 'all' || search.trim() !== '';
+
+  const speciesTree = useMemo(
+    () => buildSpeciesTree(allSpecies, morphsBySpecies, { expanded, showAll: showAllMorphs }),
+    [allSpecies, morphsBySpecies, expanded, showAllMorphs]
+  );
 
   // Etiqueta del chip del filtro: se deriva de los datos ya cargados, la URL
   // solo guarda tipo + id (así el enlace no arrastra texto ni se desincroniza
@@ -616,12 +612,16 @@ export function AnimalTaxonomyView() {
           flex: 1,
           minWidth: 200,
           sortable: false,
+          // lo que mira el buscador: la variedad con su especie, la especie con sus variedades
+          valueGetter: (_, row) => searchText(row, speciesById, morphsBySpecies),
+          // al exportar va el nombre tal cual, no el texto de búsqueda
+          valueFormatter: (_, row) => row.name,
           renderCell: (params) => {
             const { row } = params;
             if (row.__kind === 'morph') {
-              // Con el filtro de sitio el morph puede salir sin su especie arriba:
-              // se dice de cuál es para no dejarlo huérfano.
-              const parent = webFilter !== 'all' ? speciesById[row.__speciesId]?.name : null;
+              // Al buscar o filtrar, la variedad puede salir sin su especie
+              // arriba: se dice de cuál es para no dejarla huérfana.
+              const parent = showAllMorphs ? speciesById[row.__speciesId]?.name : null;
               return (
                 <Box sx={{ pl: 3 }}>
                   └ {row.name}
@@ -639,8 +639,8 @@ export function AnimalTaxonomyView() {
 
             return (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-                {/* Con filtro de sitio los morphs ya salen todos: la flecha no aplica */}
-                {count > 0 && webFilter === 'all' ? (
+                {/* Al buscar o filtrar las variedades ya salen todas: la flecha no aplica */}
+                {count > 0 && !showAllMorphs ? (
                   <IconButton
                     size="small"
                     onClick={() => toggleExpanded(row.id)}
@@ -799,6 +799,7 @@ export function AnimalTaxonomyView() {
             getRowId={(row) => row._rowId ?? row.id}
             loading={gridProps.loading}
             onCellClick={handleCellClick}
+            onFilterModelChange={(model) => setSearch((model.quickFilterValues ?? []).join(' '))}
             columnVisibilityModel={columnVisibilityModel}
             onColumnVisibilityModelChange={setColumnVisibilityModel}
             pageSizeOptions={[25, 50, 100]}
