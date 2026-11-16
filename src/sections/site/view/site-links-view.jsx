@@ -22,9 +22,11 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 // ----------------------------------------------------------------------
 // Contenido de /links, la página tipo linktree del sitio (bio de Instagram,
-// QR del ticket, tarjetas): eventos, guías, textos y botones. Al final, la
+// QR del ticket, tarjetas): eventos, textos y botones. Al final, la
 // cinta de novedades del sitio (otro ajuste, con su propio guardado).
 // Se guarda todo junto (PUT completo) y el sitio lo muestra en ~1 minuto.
+// Las guías de cuidado de /links no se editan aquí: el sitio las arma con las
+// fichas publicadas (Sitio → Fichas).
 // ----------------------------------------------------------------------
 
 const SITE = 'https://www.opuntiaden.com';
@@ -36,7 +38,6 @@ const urlError = (url, required) =>
 
 
 const NEW_EVENT = { title: '', place: '', date: '', time: '', ends: '', url: '', url_label: 'Más información' };
-const NEW_GUIDE = { name: '', url: '', sub: false };
 const NEW_BUTTON = { label: '', url: '', primary: false };
 
 // Primer error del formulario, para no mandar al API algo que va a rechazar
@@ -45,10 +46,6 @@ function firstError(d) {
     if (!e.title.trim()) return 'Un evento no tiene nombre.';
     if (!e.date) return `Falta la fecha de "${e.title}".`;
     if (urlError(e.url)) return `El enlace de "${e.title}" no es válido.`;
-  }
-  for (const g of d.guides) {
-    if (!g.name.trim()) return 'Una guía no tiene nombre.';
-    if (urlError(g.url)) return `El enlace de la guía "${g.name}" no es válido.`;
   }
   const page = d.pages.links;
   if (!page.title.trim()) return 'Falta el titular de la página.';
@@ -108,7 +105,6 @@ export function SiteLinksView() {
   };
 
   const setEvents = (events) => setDraft((d) => ({ ...d, events }));
-  const setGuides = (guides) => setDraft((d) => ({ ...d, guides }));
   const setPage = (key, patch) => setDraft((d) => ({ ...d, pages: { ...d.pages, [key]: { ...d.pages[key], ...patch } } }));
 
   return (
@@ -135,6 +131,7 @@ export function SiteLinksView() {
           /links
         </a>{' '}
         (bio de Instagram, QR del ticket y tarjetas). Los cambios aparecen en el sitio en aproximadamente un minuto.
+        Las guías de cuidado de esa página salen solas de las fichas publicadas (Sitio → Fichas).
       </Typography>
 
       {linkPagesError ? (
@@ -185,38 +182,6 @@ export function SiteLinksView() {
                     helperText={urlError(e.url) || 'Opcional: sin enlace no hay botón'}
                   />
                   <TextField label="Texto del botón" value={e.url_label} onChange={(ev) => setEvents(setAt(draft.events, i, { url_label: ev.target.value }))} />
-                </Box>
-              </Row>
-            ))}
-          </Section>
-
-          {/* Guías */}
-          <Section
-            title="Guías de cuidado"
-            hint="Sin enlace, el botón dice “Pídela por WhatsApp”. “Especie” la muestra con sangría y nombre científico en itálica (la localidad entre comillas)."
-            onAdd={() => setGuides([...draft.guides, { ...NEW_GUIDE }])}
-            addLabel="Agregar guía"
-          >
-            {draft.guides.map((g, i) => (
-              <Row
-                key={i}
-                inline
-                onUp={() => setGuides(move(draft.guides, i, -1))}
-                onDown={() => setGuides(move(draft.guides, i, 1))}
-                onRemove={() => setGuides(removeAt(draft.guides, i))}
-              >
-                <Box sx={{ flex: 1, display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', md: '2fr 3fr auto' }, alignItems: 'center', pl: g.sub ? { md: 4 } : 0 }}>
-                  <TextField size="small" label="Nombre" value={g.name} onChange={(ev) => setGuides(setAt(draft.guides, i, { name: ev.target.value }))} required />
-                  <TextField
-                    size="small"
-                    label="Enlace"
-                    value={g.url}
-                    onChange={(ev) => setGuides(setAt(draft.guides, i, { url: ev.target.value.trim() }))}
-                    error={!!urlError(g.url)}
-                    helperText={urlError(g.url) || undefined}
-                    placeholder="/articulos/…"
-                  />
-                  <FormControlLabel control={<Switch checked={g.sub} onChange={(ev) => setGuides(setAt(draft.guides, i, { sub: ev.target.checked }))} />} label="Especie" />
                 </Box>
               </Row>
             ))}

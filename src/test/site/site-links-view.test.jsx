@@ -22,7 +22,6 @@ const SITE_URL = 'https://api.opuntiaden.com/api/v1/settings/site';
 
 const DATA = {
   events: [{ title: 'Animalia Otoño CDMX 2026', place: 'Tlatelolco', date: '2026-11-21', time: '', ends: '', url: '', url_label: 'Más información' }],
-  guides: [{ name: 'Isópodos', url: '/articulos/x', sub: false }],
   pages: {
     links: { label: 'Criadero', title: 'Historia natural', lead: '', footer: '', buttons: [{ label: 'Ver catálogo', url: '/catalogo', primary: true }] },
   },
@@ -60,6 +59,15 @@ describe('SiteLinksView', () => {
     await waitFor(() => expect(saved).not.toBeNull());
     expect(saved.pages.links.title).toBe('Historia natural de CDMX');
     expect(saved.events[0].title).toBe('Animalia Otoño CDMX 2026');
+    expect(saved).not.toHaveProperty('guides');
+  });
+
+  it('las guías ya no se editan aquí: salen solas de las fichas publicadas', async () => {
+    server.use(http.get(URL, () => HttpResponse.json(DATA)));
+    renderView();
+    await screen.findByDisplayValue('Historia natural');
+    expect(screen.queryByRole('button', { name: 'Agregar guía' })).toBeNull();
+    expect(screen.getByText(/salen solas de las fichas publicadas/)).toBeInTheDocument();
   });
 
   it('no manda al API un enlace inválido', async () => {
