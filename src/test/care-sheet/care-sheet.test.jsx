@@ -107,9 +107,90 @@ describe('CareSheetListView', () => {
     expect(await screen.findByText('Pandinus imperator')).toBeInTheDocument();
     expect(screen.getByText('Pandinus imperator').tagName).toBe('EM');
     expect(screen.getByText(/“Ghana”/)).toBeInTheDocument();
-    expect(screen.getByText('Escorpiones')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getByText('Escorpiones')).toBeInTheDocument();
     expect(screen.getByText('Borrador')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '+ Ficha nueva' })).toBeInTheDocument();
+  });
+});
+
+const SHEETS = [
+  {
+    id: 1,
+    slug: 'pandinus-imperator-ghana',
+    species_id: 3,
+    scientific_name: 'Pandinus imperator',
+    locality: 'Ghana',
+    common_name: 'Escorpión emperador',
+    group: { id: 9, name: 'Escorpiones' },
+    difficulty: 'Fácil',
+    published: false,
+    updated_at: '2026-10-01T12:00:00Z',
+  },
+  {
+    id: 2,
+    slug: 'cubaris-murina',
+    species_id: 4,
+    scientific_name: 'Cubaris murina',
+    common_name: 'Isópodo Murina',
+    group: { id: 7, name: 'Isópodos' },
+    difficulty: 'Fácil',
+    published: true,
+    published_at: '2026-11-16T12:00:00Z',
+    updated_at: '2026-11-16T12:00:00Z',
+  },
+  {
+    id: 3,
+    slug: 'cubaris-sp-panda-king',
+    species_id: 5,
+    scientific_name: 'Cubaris sp.',
+    locality: 'Panda King',
+    common_name: 'Isópodo Panda King',
+    group: { id: 7, name: 'Isópodos' },
+    difficulty: 'Intermedia',
+    published: true,
+    published_at: '2026-11-16T12:00:00Z',
+    updated_at: '2026-11-16T12:00:00Z',
+  },
+];
+
+describe('CareSheetListView: buscar y filtrar', () => {
+  const shown = () =>
+    ['Pandinus imperator', 'Cubaris murina', 'Cubaris sp.'].filter((n) => screen.queryByText(n));
+
+  beforeEach(() => {
+    server.use(http.get(`${API}/care-sheets`, () => HttpResponse.json(SHEETS)));
+  });
+
+  it('busca por especie, localidad o nombre común, sin acentos', async () => {
+    renderUi(<CareSheetListView />);
+    await screen.findByText('Cubaris murina');
+    const search = screen.getByRole('searchbox', { name: 'Buscar ficha' });
+
+    fireEvent.change(search, { target: { value: 'escorpion' } });
+    expect(shown()).toEqual(['Pandinus imperator']);
+
+    fireEvent.change(search, { target: { value: 'panda' } });
+    expect(shown()).toEqual(['Cubaris sp.']);
+
+    fireEvent.change(search, { target: { value: 'cubaris' } });
+    expect(shown()).toEqual(['Cubaris murina', 'Cubaris sp.']);
+  });
+
+  it('filtra por estado, grupo y dificultad', async () => {
+    renderUi(<CareSheetListView />);
+    await screen.findByText('Cubaris murina');
+
+    fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'draft' } });
+    expect(shown()).toEqual(['Pandinus imperator']);
+
+    fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'published' } });
+    fireEvent.change(screen.getByLabelText('Dificultad'), { target: { value: 'Intermedia' } });
+    expect(shown()).toEqual(['Cubaris sp.']);
+
+    fireEvent.change(screen.getByLabelText('Dificultad'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Grupo'), { target: { value: 'Isópodos' } });
+    expect(shown()).toEqual(['Cubaris murina', 'Cubaris sp.']);
+    expect(screen.getByText('2 de 3 fichas')).toBeInTheDocument();
   });
 });
 

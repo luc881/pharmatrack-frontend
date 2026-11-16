@@ -1,14 +1,18 @@
-import { useState, useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import { DataGrid, gridClasses } from '@mui/x-data-grid';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { fDate } from 'src/utils/format-time';
+import { matchesWords } from 'src/utils/plain';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { deleteCareSheet, useGetCareSheets } from 'src/actions/care-sheets';
@@ -33,6 +37,38 @@ export function SheetName({ sheet }) {
   );
 }
 
+const STATES = [
+  { value: '', label: 'Todas' },
+  { value: 'published', label: 'Publicadas' },
+  { value: 'draft', label: 'Borradores' },
+];
+
+// select nativo: rápido en celular y con «Todos» al principio
+function FilterSelect({ label, value, onChange, options }) {
+  return (
+    <TextField
+      select
+      size="small"
+      label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+      sx={{ minWidth: 150 }}
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </TextField>
+  );
+}
+
+const asOptions = (values, all) => [
+  { value: '', label: all },
+  ...[...new Set(values.filter(Boolean))].sort().map((v) => ({ value: v, label: v })),
+];
+
 export function CareSheetListView() {
   const { user } = useAuthContext();
 
@@ -41,6 +77,19 @@ export function CareSheetListView() {
   const [rowToDelete, setRowToDelete] = useState(null);
 
   const { careSheets, careSheetsLoading, careSheetsMutate } = useGetCareSheets();
+
+  const [search, setSearch] = useState('');
+  const [state, setState] = useState('');
+  const [group, setGroup] = useState('');
+  const [difficulty, setDifficulty] = useState('');
+
+  const rows = useMemo(() => careSheets.filter(
+      (s) =>
+        matchesWords(`${s.scientific_name} ${s.locality ?? ''} ${s.common_name ?? ''}`, search) &&
+        (!state || (state === 'published') === Boolean(s.published)) &&
+        (!group || s.group?.name === group) &&
+        (!difficulty || s.difficulty === difficulty)
+    ), [careSheets, search, state, group, difficulty]);
 
   const handleConfirmDelete = useCallback(async () => {
     try {
@@ -140,9 +189,41 @@ export function CareSheetListView() {
             flexDirection: { md: 'column' },
           }}
         >
+          <Stack
+            direction="row"
+            sx={{ p: 2, gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}
+          >
+            <TextField
+              size="small"
+              type="search"
+              placeholder="Buscar especie, localidad o nombre común…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              slotProps={{ htmlInput: { 'aria-label': 'Buscar ficha' } }}
+              sx={{ flexGrow: 1, minWidth: 240 }}
+            />
+            <FilterSelect label="Estado" value={state} onChange={setState} options={STATES} />
+            <FilterSelect
+              label="Grupo"
+              value={group}
+              onChange={setGroup}
+              options={asOptions(careSheets.map((s) => s.group?.name), 'Todos')}
+            />
+            <FilterSelect
+              label="Dificultad"
+              value={difficulty}
+              onChange={setDifficulty}
+              options={asOptions(careSheets.map((s) => s.difficulty), 'Todas')}
+            />
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {rows.length === careSheets.length
+                ? `${careSheets.length} fichas`
+                : `${rows.length} de ${careSheets.length} fichas`}
+            </Typography>
+          </Stack>
           <DataGrid
             disableRowSelectionOnClick
-            rows={careSheets}
+            rows={rows}
             columns={columns}
             loading={careSheetsLoading}
             pageSizeOptions={[25, 50]}
