@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
+import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -79,7 +80,7 @@ const makeSchema = (isEdit) =>
         })
       ),
       body: zod.string(),
-      // ponytail: las fotos solo entran por subida o por «+ Agregar URL», que ya valida https
+      // ponytail: las fotos solo entran por subida o por «Subir link», que ya valida https y las guarda en Cloudinary
       photos: zod.array(
         zod.object({ src: zod.string(), alt: max(200).min(1, 'Describe qué muestra la foto') })
       ),
@@ -209,6 +210,14 @@ export function CareSheetForm({ current }) {
   const photos = useFieldArray({ control, name: 'photos' });
   const videoSrc = watch('video_src');
 
+  // Fotos que ya están en la especie (Animales): se usan tal cual, sin volver a subirlas
+  const species = allSpecies.find((s) => s.id === watch('species_id'));
+  const speciesPhotos = species?.photos?.length ? species.photos : [species?.image].filter(Boolean);
+  const inGuide = new Set(photos.fields.map((p) => p.src));
+  const missing = speciesPhotos.filter((src) => !inGuide.has(src));
+  const speciesAlt = species ? species.common_name || speciesLabel(species) : '';
+  const addSpeciesPhotos = (srcs) => photos.append(srcs.map((src) => ({ src, alt: speciesAlt })));
+
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoUrlError, setPhotoUrlError] = useState('');
   const [photosLoading, setPhotosLoading] = useState(false);
@@ -226,15 +235,27 @@ export function CareSheetForm({ current }) {
     }
   };
 
-  const addPhotoUrl = () => {
-    const src = photoUrl.trim();
-    if (!isHttps(src)) {
+  // Un link de otra página se copia a Cloudinary (no se rompe si la página
+  // lo borra); uno que ya está en Cloudinary va tal cual, sin duplicarlo
+  const addPhotoUrl = async () => {
+    const url = photoUrl.trim();
+    if (!isHttps(url)) {
       setPhotoUrlError('Debe empezar con https://');
       return;
     }
-    photos.append({ src, alt: '' });
-    setPhotoUrl('');
     setPhotoUrlError('');
+    setPhotosLoading(true);
+    try {
+      const src = /^https:\/\/res\.cloudinary\.com\//i.test(url)
+        ? url
+        : await uploadToCloudinary(url);
+      photos.append({ src, alt: '' });
+      setPhotoUrl('');
+    } catch (error) {
+      setPhotoUrlError(error?.message || 'No se pudo subir ese link');
+    } finally {
+      setPhotosLoading(false);
+    }
   };
 
   const uploadVideo = async (file) => {
@@ -455,8 +476,40 @@ export function CareSheetForm({ current }) {
 
           <Section title="Fotos y video">
             <Stack spacing={2}>
+              {missing.length > 0 && (
+                <Box sx={{ gap: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    Fotos de la especie:
+                  </Typography>
+                  {speciesPhotos.map(
+                    (src, i) =>
+                      !inGuide.has(src) && (
+                        <ButtonBase
+                          key={src}
+                          aria-label={`Agregar foto ${i + 1} de la especie`}
+                          onClick={() => addSpeciesPhotos([src])}
+                          sx={{ borderRadius: 1, overflow: 'hidden' }}
+                        >
+                          <Box
+                            component="img"
+                            src={src}
+                            alt=""
+                            sx={{ width: 56, height: 42, objectFit: 'cover' }}
+                          />
+                        </ButtonBase>
+                      )
+                  )}
+                  <Button size="small" onClick={() => addSpeciesPhotos(missing)}>
+                    Usar las fotos de la especie ({missing.length})
+                  </Button>
+                </Box>
+              )}
               {photos.fields.map((photo, index) => (
-                <Box key={photo.id} sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+                <Box
+                  key={photo.id}
+                  data-guide-photo
+                  sx={{ gap: 2, display: 'flex', alignItems: 'center' }}
+                >
                   <Box
                     component="img"
                     src={photo.src}
@@ -492,15 +545,20 @@ export function CareSheetForm({ current }) {
                 </Button>
                 <TextField
                   size="small"
-                  label="o pega una URL"
+                  label="o pega un link"
                   value={photoUrl}
                   error={!!photoUrlError}
                   helperText={photoUrlError}
                   onChange={(e) => setPhotoUrl(e.target.value)}
                   sx={{ minWidth: 280 }}
                 />
-                <Button variant="outlined" onClick={addPhotoUrl} disabled={!photoUrl.trim()}>
-                  + Agregar URL
+                <Button
+                  variant="outlined"
+                  onClick={addPhotoUrl}
+                  disabled={!photoUrl.trim()}
+                  loading={photosLoading}
+                >
+                  Subir link
                 </Button>
               </Box>
 

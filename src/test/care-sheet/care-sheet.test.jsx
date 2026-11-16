@@ -18,6 +18,13 @@ import { createWrapper } from '../utils';
 // el body completo con sus listas; un 409 enseña el detail del API.
 // ----------------------------------------------------------------------
 
+const uploads = [];
+vi.mock('src/lib/cloudinary', () => ({
+  uploadToCloudinary: async (source) => {
+    uploads.push(source);
+    return `https://res.cloudinary.com/demo/image/upload/copia-${uploads.length}.jpg`;
+  },
+}));
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
 // DataGrid y Label importan CSS que vitest no carga: tabla mínima con las mismas columnas
 vi.mock('src/components/label', () => ({ Label: ({ children }) => children }));
@@ -290,5 +297,73 @@ describe('CareSheetForm', () => {
       { timeout: 5000 }
     );
     expect(toast.success).not.toHaveBeenCalled();
+  });
+});
+
+describe('CareSheetForm: fotos por link', () => {
+  const photoSrcs = () =>
+    [...document.querySelectorAll('img')]
+      .map((img) => img.getAttribute('src'))
+      .filter((src) => src?.includes('.jpg'));
+
+  const pasteLink = (url) => {
+    fireEvent.change(screen.getByLabelText('o pega un link'), { target: { value: url } });
+    fireEvent.click(screen.getByRole('button', { name: 'Subir link' }));
+  };
+
+  it('un link de otra página se copia a Cloudinary; uno de Cloudinary va tal cual', async () => {
+    uploads.length = 0;
+    server.use(http.get(`${API}/species`, () => HttpResponse.json(page(SPECIES))));
+    renderUi(<CareSheetForm />);
+
+    pasteLink('https://otra-pagina.com/foto.jpg');
+    await waitFor(() =>
+      expect(photoSrcs()).toEqual(['https://res.cloudinary.com/demo/image/upload/copia-1.jpg'])
+    );
+    expect(uploads).toEqual(['https://otra-pagina.com/foto.jpg']);
+
+    pasteLink('https://res.cloudinary.com/demo/image/upload/mia.jpg');
+    await waitFor(() => expect(photoSrcs()).toHaveLength(2));
+    expect(photoSrcs()[1]).toBe('https://res.cloudinary.com/demo/image/upload/mia.jpg');
+    expect(uploads).toHaveLength(1);
+  });
+});
+
+describe('CareSheetForm: fotos de la especie', () => {
+  const A = 'https://res.cloudinary.com/demo/image/upload/especie-a.jpg';
+  const B = 'https://res.cloudinary.com/demo/image/upload/especie-b.jpg';
+  const guidePhotos = () =>
+    [...document.querySelectorAll('[data-guide-photo] img')].map((img) => img.getAttribute('src'));
+
+  beforeEach(() => {
+    uploads.length = 0;
+    server.use(
+      http.get(`${API}/species`, () =>
+        HttpResponse.json(page([{ ...SPECIES[0], photos: [A, B] }, SPECIES[1]]))
+      )
+    );
+  });
+
+  it('se usan sin volver a subirlas, todas o una por una, y se pueden quitar', async () => {
+    renderUi(<CareSheetForm />);
+    await fillMinimal();
+
+    // una sola
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar foto 2 de la especie' }));
+    expect(guidePhotos()).toEqual([B]);
+    expect(screen.queryByRole('button', { name: 'Agregar foto 2 de la especie' })).toBeNull();
+
+    // las que falten
+    fireEvent.click(screen.getByRole('button', { name: 'Usar las fotos de la especie (1)' }));
+    expect(guidePhotos()).toEqual([B, A]);
+    expect(screen.queryByRole('button', { name: /Usar las fotos de la especie/ })).toBeNull();
+
+    // el texto alternativo viene lleno y se puede quitar una
+    expect(screen.getAllByLabelText('Texto alternativo')[0]).toHaveValue('Escorpión emperador');
+    const firstRow = document.querySelector('[data-guide-photo]');
+    fireEvent.click(within(firstRow).getByRole('button', { name: 'Quitar' }));
+    expect(guidePhotos()).toEqual([A]);
+    expect(screen.getByRole('button', { name: 'Agregar foto 2 de la especie' })).toBeInTheDocument();
+    expect(uploads).toEqual([]);
   });
 });
