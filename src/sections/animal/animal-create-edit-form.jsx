@@ -47,6 +47,7 @@ import {
   PURPOSES,
   purposeOf,
   SEX_OPTIONS,
+  siteBlocker,
   PURPOSE_HELP,
   PURPOSE_LABELS,
   PURPOSE_COLORS,
@@ -211,6 +212,11 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const { morphs: allMorphs, morphsMutate } = useAllMorphs();
 
   const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));
+  // ¿se ve de verdad? su especie o su variedad pueden estar apagadas en el sitio
+  const siteOff = siteBlocker({
+    species: selectedSpecies,
+    morphs: (morphIds ?? []).map((id) => allMorphs.find((m) => m.id === id)).filter(Boolean),
+  });
 
   // Fotos que usa el ejemplar mientras no tenga propias: las de su variedad
   // (la primera que tenga) o las de su especie. Se ven aquí para saber qué
@@ -670,6 +676,12 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 <Typography variant="caption" sx={{ ml: 4, mt: -0.5, color: 'text.secondary' }}>
                   Apagado: se vende en mostrador o en la venta rápida sin anunciarse en la tienda.
                 </Typography>
+                {watch('show_public') && siteOff && (
+                  <Typography variant="caption" sx={{ ml: 4, mt: 0.5, color: 'warning.dark' }}>
+                    {siteOff}: aunque esté marcado, no sale en la tienda. Se prende en Animales → En
+                    venta (interruptores «En el sitio»).
+                  </Typography>
+                )}
                 <FormControlLabel
                   control={
                     <Checkbox

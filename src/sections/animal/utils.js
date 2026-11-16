@@ -123,3 +123,15 @@ export function displayImage(animal, species = animal?.species) {
   const variety = (animal?.morphs ?? []).find((m) => m.image)?.image;
   return variety || species?.image || '';
 }
+
+// Por qué un ejemplar marcado «Mostrar en el sitio» no se ve en la tienda (el
+// mismo criterio que el API): la forma nominal depende de su especie y una
+// variedad de sus morphs; un grupo oculto esconde todo. null = sí se ve.
+export function siteBlocker({ species, morphs = [], groupHidden = false }) {
+  if (groupHidden) return 'Su grupo está oculto en el sitio';
+  if (!morphs.length) {
+    return species?.show_public === false ? 'Su especie está apagada en el sitio' : null;
+  }
+  const off = morphs.find((m) => m?.show_public === false);
+  return off ? `La variedad ${off.name} está apagada en el sitio` : null;
+}

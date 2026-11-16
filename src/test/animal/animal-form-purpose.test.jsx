@@ -112,6 +112,29 @@ describe('Formulario de animal: destino', () => {
     expect(body.sent).toMatchObject({ species_id: 1, morph_ids: [5], price: 700 });
   });
 
+  it('avisa si su variedad o su especie está apagada en el sitio, aunque esté marcado', async () => {
+    mockApi();
+    server.use(
+      http.get(`${API}/species`, () => HttpResponse.json(page([{ ...GECKO, show_public: false }]))),
+      http.get(`${API}/morphs`, () =>
+        HttpResponse.json(page([{ id: 5, name: 'Tangerine', species_id: 1, show_public: false }]))
+      )
+    );
+    wrap(<AnimalCreateEditForm />, '/new?species_id=1&purpose=sale');
+
+    // nominal: depende de la especie
+    expect(await screen.findByText(/Su especie está apagada en el sitio/)).toBeInTheDocument();
+
+    const picker = screen.getByLabelText(/Especie y variedad/);
+    fireEvent.change(picker, { target: { value: 'tangerine' } });
+    fireEvent.click(await screen.findByRole('option', { name: 'Tangerine' }));
+    expect(await screen.findByText(/La variedad Tangerine está apagada en el sitio/)).toBeInTheDocument();
+
+    // sin marcar no hay nada que avisar
+    fireEvent.click(screen.getByRole('checkbox', { name: /Mostrar en el sitio/ }));
+    expect(screen.queryByText(/está apagada en el sitio/)).toBeNull();
+  });
+
   it('en venta decide si va a la venta rápida y si se ve en el sitio', async () => {
     const body = {};
     mockApi([capture('post', '/animals', body)]);

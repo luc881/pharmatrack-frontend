@@ -67,6 +67,7 @@ import {
   SEX_LABELS,
   statusLabel,
   animalUnits,
+  siteBlocker,
   displayImage,
   speciesLabel,
   STATUS_COLORS,
@@ -1006,6 +1007,17 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, can
                           isSelected={selected.has(animal.id)}
                           onToggleSelect={canSelect ? onToggleSelected : undefined}
                           showChannels={area === 'sale'}
+                          siteHidden={
+                            site
+                              ? siteBlocker({
+                                  species: site.species[species.id],
+                                  morphs: (animal.morphs ?? []).map(
+                                    (m) => site.morphsOf(species.id).find((x) => x.id === m.id) ?? m
+                                  ),
+                                  groupHidden: site.hiddenGroups.has(species.genus?.group?.id),
+                                })
+                              : null
+                          }
                           onMoved={onMoved}
                         />
                       )),
@@ -1054,7 +1066,7 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, can
 
 // Ejemplar en «Mi criadero»: acciones con texto (Mover a…, Editar, Anotar);
 // borrar va por la casilla y el botón «Eliminar (N)» de arriba
-function CriaderoRow({ animal, species, showStock, showChannels, canUpdate, isSelected, onToggleSelect, onMoved }) {
+function CriaderoRow({ animal, species, showStock, showChannels, siteHidden = null, canUpdate, isSelected, onToggleSelect, onMoved }) {
   const purpose = purposeOf(animal);
   const empty = isEmptyBulk(animal);
 
@@ -1094,11 +1106,17 @@ function CriaderoRow({ animal, species, showStock, showChannels, canUpdate, isSe
       <TableCell>
         {showChannels ? (
           <Stack direction="row" spacing={0.5}>
-            {onSite(animal) && (
-              <Label variant="soft" color="info">
-                Tienda
-              </Label>
-            )}
+            {/* marcado pero con su especie, variedad o grupo apagado: no sale en la tienda */}
+            {onSite(animal) &&
+              (siteHidden ? (
+                <Label variant="soft" color="default" title={siteHidden}>
+                  Tienda (no se ve)
+                </Label>
+              ) : (
+                <Label variant="soft" color="info">
+                  Tienda
+                </Label>
+              ))}
             {onQuick(animal) && (
               <Label variant="soft" color="secondary">
                 Venta rápida

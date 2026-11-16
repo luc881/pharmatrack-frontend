@@ -34,7 +34,9 @@ vi.mock('src/auth/hooks', () => ({
 }));
 vi.mock('src/components/snackbar', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 // Label importa el tema completo (CSS de data-grid), que vitest no carga
-vi.mock('src/components/label', () => ({ Label: ({ children }) => <span>{children}</span> }));
+vi.mock('src/components/label', () => ({
+  Label: ({ children, title }) => <span title={title}>{children}</span>,
+}));
 
 const API = 'https://api.opuntiaden.com/api/v1';
 const page = (data) => ({ data, total: data.length, page: 1, page_size: 500, total_pages: 1 });
@@ -334,6 +336,31 @@ describe('Animales: por dónde se vende (canales)', () => {
     expect(within(rowOf('V-2')).getByText('Tienda')).toBeInTheDocument();
     expect(within(rowOf('V-2')).getByText('Venta rápida')).toBeInTheDocument();
     expect(within(rowOf('V-3')).queryByText('Tienda')).toBeNull();
+  });
+
+  it('marcado para la tienda pero con su especie o variedad apagada: dice que no se ve', async () => {
+    mockApi(channels());
+    server.use(
+      http.get(`${API}/species`, () =>
+        HttpResponse.json(page([{ ...GECKO, show_public: false }, ROACH]))
+      ),
+      http.get(`${API}/morphs`, () => HttpResponse.json(page([{ ...TANGERINE, show_public: false }])))
+    );
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+
+    // V-1 es nominal: depende de la especie; V-2 es Tangerine: depende de la variedad
+    await waitFor(() =>
+      expect(within(rowOf('V-1')).getByText('Tienda (no se ve)')).toHaveAttribute(
+        'title',
+        'Su especie está apagada en el sitio'
+      )
+    );
+    expect(within(rowOf('V-2')).getByText('Tienda (no se ve)')).toHaveAttribute(
+      'title',
+      `La variedad ${TANGERINE.name} está apagada en el sitio`
+    );
+    expect(within(rowOf('V-1')).queryByText('Tienda')).toBeNull();
   });
 
   it('se filtra por canal', async () => {
