@@ -83,7 +83,12 @@ const makeSchema = (isEdit) =>
       body: zod.string(),
       // ponytail: las fotos solo entran por subida o por «Subir link», que ya valida https y las guarda en Cloudinary
       photos: zod.array(
-        zod.object({ src: zod.string(), alt: max(200).min(1, 'Describe qué muestra la foto') })
+        zod.object({
+          src: zod.string(),
+          alt: max(200).min(1, 'Describe qué muestra la foto'),
+          // título de una sección del cuerpo; vacío = el sitio la acomoda solo
+          section: zod.string().nullish(),
+        })
       ),
       video_src: zod
         .string()
@@ -118,7 +123,7 @@ const toFormValues = (c) => ({
   basics: (c?.basics ?? []).map((text) => ({ text })),
   references: (c?.references ?? []).map((r) => ({ text: r.text, url: r.url ?? '' })),
   body: c?.body ?? '',
-  photos: c?.photos ?? [],
+  photos: (c?.photos ?? []).map((p) => ({ ...p, section: p.section ?? '' })),
   video_src: c?.video?.src ?? '',
   video_alt: c?.video?.alt ?? '',
 });
@@ -139,7 +144,7 @@ const toPayload = (d, isEdit) => ({
   tags: d.tags.filter(Boolean),
   basics: d.basics.map((b) => b.text).filter(Boolean),
   body: d.body.trim() ? d.body : null,
-  photos: d.photos,
+  photos: d.photos.map(({ src, alt, section }) => ({ src, alt, ...(section ? { section } : {}) })),
   video: d.video_src ? { src: d.video_src, alt: d.video_alt } : null,
   references: d.references.filter((r) => r.text).map((r) => ({ text: r.text, url: r.url || null })),
 });
@@ -210,6 +215,8 @@ export function CareSheetForm({ current }) {
 
   const photos = useFieldArray({ control, name: 'photos' });
   const videoSrc = watch('video_src');
+  // secciones del cuerpo («## Alimentación»): opciones de «Dónde va» de cada foto
+  const sectionTitles = [...(watch('body') ?? '').matchAll(/^## +(.+)$/gm)].map((m) => m[1].trim());
 
   // Fotos que ya están en Animales (la especie y sus variedades): se usan tal cual,
   // sin volver a subirlas. Muchas especies solo tienen fotos en sus variedades.
@@ -228,7 +235,7 @@ export function CareSheetForm({ current }) {
       ].flatMap((t) => t.srcs.map((src, i) => ({ src, alt: t.alt, name: `foto ${i + 1} de ${t.label}` })))
     : [];
   const missing = taxonPhotos.filter((p) => !inGuide.has(p.src));
-  const addTaxonPhotos = (list) => photos.append(list.map(({ src, alt }) => ({ src, alt })));
+  const addTaxonPhotos = (list) => photos.append(list.map(({ src, alt }) => ({ src, alt, section: '' })));
 
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoUrlError, setPhotoUrlError] = useState('');
@@ -239,7 +246,7 @@ export function CareSheetForm({ current }) {
     setPhotosLoading(true);
     try {
       const urls = await Promise.all(files.map((file) => uploadToCloudinary(file)));
-      photos.append(urls.map((src) => ({ src, alt: '' })));
+      photos.append(urls.map((src) => ({ src, alt: '', section: '' })));
     } catch {
       toast.error('Error al subir las fotos');
     } finally {
@@ -259,7 +266,7 @@ export function CareSheetForm({ current }) {
     setPhotosLoading(true);
     try {
       const src = await keepInCloudinary(url);
-      photos.append({ src, alt: '' });
+      photos.append({ src, alt: '', section: '' });
       setPhotoUrl('');
     } catch (error) {
       setPhotoUrlError(error?.message || 'No se pudo subir ese link');
@@ -531,6 +538,20 @@ export function CareSheetForm({ current }) {
                     }}
                   />
                   <Field.Text name={`photos.${index}.alt`} label="Texto alternativo" />
+                  <Field.Text
+                    select
+                    name={`photos.${index}.section`}
+                    label="Dónde va"
+                    slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+                    sx={{ width: 200, flexShrink: 0 }}
+                  >
+                    <option value="">Automático</option>
+                    {[...new Set([...sectionTitles, photo.section].filter(Boolean))].map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </Field.Text>
                   <Button color="error" onClick={() => photos.remove(index)} sx={{ flexShrink: 0 }}>
                     Quitar
                   </Button>

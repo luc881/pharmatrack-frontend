@@ -389,3 +389,47 @@ describe('CareSheetForm: fotos de la especie y sus variedades', () => {
     expect(uploads).toEqual([]);
   });
 });
+
+describe('CareSheetForm: dónde va cada foto', () => {
+  it('cada foto elige una sección del cuerpo o «Automático»', async () => {
+    let body = null;
+    server.use(
+      http.get(`${API}/species`, () =>
+        HttpResponse.json(
+          page([{ ...SPECIES[0], photos: ['https://res.cloudinary.com/demo/image/upload/a.jpg'] }])
+        )
+      ),
+      http.get(`${API}/morphs`, () => HttpResponse.json(page([]))),
+      http.post(`${API}/care-sheets`, async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ id: 11, ...body }, { status: 201 });
+      })
+    );
+    renderUi(<CareSheetForm />);
+    await fillMinimal();
+    type(
+      screen.getByLabelText('Cuerpo (Markdown)'),
+      '## Terrario\n\nUno de 40 cm.\n\n## Alimentación\n\nHojarasca.'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar foto 1 de la especie' }));
+
+    // las opciones salen de los títulos «## » del cuerpo
+    const where = screen.getByLabelText('Dónde va');
+    expect([...where.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+      'Automático',
+      'Terrario',
+      'Alimentación',
+    ]);
+    fireEvent.change(where, { target: { value: 'Alimentación' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear ficha' }));
+    await waitFor(() => expect(body).not.toBeNull(), { timeout: 5000 });
+    expect(body.photos).toEqual([
+      {
+        src: 'https://res.cloudinary.com/demo/image/upload/a.jpg',
+        alt: 'Escorpión emperador',
+        section: 'Alimentación',
+      },
+    ]);
+  });
+});
