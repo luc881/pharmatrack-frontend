@@ -22,7 +22,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { endpoints } from 'src/lib/axios';
 import { useAllSpecies } from 'src/actions/animal';
-import { uploadToCloudinary } from 'src/lib/cloudinary';
+import { keepInCloudinary, uploadToCloudinary } from 'src/lib/cloudinary';
 import { createCareSheet, updateCareSheet } from 'src/actions/care-sheets';
 
 import { toast } from 'src/components/snackbar';
@@ -246,9 +246,7 @@ export function CareSheetForm({ current }) {
     setPhotoUrlError('');
     setPhotosLoading(true);
     try {
-      const src = /^https:\/\/res\.cloudinary\.com\//i.test(url)
-        ? url
-        : await uploadToCloudinary(url);
+      const src = await keepInCloudinary(url);
       photos.append({ src, alt: '' });
       setPhotoUrl('');
     } catch (error) {

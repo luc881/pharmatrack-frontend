@@ -19,12 +19,17 @@ import { createWrapper } from '../utils';
 // ----------------------------------------------------------------------
 
 const uploads = [];
-vi.mock('src/lib/cloudinary', () => ({
-  uploadToCloudinary: async (source) => {
+vi.mock('src/lib/cloudinary', () => {
+  const uploadToCloudinary = async (source) => {
     uploads.push(source);
     return `https://res.cloudinary.com/demo/image/upload/copia-${uploads.length}.jpg`;
-  },
-}));
+  };
+  return {
+    uploadToCloudinary,
+    keepInCloudinary: async (url) =>
+      !url || url.startsWith('https://res.cloudinary.com/') ? url : uploadToCloudinary(url),
+  };
+});
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
 // DataGrid y Label importan CSS que vitest no carga: tabla mínima con las mismas columnas
 vi.mock('src/components/label', () => ({ Label: ({ children }) => children }));

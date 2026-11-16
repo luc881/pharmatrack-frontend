@@ -31,3 +31,11 @@ export async function uploadToCloudinary(source, resourceType = 'image') {
   const data = await res.json();
   return data.secure_url;
 }
+
+/**
+ * Para los campos «o pega un link»: un link de otra página se copia a
+ * Cloudinary (no se rompe si esa página lo borra); uno que ya está en
+ * Cloudinary, o vacío, se deja igual.
+ */
+export const keepInCloudinary = async (url) =>
+  !url || /^https:\/\/res\.cloudinary\.com\//i.test(url) ? url : uploadToCloudinary(url);

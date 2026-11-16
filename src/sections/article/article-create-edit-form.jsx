@@ -15,8 +15,8 @@ import { paths } from 'src/routes/paths';
 import { handleApiError } from 'src/utils/handle-api-error';
 
 import { CONFIG } from 'src/global-config';
-import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { createArticle, updateArticle } from 'src/actions/articles';
+import { keepInCloudinary, uploadToCloudinary } from 'src/lib/cloudinary';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -101,7 +101,7 @@ export function ArticleCreateEditForm({ currentArticle }) {
         title: data.title,
         category: data.category || null,
         excerpt: data.excerpt || null,
-        cover_image: data.cover_image || null,
+        cover_image: (await keepInCloudinary(data.cover_image)) || null,
         body: data.body || null,
         author_name: data.author_name || null,
         author_role: data.author_role || null,

@@ -23,7 +23,7 @@ import { paths } from 'src/routes/paths';
 import { handleApiError } from 'src/utils/handle-api-error';
 
 import { endpoints } from 'src/lib/axios';
-import { uploadToCloudinary } from 'src/lib/cloudinary';
+import { keepInCloudinary, uploadToCloudinary } from 'src/lib/cloudinary';
 import {
   createAnimal,
   updateAnimal,
@@ -899,9 +899,18 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 />
                 <Button
                   disabled={!photoUrlInput.trim()}
-                  onClick={() => {
-                    setValue('photos', [...getValues('photos'), photoUrlInput.trim()], { shouldDirty: true });
-                    setPhotoUrlInput('');
+                  loading={photosLoading}
+                  onClick={async () => {
+                    setPhotosLoading(true);
+                    try {
+                      const src = await keepInCloudinary(photoUrlInput.trim());
+                      setValue('photos', [...getValues('photos'), src], { shouldDirty: true });
+                      setPhotoUrlInput('');
+                    } catch {
+                      toast.error('No se pudo subir ese link');
+                    } finally {
+                      setPhotosLoading(false);
+                    }
                   }}
                 >
                   Agregar

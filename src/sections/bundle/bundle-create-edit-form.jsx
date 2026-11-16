@@ -21,8 +21,8 @@ import { paths } from 'src/routes/paths';
 import { fCurrency } from 'src/utils/format-number';
 import { handleApiError } from 'src/utils/handle-api-error';
 
-import { uploadToCloudinary } from 'src/lib/cloudinary';
 import { createProductCategory } from 'src/actions/product-category';
+import { keepInCloudinary, uploadToCloudinary } from 'src/lib/cloudinary';
 import {
   createProduct,
   updateProduct,
@@ -177,7 +177,7 @@ export function BundleCreateEditForm({ currentBundle }) {
           data.compare_at_price !== '' && data.compare_at_price != null
             ? Number(data.compare_at_price)
             : null,
-        image: data.image || null,
+        image: (await keepInCloudinary(data.image)) || null,
         unit_name: 'pieza',
         is_unit_sale: true,
         // sin stock propio: la disponibilidad se deriva de los componentes

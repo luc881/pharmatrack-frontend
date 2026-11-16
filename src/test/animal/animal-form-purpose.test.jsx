@@ -157,9 +157,12 @@ describe('Formulario de animal: destino', () => {
     expect(screen.getAllByAltText(/Foto heredada/)).toHaveLength(2);
 
     // una propia manda; quitarla regresa a las heredadas
-    fireEvent.change(screen.getByLabelText('o pega una URL'), { target: { value: 'https://x/own.jpg' } });
+    // ya en Cloudinary: se agrega tal cual, sin volver a subirla
+    fireEvent.change(screen.getByLabelText('o pega una URL'), {
+      target: { value: 'https://res.cloudinary.com/x/own.jpg' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Agregar' }));
-    expect(screen.queryByAltText(/Foto heredada/)).toBeNull();
+    await waitFor(() => expect(screen.queryByAltText(/Foto heredada/)).toBeNull());
     fireEvent.click(screen.getByRole('button', { name: 'Quitar foto 1' }));
     expect(await screen.findAllByAltText(/Foto heredada/)).toHaveLength(2);
   });
