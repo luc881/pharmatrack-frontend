@@ -18,6 +18,10 @@ const CSS = `
 .od-ticket .c { text-align: center; }
 .od-ticket .logo { display: block; width: 35mm; margin: 0 auto 2.5mm; }
 .od-ticket--58 .logo { width: 30mm; }
+.od-ticket .logo--tall { width: 30mm; }
+.od-ticket--58 .logo--tall { width: 26mm; }
+.od-ticket + .od-ticket { break-before: page; border-top: 1px dashed #000; }
+@media print { .od-ticket + .od-ticket { border-top: 0; } }
 .od-ticket .brand { font-weight: 700; font-size: 11pt; letter-spacing: 0.02em; }
 .od-ticket hr { border: 0; border-top: 1px dashed #000; margin: 2.5mm 0; }
 .od-ticket .row { display: flex; justify-content: space-between; gap: 2mm; }
@@ -74,7 +78,8 @@ export function SaleTicket({ ticket, business = {}, width = 80, onReady }) {
 
       {b.ticket_logo_url && (
         <img
-          className="logo"
+          // logo vertical (el de un proveedor): más angosto para que no ocupe tanto alto
+          className={b.logo_tall ? 'logo logo--tall' : 'logo'}
           src={b.ticket_logo_url}
           alt={b.business_name ?? ''}
           onLoad={() => setLogoDone(true)}
@@ -88,6 +93,10 @@ export function SaleTicket({ ticket, business = {}, width = 80, onReady }) {
           <div>{[b.website, b.instagram].filter(Boolean).join(' · ')}</div>
         )}
         {b.phone && <div>Tel. {b.phone}</div>}
+        {/* datos de contacto de un proveedor, uno por renglón */}
+        {b.lines?.map((line) => (
+          <div key={line}>{line}</div>
+        ))}
       </div>
 
       <hr />

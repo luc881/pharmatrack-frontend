@@ -25,7 +25,9 @@ import { fCurrency } from 'src/utils/format-number';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { useGetAnimals } from 'src/actions/animal';
+import { useGetSuppliers } from 'src/actions/supplier';
 import {
+  updateProduct,
   useGetProducts,
   toggleProductQuickSale,
   useGetProductCategories,
@@ -282,7 +284,47 @@ function AnimalsTab({ search, onSearch, busy, onToggle }) {
 
 // ----------------------------------------------------------------------
 
+// Dueño del producto: el suyo sale en un ticket aparte, con su logo
+function OwnerSelect({ product, suppliers, onChanged }) {
+  const [saving, setSaving] = useState(false);
+  return (
+    <TextField
+      select
+      size="small"
+      label="Dueño"
+      value={product.consignor_id ?? ''}
+      disabled={saving}
+      onChange={async (e) => {
+        setSaving(true);
+        try {
+          await updateProduct(product.id, { consignor_id: e.target.value ? Number(e.target.value) : null });
+          await onChanged();
+        } catch (error) {
+          toast.error(error?.message || 'No se pudo cambiar el dueño');
+        } finally {
+          setSaving(false);
+        }
+      }}
+      slotProps={{
+        select: { native: true },
+        inputLabel: { shrink: true },
+        htmlInput: { 'aria-label': `Dueño: ${product.title}` },
+      }}
+      sx={{ width: 150, mr: 7 }}
+    >
+      <option value="">Propio</option>
+      {suppliers.map((s) => (
+        <option key={s.id} value={s.id}>
+          {s.name}
+        </option>
+      ))}
+    </TextField>
+  );
+}
+
 function ProductsTab({ search, onSearch, busy, onToggle }) {
+  const { suppliers: allSuppliers } = useGetSuppliers({ pageSize: 100 });
+  const suppliers = allSuppliers.filter((s) => s.is_active !== false);
   const debounced = useDebounce(search, 300);
   const [size, setSize] = useState(PAGE);
   const [category, setCategory] = useState('');
@@ -325,6 +367,9 @@ function ProductsTab({ search, onSearch, busy, onToggle }) {
             }
           >
             <ListItemText primary={product.title} secondary={fCurrency(product.price_retail)} />
+            {suppliers.length > 0 && (
+              <OwnerSelect product={product} suppliers={suppliers} onChanged={productsMutate} />
+            )}
           </ListItem>
         ))}
       </List>

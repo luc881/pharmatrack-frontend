@@ -36,6 +36,17 @@ describe('venta rápida: almacén local', () => {
     expect(b).toBe(a.replace('0001', '0002'));
   });
 
+  it('cada marca lleva su propio contador, con el mismo dispositivo', async () => {
+    const own = await nextFolio();
+    const bd1 = await nextFolio('BD');
+    const bd2 = await nextFolio('BD');
+    const device = own.split('-')[1];
+    expect(bd1).toBe(`BD-${device}-0001`);
+    expect(bd2).toBe(`BD-${device}-0002`);
+    // el contador propio sigue donde iba
+    expect(await nextFolio()).toBe(`VR-${device}-0002`);
+  });
+
   it('dos folios pedidos a la vez no se repiten', async () => {
     const [a, b] = await Promise.all([nextFolio(), nextFolio()]);
     expect(a).not.toBe(b);

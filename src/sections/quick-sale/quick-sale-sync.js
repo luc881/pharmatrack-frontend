@@ -6,7 +6,7 @@ import { toItem, BUSINESS_URL } from 'src/sections/sale/print-ticket';
 
 import { refreshSession } from 'src/auth/context/jwt/utils';
 
-import { cartTotals, namedSplit } from './quick-sale-math';
+import { cartTotals, namedSplit, ownerSplit } from './quick-sale-math';
 import {
   getKV,
   setKV,
@@ -41,12 +41,27 @@ export function buildLocalSale({
   cart,
   itemsById,
   suppliers = [],
+  ownerFolios = {},
 }) {
   const totals = cartTotals(cart, itemsById);
   // Venta mezclada (productos de más de un dueño): cuánto es de cada quien
   const owners = namedSplit(cart, itemsById, suppliers);
+  const ownerOf = (line) => itemsById.get(line.product_id)?.consignor_id ?? null;
+  // Con algo de un proveedor: un ticket por dueño (lo propio primero), cada
+  // uno con su folio y su total. Solo lo propio: un ticket, como siempre.
+  const tickets = cart.some((line) => ownerOf(line) !== null)
+    ? ownerSplit(cart, itemsById).map(({ consignor_id }) => ({
+        consignor_id,
+        folio: consignor_id === null ? folio : (ownerFolios[consignor_id] ?? folio),
+        totals: cartTotals(
+          cart.filter((line) => ownerOf(line) === consignor_id),
+          itemsById
+        ),
+      }))
+    : null;
   return {
     ...(owners.length > 1 ? { owners } : {}),
+    ...(tickets ? { tickets } : {}),
     idempotency_key: key,
     folio,
     sold_at: soldAt,
@@ -56,6 +71,7 @@ export function buildLocalSale({
       const item = itemsById.get(line.product_id);
       return {
         product_id: line.product_id,
+        consignor_id: item.consignor_id ?? null,
         title: item.title,
         quantity: line.quantity,
         discount: line.discount,
@@ -228,14 +244,28 @@ export async function prepareOffline({ branchId, user }) {
     branchId: branchId ?? previous?.branchId ?? null,
     user: user ?? previous?.user ?? null,
     suppliers:
-      suppliers?.data?.filter((s) => s.is_active !== false).map(({ id, name }) => ({ id, name })) ??
+      // con lo necesario para imprimir su ticket sin internet
+      suppliers?.data
+        ?.filter((s) => s.is_active !== false)
+        .map(({ id, name, logo, ticket_prefix, ticket_lines, ticket_qr_url }) => ({
+          id,
+          name,
+          logo,
+          ticket_prefix,
+          ticket_lines,
+          ticket_qr_url,
+        })) ??
       previous?.suppliers ??
       [],
   });
 
   // Las fotos (y el logo del ticket) van a un caché propio, que el service
   // worker solo lee: lo demás que se ve en el dashboard ni se guarda ni las saca
-  const images = [...catalog.map((item) => item.image), business?.ticket_logo_url];
+  const images = [
+    ...catalog.map((item) => item.image),
+    business?.ticket_logo_url,
+    ...(suppliers?.data ?? []).map((s) => s.logo),
+  ];
   if (globalThis.caches) {
     const cache = await caches.open(IMAGE_CACHE);
     await Promise.allSettled(
@@ -285,6 +315,17 @@ export async function prepareOffline({ branchId, user }) {
 // (doble toque en «Cobrar»)
 export async function enqueueSale({ key, cart, itemsById, method, branchId }) {
   if ((await listSales()).some((s) => s.idempotency_key === key)) return null;
+  const suppliers = (await getKV('context'))?.suppliers ?? [];
+  // folio propio de cada proveedor que venda algo en esta venta («BD-…»)
+  const ownerFolios = {};
+  const owners = [
+    ...new Set(cart.map((l) => itemsById.get(l.product_id)?.consignor_id).filter(Boolean)),
+  ];
+  for (const id of owners) {
+    const prefix = suppliers.find((s) => s.id === id)?.ticket_prefix || `P${id}`;
+     
+    ownerFolios[id] = await nextFolio(prefix);
+  }
   const sale = buildLocalSale({
     key,
     folio: await nextFolio(),
@@ -293,7 +334,8 @@ export async function enqueueSale({ key, cart, itemsById, method, branchId }) {
     method,
     cart,
     itemsById,
-    suppliers: (await getKV('context'))?.suppliers ?? [],
+    suppliers,
+    ownerFolios,
   });
   return (await addSale(sale)) ? sale : null;
 }
@@ -323,7 +365,8 @@ async function upload(sale, { timeout, retried = false }) {
       endpoints.sale.checkout,
       {
         branch_id: sale.branch_id,
-        description: `Venta rápida · ${sale.folio}`,
+        // con todos sus folios (uno por dueño), para encontrarla con cualquier ticket
+        description: `Venta rápida · ${(sale.tickets?.map((t) => t.folio) ?? [sale.folio]).join(' · ')}`,
         items,
         // un pago debe ser mayor a cero: la venta de $0 (100 % de descuento) va sin él
         payments: sale.payment.amount > 0 ? [sale.payment] : [],

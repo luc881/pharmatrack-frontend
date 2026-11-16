@@ -183,9 +183,12 @@ export function SaleTicketView({ saleId }) {
 // La usan el ticket de una venta guardada y el de la venta rápida, que se
 // arma con los datos del dispositivo.
 // extra: lo que se imprime después del ticket (el talón de orden de la venta
-// rápida); hideTicket: solo eso.
+// rápida); hideTicket: solo eso. tickets: varios tickets seguidos (venta
+// rápida con productos de más de un dueño), [{ ticket, business }]; se
+// imprime cuando todos tienen listo su logo y su QR.
 export function TicketPrintPage({
   ticket,
+  tickets,
   business,
   width,
   offset,
@@ -196,6 +199,8 @@ export function TicketPrintPage({
   hideTicket = false,
 }) {
   const printed = useRef(false);
+  const list = tickets ?? (ticket ? [{ ticket, business }] : null);
+  const readyCount = useRef(new Set());
 
   // Si la fuente web tarda (sin internet), se imprime con la de respaldo
   const handleReady = useCallback(() => {
@@ -255,8 +260,19 @@ export function TicketPrintPage({
         }}
       >
         {!hideTicket &&
-          (ticket ? (
-            <SaleTicket ticket={ticket} business={business} width={width} onReady={handleReady} />
+          (list ? (
+            list.map((t, i) => (
+              <SaleTicket
+                key={t.ticket.folio ?? i}
+                ticket={t.ticket}
+                business={t.business}
+                width={width}
+                onReady={() => {
+                  readyCount.current.add(i);
+                  if (readyCount.current.size === list.length) handleReady();
+                }}
+              />
+            ))
           ) : (
             <Box sx={{ p: 6 }}>
               <CircularProgress />

@@ -562,7 +562,7 @@ describe('venta rápida: reparto por dueño en una venta mezclada', () => {
     expect(split.getByText('$300')).toBeInTheDocument();
   });
 
-  it('la venta guardada y su ticket llevan el reparto', async () => {
+  it('la venta guardada lleva el reparto y sale un ticket por dueño', async () => {
     const KEY = '99999999-2222-3333-4444-555555555555';
     const sale = await enqueueSale({
       key: KEY,
@@ -584,8 +584,11 @@ describe('venta rápida: reparto por dueño en una venta mezclada', () => {
         <QuickSaleTicketView saleKey={KEY} />
       </MemoryRouter>
     );
-    expect(await screen.findByText('Insectario Vecino')).toBeInTheDocument();
-    expect(screen.getByText('$150.00')).toBeInTheDocument();
+    // el proveedor sin prefijo propio usa P<id>; el folio propio no cambia
+    expect(sale.tickets.map((t) => t.folio)).toEqual([sale.folio, expect.stringMatching(/^P9-/)]);
+    expect(await screen.findByText('INSECTARIO VECINO')).toBeInTheDocument();
+    expect(screen.getByText('$150.00 MXN')).toBeInTheDocument();
+    expect(screen.getByText('$300.00 MXN')).toBeInTheDocument();
   });
 
   it('una venta de un solo dueño no lleva reparto', async () => {

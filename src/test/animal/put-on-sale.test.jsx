@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
 import userEvent from '@testing-library/user-event';
 import { it, vi, expect, describe, beforeEach } from 'vitest';
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { render, screen, within, waitFor, fireEvent } from '@testing-library/react';
 
 import { PutOnSaleDialog } from 'src/sections/animal/put-on-sale-dialog';
 import { QuickSalePicker } from 'src/sections/quick-sale/quick-sale-picker';
@@ -421,6 +421,41 @@ describe('Venta rápida: elegir qué se vende', () => {
     await user.click(dialog.getByRole('button', { name: 'Ver más (15)' }));
     expect(await dialog.findByText('Producto 45')).toBeInTheDocument();
     expect(dialog.queryByRole('button', { name: /Ver más/ })).toBeNull();
+  });
+
+  it('cada producto marca su dueño ahí mismo (su ticket sale aparte)', async () => {
+    const user = userEvent.setup();
+    const puts = [];
+    products[0].consignor_id = null;
+    products[1].consignor_id = 9;
+    server.use(
+      http.get(`${API}/suppliers`, () =>
+        HttpResponse.json(page([{ id: 9, name: 'Bd Exóticos', is_active: true }]))
+      ),
+      http.put(`${API}/products/:id`, async ({ params, request }) => {
+        puts.push([params.id, await request.json()]);
+        return HttpResponse.json({});
+      })
+    );
+    wrap(<QuickSalePicker onClose={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.click(dialog.getByRole('tab', { name: 'Productos' }));
+    await dialog.findByText('Producto 01');
+
+    const owner = await dialog.findByRole('combobox', { name: 'Dueño: Producto 01' });
+    await waitFor(() => expect(owner.querySelectorAll('option')).toHaveLength(2));
+    expect([...owner.querySelectorAll('option')].map((o) => o.textContent)).toEqual([
+      'Propio',
+      'Bd Exóticos',
+    ]);
+    expect(dialog.getByRole('combobox', { name: 'Dueño: Producto 02' })).toHaveValue('9');
+
+    fireEvent.change(owner, { target: { value: '9' } });
+    await waitFor(() => expect(puts).toEqual([['100', { consignor_id: 9 }]]));
+    fireEvent.change(dialog.getByRole('combobox', { name: 'Dueño: Producto 02' }), {
+      target: { value: '' },
+    });
+    await waitFor(() => expect(puts.at(-1)).toEqual(['101', { consignor_id: null }]));
   });
 
   it('los animales se filtran por grupo y el buscador sugiere las especies', async () => {

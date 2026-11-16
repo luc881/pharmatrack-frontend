@@ -18,6 +18,18 @@ import { getKV, listSales } from '../quick-sale-store';
 
 const DEFAULTS = { width: 80, offset: 0 };
 
+// Encabezado del ticket de un proveedor, con lo que tenga en su ficha (Proveedores)
+const supplierBusiness = (s) => ({
+  business_name: s?.name ?? 'Proveedor',
+  ticket_logo_url: s?.logo || null,
+  ticket_qr_url: s?.ticket_qr_url || null,
+  lines: (s?.ticket_lines ?? '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean),
+  logo_tall: true,
+});
+
 // Ticket de una venta rápida, armado solo con lo guardado en el dispositivo
 // (la venta de la cola y los datos del negocio): se imprime igual sin internet.
 // El rollo y el ajuste se calibran en Ventas → «Imprimir prueba».
@@ -82,6 +94,24 @@ export function QuickSaleTicketView({ saleKey }) {
     reparto: sale.owners,
   };
 
+  // Con productos de un proveedor: un ticket por dueño, cada uno con su marca
+  const tickets = sale?.tickets?.map((part) => ({
+    ticket: {
+      ...ticket,
+      folio: part.folio,
+      items: sale.lines.filter((l) => l.consignor_id === part.consignor_id).map((l) => l.ticketItem),
+      descuento: part.totals.discount || undefined,
+      impuestos: part.totals.tax || undefined,
+      total: part.totals.total,
+      pagado: part.totals.total,
+      reparto: undefined,
+    },
+    business:
+      part.consignor_id === null
+        ? (context?.business ?? {})
+        : supplierBusiness(context?.suppliers?.find((s) => s.id === part.consignor_id)),
+  }));
+
   const hasOrder = prepLines(sale).length > 0;
   const hideTicket = onlyOrder && hasOrder;
 
@@ -90,6 +120,7 @@ export function QuickSaleTicketView({ saleKey }) {
       hideTicket={hideTicket}
       extra={hasOrder ? <PrepOrder sale={sale} width={width} after={!hideTicket} /> : null}
       ticket={ticket}
+      tickets={tickets}
       business={context?.business ?? {}}
       width={width}
       offset={offset}

@@ -58,6 +58,9 @@ vi.mock('src/auth/hooks', () => ({
   }),
 }));
 
+// los formularios largos tardan con toda la suite corriendo a la vez
+vi.setConfig({ testTimeout: 45_000 });
+
 const API = 'https://api.opuntiaden.com/api/v1';
 const page = (data) => ({ data, total: data.length, page: 1, page_size: 500, total_pages: 1 });
 

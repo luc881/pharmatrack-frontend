@@ -74,10 +74,18 @@ const randomId = () => {
 
 // Folio del ticket sin internet: VR-<dispositivo>-<consecutivo>. Leer y
 // escribir van en la misma transacción para que dos cobros no lo repitan.
-export const nextFolio = () =>
+// Con prefijo (el de un proveedor, «BD»), su propio consecutivo.
+export const nextFolio = (prefix = 'VR') =>
   tx(KV, 'readwrite', async (store) => {
     const device = (await done(store.get('device'))) ?? { id: randomId(), counter: 0 };
-    device.counter += 1;
+    let n;
+    if (prefix === 'VR') {
+      device.counter += 1;
+      n = device.counter;
+    } else {
+      n = (device.counters?.[prefix] ?? 0) + 1;
+      device.counters = { ...device.counters, [prefix]: n };
+    }
     await done(store.put(device, 'device'));
-    return `VR-${device.id}-${String(device.counter).padStart(4, '0')}`;
+    return `${prefix}-${device.id}-${String(n).padStart(4, '0')}`;
   });

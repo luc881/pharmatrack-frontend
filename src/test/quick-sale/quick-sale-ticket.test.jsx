@@ -150,3 +150,87 @@ describe('venta rápida: venta local y ticket', () => {
     expect(await screen.findByText(/no está en este dispositivo/)).toBeInTheDocument();
   });
 });
+
+// ----------------------------------------------------------------------
+// Un ticket por dueño: Opuntia (consignor_id null) y BD Exóticos (id 9)
+// ----------------------------------------------------------------------
+
+const slushie = { ...cueva, id: 4, title: 'Slushie mango', price_retail: '50.00', consignor_id: 9 };
+const byIdMixed = new Map([...byId, [4, slushie]]);
+const BD = {
+  id: 9,
+  name: 'Bd Exóticos',
+  logo: 'https://res.cloudinary.com/demo/image/upload/bd.png',
+  ticket_prefix: 'BD',
+  ticket_lines: '@bd.exoticos\nCDMX',
+  ticket_qr_url: null,
+};
+
+const mixedSale = () =>
+  buildLocalSale({
+    key: '99999999-2222-3333-4444-555555555555',
+    folio: 'VR-AB12-0008',
+    ownerFolios: { 9: 'BD-AB12-0001' },
+    soldAt: '2026-11-22T18:30:00.000Z',
+    branchId: 7,
+    method: 'cash',
+    cart: [
+      { product_id: 1, quantity: 1, discount: 0 },
+      { product_id: 4, quantity: 2, discount: 0 },
+    ],
+    itemsById: byIdMixed,
+    suppliers: [BD],
+  });
+
+describe('venta rápida: un ticket por dueño', () => {
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+  });
+
+  it('la venta mezclada guarda un ticket por dueño, con su folio y su total', () => {
+    const s = mixedSale();
+    expect(s.totals.total).toBe(180);
+    expect(s.lines.map((l) => l.consignor_id)).toEqual([null, 9]);
+    expect(s.tickets).toEqual([
+      { consignor_id: null, folio: 'VR-AB12-0008', totals: expect.objectContaining({ total: 80 }) },
+      { consignor_id: 9, folio: 'BD-AB12-0001', totals: expect.objectContaining({ total: 100 }) },
+    ]);
+  });
+
+  it('una venta solo de lo propio no cambia', () => {
+    expect(sale().tickets).toBeUndefined();
+  });
+
+  it('imprime un ticket por marca, cada uno con su logo, sus datos y sus productos', async () => {
+    await addSale(mixedSale());
+    await setKV('context', {
+      business: { business_name: 'Opuntia Den', folio_prefix: 'OD' },
+      ticketSettings: { width: 58, offset: 0 },
+      suppliers: [BD],
+    });
+
+    render(
+      <MemoryRouter>
+        <QuickSaleTicketView saleKey="99999999-2222-3333-4444-555555555555" />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('VR-AB12-0008')).toBeInTheDocument();
+    expect(screen.getByText('BD-AB12-0001')).toBeInTheDocument();
+    expect(screen.getByText('OPUNTIA DEN')).toBeInTheDocument();
+    expect(screen.getByText('BD EXÓTICOS')).toBeInTheDocument();
+    expect(screen.getByAltText('Bd Exóticos')).toHaveAttribute('src', BD.logo);
+    expect(screen.getByText('@bd.exoticos')).toBeInTheDocument();
+    expect(screen.getByText('CDMX')).toBeInTheDocument();
+
+    const [own, bd] = document.querySelectorAll('.od-ticket:not(.od-order)');
+    expect(own).toHaveTextContent('Cueva de resina');
+    expect(own).not.toHaveTextContent('Slushie mango');
+    expect(own).toHaveTextContent('$80.00 MXN');
+    expect(bd).toHaveTextContent('Slushie mango');
+    expect(bd).not.toHaveTextContent('Cueva de resina');
+    expect(bd).toHaveTextContent('$100.00 MXN');
+    // cada ticket es de un solo dueño: ya no lleva «Reparto»
+    expect(screen.queryByText('Propio')).toBeNull();
+  });
+});
