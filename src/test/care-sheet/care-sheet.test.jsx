@@ -334,9 +334,10 @@ describe('CareSheetForm: fotos por link', () => {
   });
 });
 
-describe('CareSheetForm: fotos de la especie', () => {
+describe('CareSheetForm: fotos de la especie y sus variedades', () => {
   const A = 'https://res.cloudinary.com/demo/image/upload/especie-a.jpg';
   const B = 'https://res.cloudinary.com/demo/image/upload/especie-b.jpg';
+  const P = 'https://res.cloudinary.com/demo/image/upload/papaya.jpg';
   const guidePhotos = () =>
     [...document.querySelectorAll('[data-guide-photo] img')].map((img) => img.getAttribute('src'));
 
@@ -345,6 +346,15 @@ describe('CareSheetForm: fotos de la especie', () => {
     server.use(
       http.get(`${API}/species`, () =>
         HttpResponse.json(page([{ ...SPECIES[0], photos: [A, B] }, SPECIES[1]]))
+      ),
+      http.get(`${API}/morphs`, ({ request }) =>
+        HttpResponse.json(
+          page(
+            new URL(request.url).searchParams.get('species_id') === '3'
+              ? [{ id: 30, species_id: 3, name: "'Papaya'", photos: [P] }]
+              : []
+          )
+        )
       )
     );
   });
@@ -353,21 +363,28 @@ describe('CareSheetForm: fotos de la especie', () => {
     renderUi(<CareSheetForm />);
     await fillMinimal();
 
-    // una sola
+    // una sola, de la especie
     fireEvent.click(screen.getByRole('button', { name: 'Agregar foto 2 de la especie' }));
     expect(guidePhotos()).toEqual([B]);
     expect(screen.queryByRole('button', { name: 'Agregar foto 2 de la especie' })).toBeNull();
 
+    // las de la variedad también, con su nombre en el texto alternativo
+    fireEvent.click(await screen.findByRole('button', { name: "Agregar foto 1 de 'Papaya'" }));
+    expect(guidePhotos()).toEqual([B, P]);
+    expect(screen.getAllByLabelText('Texto alternativo')[1]).toHaveValue(
+      "Escorpión emperador 'Papaya'"
+    );
+
     // las que falten
-    fireEvent.click(screen.getByRole('button', { name: 'Usar las fotos de la especie (1)' }));
-    expect(guidePhotos()).toEqual([B, A]);
-    expect(screen.queryByRole('button', { name: /Usar las fotos de la especie/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Usar todas (1)' }));
+    expect(guidePhotos()).toEqual([B, P, A]);
+    expect(screen.queryByRole('button', { name: /Usar todas/ })).toBeNull();
 
     // el texto alternativo viene lleno y se puede quitar una
     expect(screen.getAllByLabelText('Texto alternativo')[0]).toHaveValue('Escorpión emperador');
     const firstRow = document.querySelector('[data-guide-photo]');
     fireEvent.click(within(firstRow).getByRole('button', { name: 'Quitar' }));
-    expect(guidePhotos()).toEqual([A]);
+    expect(guidePhotos()).toEqual([P, A]);
     expect(screen.getByRole('button', { name: 'Agregar foto 2 de la especie' })).toBeInTheDocument();
     expect(uploads).toEqual([]);
   });

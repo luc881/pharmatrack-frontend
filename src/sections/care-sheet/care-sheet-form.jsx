@@ -9,6 +9,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
@@ -21,7 +22,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { endpoints } from 'src/lib/axios';
-import { useAllSpecies } from 'src/actions/animal';
+import { useAllMorphs, useAllSpecies } from 'src/actions/animal';
 import { keepInCloudinary, uploadToCloudinary } from 'src/lib/cloudinary';
 import { createCareSheet, updateCareSheet } from 'src/actions/care-sheets';
 
@@ -210,13 +211,24 @@ export function CareSheetForm({ current }) {
   const photos = useFieldArray({ control, name: 'photos' });
   const videoSrc = watch('video_src');
 
-  // Fotos que ya están en la especie (Animales): se usan tal cual, sin volver a subirlas
-  const species = allSpecies.find((s) => s.id === watch('species_id'));
-  const speciesPhotos = species?.photos?.length ? species.photos : [species?.image].filter(Boolean);
-  const inGuide = new Set(photos.fields.map((p) => p.src));
-  const missing = speciesPhotos.filter((src) => !inGuide.has(src));
+  // Fotos que ya están en Animales (la especie y sus variedades): se usan tal cual,
+  // sin volver a subirlas. Muchas especies solo tienen fotos en sus variedades.
+  const speciesId = watch('species_id');
+  const species = allSpecies.find((s) => s.id === speciesId);
+  const { morphs } = useAllMorphs(speciesId);
+  const ownPhotos = (t) => (t?.photos?.length ? t.photos : [t?.image].filter(Boolean));
   const speciesAlt = species ? species.common_name || speciesLabel(species) : '';
-  const addSpeciesPhotos = (srcs) => photos.append(srcs.map((src) => ({ src, alt: speciesAlt })));
+  const inGuide = new Set(photos.fields.map((p) => p.src));
+  const taxonPhotos = species
+    ? [
+        { label: 'la especie', alt: speciesAlt, srcs: ownPhotos(species) },
+        ...morphs
+          .filter((m) => m.species_id === species.id)
+          .map((m) => ({ label: m.name, alt: `${speciesAlt} ${m.name}`, srcs: ownPhotos(m) })),
+      ].flatMap((t) => t.srcs.map((src, i) => ({ src, alt: t.alt, name: `foto ${i + 1} de ${t.label}` })))
+    : [];
+  const missing = taxonPhotos.filter((p) => !inGuide.has(p.src));
+  const addTaxonPhotos = (list) => photos.append(list.map(({ src, alt }) => ({ src, alt })));
 
   const [photoUrl, setPhotoUrl] = useState('');
   const [photoUrlError, setPhotoUrlError] = useState('');
@@ -477,28 +489,26 @@ export function CareSheetForm({ current }) {
               {missing.length > 0 && (
                 <Box sx={{ gap: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
                   <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Fotos de la especie:
+                    Fotos de la especie y sus variedades:
                   </Typography>
-                  {speciesPhotos.map(
-                    (src, i) =>
-                      !inGuide.has(src) && (
-                        <ButtonBase
-                          key={src}
-                          aria-label={`Agregar foto ${i + 1} de la especie`}
-                          onClick={() => addSpeciesPhotos([src])}
-                          sx={{ borderRadius: 1, overflow: 'hidden' }}
-                        >
-                          <Box
-                            component="img"
-                            src={src}
-                            alt=""
-                            sx={{ width: 56, height: 42, objectFit: 'cover' }}
-                          />
-                        </ButtonBase>
-                      )
-                  )}
-                  <Button size="small" onClick={() => addSpeciesPhotos(missing)}>
-                    Usar las fotos de la especie ({missing.length})
+                  {missing.map((p) => (
+                    <Tooltip key={p.src} title={p.name}>
+                      <ButtonBase
+                        aria-label={`Agregar ${p.name}`}
+                        onClick={() => addTaxonPhotos([p])}
+                        sx={{ borderRadius: 1, overflow: 'hidden' }}
+                      >
+                        <Box
+                          component="img"
+                          src={p.src}
+                          alt=""
+                          sx={{ width: 56, height: 42, objectFit: 'cover' }}
+                        />
+                      </ButtonBase>
+                    </Tooltip>
+                  ))}
+                  <Button size="small" onClick={() => addTaxonPhotos(missing)}>
+                    Usar todas ({missing.length})
                   </Button>
                 </Box>
               )}
