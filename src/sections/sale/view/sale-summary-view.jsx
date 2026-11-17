@@ -16,6 +16,7 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 
 import { fCurrency } from 'src/utils/format-number';
+import { mxToday, mxDayRangeUtc } from 'src/utils/mx-day';
 
 import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -31,7 +32,8 @@ import { SaleOwnerCut } from '../sale-owner-cut';
 // top de productos y desglose por método de pago. Imprimible.
 // ----------------------------------------------------------------------
 
-const today = () => new Date().toISOString().slice(0, 10);
+// el día de México, no el de UTC (de noche ya sería mañana)
+const today = () => mxToday();
 
 const PAYMENT_LABELS = {
   cash: 'Efectivo',
@@ -57,7 +59,9 @@ export function SaleSummaryView() {
   const [dateFrom, setDateFrom] = useState(today());
   const [dateTo, setDateTo] = useState(today());
 
-  const url = `/api/v1/sales/summary?date_from=${dateFrom}T00:00:00&date_to=${dateTo}T23:59:59`;
+  // días de México en UTC, como «Por dueño»: lo de la noche cuenta en su día
+  const range = mxDayRangeUtc(dateFrom, dateTo);
+  const url = `/api/v1/sales/summary?date_from=${range.from}&date_to=${range.to}`;
   const { data, isLoading } = useSWR(url, fetcher, {
     revalidateIfStale: false,
     revalidateOnFocus: false,

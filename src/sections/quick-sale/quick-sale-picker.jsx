@@ -24,8 +24,8 @@ import { matchesWords } from 'src/utils/plain';
 import { fCurrency } from 'src/utils/format-number';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { useGetAnimals } from 'src/actions/animal';
 import { useGetSuppliers } from 'src/actions/supplier';
+import { updateAnimal, useGetAnimals } from 'src/actions/animal';
 import {
   updateProduct,
   useGetProducts,
@@ -140,7 +140,8 @@ function Toolbar({ search, onSearch, suggestions, filterLabel, filter, onFilter,
 function AnimalsTab({ search, onSearch, busy, onToggle }) {
   const [group, setGroup] = useState('');
   // ponytail: una página de 500 (tope del API), igual que la lista de animales
-  const { animals, animalsLoading } = useGetAnimals({ page: 1, pageSize: 500 });
+  const { animals, animalsLoading, animalsMutate } = useGetAnimals({ page: 1, pageSize: 500 });
+  const suppliers = useOwners();
   // Lo ya marcado sale del catálogo de la venta rápida (una sola petición)
   const { data: catalog, mutate } = useSWR(endpoints.product.quickSale, fetcher, {
     revalidateOnFocus: false,
@@ -267,6 +268,17 @@ function AnimalsTab({ search, onSearch, busy, onToggle }) {
                   .filter(Boolean)
                   .join(' · ')}
               />
+              {suppliers.length > 0 && (
+                <OwnerSelect
+                  name={animalName(animal)}
+                  value={animal.consignor_id}
+                  suppliers={suppliers}
+                  onSave={async (consignor_id) => {
+                    await updateAnimal(animal.id, { consignor_id });
+                    await Promise.all([animalsMutate(), mutate()]);
+                  }}
+                />
+              )}
             </ListItem>
           ))}
         </List>
@@ -284,21 +296,21 @@ function AnimalsTab({ search, onSearch, busy, onToggle }) {
 
 // ----------------------------------------------------------------------
 
-// Dueño del producto: el suyo sale en un ticket aparte, con su logo
-function OwnerSelect({ product, suppliers, onChanged }) {
+// Dueño (otro expositor): lo suyo sale en un ticket aparte, con su logo.
+// Sirve igual para productos y animales (el de un animal va en su gemelo).
+function OwnerSelect({ name, value, suppliers, onSave }) {
   const [saving, setSaving] = useState(false);
   return (
     <TextField
       select
       size="small"
       label="Dueño"
-      value={product.consignor_id ?? ''}
+      value={value ?? ''}
       disabled={saving}
       onChange={async (e) => {
         setSaving(true);
         try {
-          await updateProduct(product.id, { consignor_id: e.target.value ? Number(e.target.value) : null });
-          await onChanged();
+          await onSave(e.target.value ? Number(e.target.value) : null);
         } catch (error) {
           toast.error(error?.message || 'No se pudo cambiar el dueño');
         } finally {
@@ -308,7 +320,7 @@ function OwnerSelect({ product, suppliers, onChanged }) {
       slotProps={{
         select: { native: true },
         inputLabel: { shrink: true },
-        htmlInput: { 'aria-label': `Dueño: ${product.title}` },
+        htmlInput: { 'aria-label': `Dueño: ${name}` },
       }}
       sx={{ width: 150, mr: 7 }}
     >
@@ -322,9 +334,14 @@ function OwnerSelect({ product, suppliers, onChanged }) {
   );
 }
 
+// proveedores activos (los que pueden ser dueños)
+const useOwners = () => {
+  const { suppliers } = useGetSuppliers({ pageSize: 100 });
+  return suppliers.filter((s) => s.is_active !== false);
+};
+
 function ProductsTab({ search, onSearch, busy, onToggle }) {
-  const { suppliers: allSuppliers } = useGetSuppliers({ pageSize: 100 });
-  const suppliers = allSuppliers.filter((s) => s.is_active !== false);
+  const suppliers = useOwners();
   const debounced = useDebounce(search, 300);
   const [size, setSize] = useState(PAGE);
   const [category, setCategory] = useState('');
@@ -368,7 +385,15 @@ function ProductsTab({ search, onSearch, busy, onToggle }) {
           >
             <ListItemText primary={product.title} secondary={fCurrency(product.price_retail)} />
             {suppliers.length > 0 && (
-              <OwnerSelect product={product} suppliers={suppliers} onChanged={productsMutate} />
+              <OwnerSelect
+                name={product.title}
+                value={product.consignor_id}
+                suppliers={suppliers}
+                onSave={async (consignor_id) => {
+                  await updateProduct(product.id, { consignor_id });
+                  await productsMutate();
+                }}
+              />
             )}
           </ListItem>
         ))}

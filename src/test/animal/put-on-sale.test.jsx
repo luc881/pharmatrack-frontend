@@ -458,6 +458,27 @@ describe('Venta rápida: elegir qué se vende', () => {
     await waitFor(() => expect(puts.at(-1)).toEqual(['101', { consignor_id: null }]));
   });
 
+  it('cada animal marca su dueño ahí mismo (va en su producto gemelo)', async () => {
+    const puts = [];
+    server.use(
+      http.get(`${API}/suppliers`, () =>
+        HttpResponse.json(page([{ id: 9, name: 'Bd Exóticos', is_active: true }]))
+      ),
+      http.put(`${API}/animals/:id`, async ({ params, request }) => {
+        puts.push([params.id, await request.json()]);
+        return HttpResponse.json({});
+      })
+    );
+    wrap(<QuickSalePicker onClose={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog'));
+    await dialog.findByText('Gecko leopardo');
+
+    const owner = await dialog.findByRole('combobox', { name: 'Dueño: M-1' });
+    expect(owner).toHaveValue('');
+    fireEvent.change(owner, { target: { value: '9' } });
+    await waitFor(() => expect(puts).toEqual([['3', { consignor_id: 9 }]]));
+  });
+
   it('los animales se filtran por grupo y el buscador sugiere las especies', async () => {
     const user = userEvent.setup();
     wrap(<QuickSalePicker onClose={() => {}} />);

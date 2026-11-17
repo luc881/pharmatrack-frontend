@@ -306,6 +306,38 @@ describe('Formulario de animal: destino', () => {
     expect(body.sent).not.toHaveProperty('stock');
   });
 
+  it('al editar uno en venta se marca su dueño (otro expositor)', async () => {
+    const body = {};
+    mockApi([capture('put', '/animals/7', body)]);
+    server.use(
+      http.get(`${API}/suppliers`, () =>
+        HttpResponse.json(page([{ id: 9, name: 'Bd Exóticos', is_active: true }]))
+      )
+    );
+    const current = {
+      id: 7,
+      code: 'G-7',
+      purpose: 'sale',
+      status: 'available',
+      species_id: 1,
+      species: GECKO,
+      price: 500,
+      stock: 1,
+      morphs: [],
+      photos: [],
+      consignor_id: null,
+    };
+    wrap(<AnimalCreateEditForm currentAnimal={current} />);
+
+    const owner = await screen.findByRole('combobox', { name: 'Dueño' });
+    await waitFor(() => expect(owner.querySelectorAll('option')).toHaveLength(2));
+    fireEvent.change(owner, { target: { value: '9' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    await waitFor(() => expect(body.sent).toBeDefined());
+    expect(body.sent).toMatchObject({ consignor_id: 9 });
+  });
+
   it('fuera de venta la cantidad no habla de vender y el estado dice «Activo»', async () => {
     mockApi();
     const COLONY = { ...GECKO, sale_format: 'colony' };

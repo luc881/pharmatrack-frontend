@@ -23,6 +23,7 @@ import { paths } from 'src/routes/paths';
 import { handleApiError } from 'src/utils/handle-api-error';
 
 import { endpoints } from 'src/lib/axios';
+import { useGetSuppliers } from 'src/actions/supplier';
 import { keepInCloudinary, uploadToCloudinary } from 'src/lib/cloudinary';
 import {
   createAnimal,
@@ -81,6 +82,8 @@ const schema = zod.object({
   // Del ejemplar, solo en venta: se anuncia en el sitio / botón en la venta rápida
   show_public: zod.boolean(),
   quick_sale: zod.boolean(),
+  // proveedor dueño (otro expositor); vacío = propio. Su ticket sale aparte
+  consignor_id: zod.string(),
   // Unidades idénticas (solo especies en cepa/paquete)
   // 0 = ya no hay (agotado); el backend lo marca como vendido y el sitio dice "Agotado"
   stock: zod.number({ coerce: true }).int('Solo números enteros').min(0, 'No puede ser negativo').optional(),
@@ -143,6 +146,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       legal_doc_url: '',
       show_public: true,
       quick_sale: false,
+      consignor_id: '',
       stock: 1,
       count: 1,
     },
@@ -166,6 +170,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
           legal_doc_url: currentAnimal.legal_doc_url ?? '',
           show_public: currentAnimal.show_public ?? true,
           quick_sale: !!currentAnimal.quick_sale,
+          consignor_id: currentAnimal.consignor_id ? String(currentAnimal.consignor_id) : '',
           stock: currentAnimal.stock ?? 1,
           count: 1,
         }
@@ -212,6 +217,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
   const { morphs: allMorphs, morphsMutate } = useAllMorphs();
 
   const selectedSpecies = allSpecies.find((s) => s.id === Number(speciesId));
+  const owners = useGetSuppliers({ pageSize: 100 }).suppliers.filter((o) => o.is_active !== false);
   // ¿se ve de verdad? su especie o su variedad pueden estar apagadas en el sitio
   const siteOff = siteBlocker({
     species: selectedSpecies,
@@ -341,6 +347,9 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         legal_doc_url: legalDoc ? data.legal_doc_url || null : null,
         // solo cuentan en venta (pie de cría y crianza nunca se anuncian)
         ...(isSale ? { show_public: data.show_public, quick_sale: data.quick_sale } : {}),
+        ...(isEdit && isSale
+          ? { consignor_id: data.consignor_id ? Number(data.consignor_id) : null }
+          : {}),
         // si se omite el código, el backend genera uno "AN-XXXXXXXX" (siempre, con varios)
         ...(data.code && count === 1 ? { code: data.code } : {}),
         ...(count > 1 ? { count } : {}),
@@ -691,6 +700,30 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                   }
                   label="También en la venta rápida (botón para convenciones)"
                 />
+                {/* de otro expositor: en la venta rápida sale en su propio ticket */}
+                {isEdit && owners.length > 0 && (
+                  <TextField
+                    select
+                    size="small"
+                    label="Dueño"
+                    value={watch('consignor_id')}
+                    onChange={(e) => setValue('consignor_id', e.target.value, { shouldDirty: true })}
+                    helperText="Si es de otro expositor, en la venta rápida sale en su ticket."
+                    slotProps={{
+                      select: { native: true },
+                      inputLabel: { shrink: true },
+                      htmlInput: { 'aria-label': 'Dueño' },
+                    }}
+                    sx={{ mt: 1.5, maxWidth: 320 }}
+                  >
+                    <option value="">Propio</option>
+                    {owners.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                  </TextField>
+                )}
               </Box>
             )}
 
