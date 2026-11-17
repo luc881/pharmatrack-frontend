@@ -3,6 +3,8 @@ import barlowItalic from '@fontsource/barlow/files/barlow-latin-400-italic.woff?
 import barlowRegular from '@fontsource/barlow/files/barlow-latin-400-normal.woff?url';
 import { pdf, Page, Text, View, Font, Image, Document, StyleSheet } from '@react-pdf/renderer';
 
+import { mxToday } from 'src/utils/mx-day';
+
 import axiosInstance, { endpoints } from 'src/lib/axios';
 
 import { BUSINESS_URL } from '../sale/print-ticket';
@@ -342,7 +344,7 @@ export async function exportHusbandryLogPdf({ speciesId, animal, scope }) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `bitacora-${slug(scope)}-${today.toISOString().slice(0, 10)}.pdf`;
+  a.download = `bitacora-${slug(scope)}-${mxToday(today.getTime())}.pdf`;
   a.click();
   URL.revokeObjectURL(url);
 }

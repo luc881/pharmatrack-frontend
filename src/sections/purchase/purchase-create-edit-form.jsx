@@ -14,6 +14,8 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 
+import { mxToday } from 'src/utils/mx-day';
+
 import { createPurchase, updatePurchase } from 'src/actions/purchase';
 import { createSupplier, useGetSuppliers } from 'src/actions/supplier';
 
@@ -85,7 +87,7 @@ export function PurchaseCreateEditForm({ currentPurchase, currentDetails = [] })
     supplier_id: currentPurchase?.supplier_id ?? '',
     date_emision: currentPurchase?.date_emision
       ? currentPurchase.date_emision.slice(0, 10)
-      : new Date().toISOString().slice(0, 10),
+      : mxToday(), // el día de México: de noche en UTC ya sería mañana
     description: currentPurchase?.description ?? '',
     items:
       currentDetails.length > 0

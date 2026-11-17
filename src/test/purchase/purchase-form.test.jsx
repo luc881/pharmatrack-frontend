@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
-import { it, vi, expect, describe } from 'vitest';
+import { it, vi, expect, describe, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 import { createTheme, ThemeProvider } from '@mui/material/styles';
@@ -72,5 +72,28 @@ describe('PurchaseCreateEditForm', () => {
         { product_id: 4, quantity: 2.5, unit_price: 40, lot_code: null, expiration_date: null },
       ],
     });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it('una compra nueva de noche lleva la fecha de hoy en México, no la de mañana (UTC)', async () => {
+    // 6:30 pm del 16 en México = 00:30 del 17 en UTC
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-17T00:30:00Z'));
+    server.use(
+      http.get(`${API}/suppliers`, () => HttpResponse.json(page([]))),
+      http.get(`${API}/products`, () => HttpResponse.json(page([])))
+    );
+    const Wrapper = createWrapper();
+    render(
+      <ThemeProvider theme={createTheme({ cssVariables: true })}>
+        <MemoryRouter>
+          <Wrapper>
+            <PurchaseCreateEditForm />
+          </Wrapper>
+        </MemoryRouter>
+      </ThemeProvider>
+    );
+    expect(await screen.findByLabelText('Fecha de emisión')).toHaveValue('2026-11-16');
   });
 });
