@@ -24,12 +24,28 @@ export const STATUS_COLORS = {
 // cambia su estado a mano (los pone la venta o la baja en la bitácora).
 export const isClosedStatus = (status) => status === 'sold' || status === 'deceased';
 
+// help: qué significa cada formato, a la vista al elegirlo
 export const SALE_FORMAT_OPTIONS = [
-  { value: 'individual', label: 'Individual' },
-  { value: 'package', label: 'Paquete de N' },
-  { value: 'colony', label: 'Cepa / colonia' },
-  // iguales que se venden de uno en uno (insecto hoja, mantis): un lote por variedad y sexo
-  { value: 'piece', label: 'Por pieza' },
+  {
+    value: 'individual',
+    label: 'Individual',
+    help: 'Cada animal es único, con su propio código, sexo, fotos y bitácora (reptiles, tarántulas). En la venta rápida eliges el ejemplar exacto.',
+  },
+  {
+    value: 'package',
+    label: 'Paquete de N',
+    help: 'Se vende en paquetes con varios animales iguales (isópodos ×6). Un solo registro con cuántos paquetes hay.',
+  },
+  {
+    value: 'colony',
+    label: 'Cepa / colonia',
+    help: 'Se vende una colonia o cultivo completo, sin contar animales (colémbolos).',
+  },
+  {
+    value: 'piece',
+    label: 'Por pieza',
+    help: 'Animales iguales que se venden de uno en uno sin distinguirlos (insecto hoja, mantis). Un lote con cantidad por variedad y sexo (sin sexar, hembras, machos); no llevan código propio.',
+  },
 ];
 
 // En «Por pieza» el sexo separa lotes: sin sexar (crías), hembras y machos

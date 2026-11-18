@@ -89,11 +89,25 @@ describe('Formulario de animal: formato «Por pieza»', () => {
     wrap(<AnimalCreateEditForm currentAnimal={current} />);
 
     fireEvent.mouseDown(await screen.findByRole('combobox', { name: 'Formato de venta' }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Por pieza' }));
+    fireEvent.click(await screen.findByRole('option', { name: /^Por pieza/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
     await waitFor(() => expect(species.sent).toMatchObject({ sale_format: 'piece' }));
     await new Promise((r) => setTimeout(r, 300));
     expect(animal.sent).toBeUndefined();
+  });
+});
+
+describe('Formulario de animal: qué significa cada formato', () => {
+  it('debajo del formato dice qué es el que está elegido', async () => {
+    mockApi();
+    wrap(<AnimalCreateEditForm />, '/new?species_id=1&purpose=sale');
+
+    expect(await screen.findByText(/Cada animal es único, con su propio código/)).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Formato de venta' }));
+    fireEvent.click(await screen.findByRole('option', { name: /^Por pieza/ }));
+    await waitFor(() =>
+      expect(screen.getAllByText(/Animales iguales que se venden de uno en uno/).length).toBeGreaterThan(0)
+    );
   });
 });

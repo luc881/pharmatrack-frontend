@@ -553,10 +553,28 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                         label="Formato de venta"
                         value={saleFormat}
                         onChange={(e) => setSaleFormat(e.target.value)}
+                        // qué significa el formato elegido, sin abrir la lista
+                        helperText={SALE_FORMAT_OPTIONS.find((o) => o.value === saleFormat)?.help}
+                        slotProps={{
+                          select: {
+                            renderValue: (v) => SALE_FORMAT_OPTIONS.find((o) => o.value === v)?.label,
+                          },
+                        }}
                       >
                         {SALE_FORMAT_OPTIONS.map((o) => (
-                          <MenuItem key={o.value} value={o.value}>
+                          <MenuItem
+                            key={o.value}
+                            value={o.value}
+                            sx={{ display: 'block', whiteSpace: 'normal', maxWidth: 420 }}
+                          >
                             {o.label}
+                            <Typography
+                              variant="caption"
+                              component="div"
+                              sx={{ color: 'text.secondary' }}
+                            >
+                              {o.help}
+                            </Typography>
                           </MenuItem>
                         ))}
                       </TextField>
