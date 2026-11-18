@@ -234,3 +234,42 @@ describe('venta rápida: un ticket por dueño', () => {
     expect(screen.queryByText('Propio')).toBeNull();
   });
 });
+
+describe('venta rápida: imprimir prueba con todos los dueños', () => {
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+  });
+
+  it('saca tu ticket, uno por cada proveedor guardado y el talón, todo de prueba', async () => {
+    await setKV('context', {
+      business: { business_name: 'Opuntia Den' },
+      ticketSettings: { width: 58, offset: 0 },
+      suppliers: [BD],
+    });
+    render(
+      <MemoryRouter>
+        <QuickSaleTicketView saleKey="prueba" />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('OPUNTIA DEN')).toBeInTheDocument();
+    expect(screen.getByText('BD EXÓTICOS')).toBeInTheDocument();
+    expect(screen.getAllByText('VR-PRUEBA-0001').length).toBeGreaterThan(0);
+    expect(screen.getByText('BD-PRUEBA-0001')).toBeInTheDocument();
+    expect(screen.getByText('@bd.exoticos')).toBeInTheDocument();
+    // los dos tickets y el talón
+    expect(screen.getAllByText('— PRUEBA · DATOS FICTICIOS —')).toHaveLength(3);
+    expect(screen.getByTestId('prep-order')).toBeInTheDocument();
+  });
+
+  it('sin proveedores guardados dice cómo hacer que salgan', async () => {
+    await setKV('context', { business: { business_name: 'Opuntia Den' } });
+    render(
+      <MemoryRouter>
+        <QuickSaleTicketView saleKey="prueba" />
+      </MemoryRouter>
+    );
+    expect(await screen.findByText('OPUNTIA DEN')).toBeInTheDocument();
+    expect(screen.getByText(/Preparar para vender sin internet/)).toBeInTheDocument();
+  });
+});

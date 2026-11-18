@@ -353,6 +353,13 @@ export function QuickSaleView() {
             </TextField>
           )}
           {addButtons}
+          {/* tu ticket y el de cada proveedor, con datos de ejemplo */}
+          <Button
+            color="inherit"
+            onClick={() => router.push(paths.dashboard.quickSale.ticket('prueba'))}
+          >
+            Imprimir prueba
+          </Button>
           <Button color="inherit" onClick={() => router.push(paths.dashboard.sale.root)}>
             Ver ventas
           </Button>

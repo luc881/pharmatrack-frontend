@@ -11,8 +11,8 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { PAYMENT_LABELS } from 'src/sections/sale/print-ticket';
 import { TicketPrintPage } from 'src/sections/sale/view/sale-ticket-view';
 
-import { PrepOrder, prepLines } from '../prep-order';
 import { getKV, listSales } from '../quick-sale-store';
+import { PrepOrder, prepLines, SAMPLE_ORDER } from '../prep-order';
 
 // ----------------------------------------------------------------------
 
@@ -30,6 +30,38 @@ const supplierBusiness = (s) => ({
   logo_tall: true,
 });
 
+// «Imprimir prueba» de la venta rápida: tu ticket, uno por cada proveedor
+// guardado en el equipo (con su logo y sus datos) y el talón de orden, con
+// datos de ejemplo. Es lo mismo que saldrá en la convención, sin internet.
+const sampleTicket = (folio, items) => {
+  const total = items.reduce((sum, it) => sum + it.cantidad * it.precio_unitario, 0);
+  return {
+    folio,
+    fecha: new Date().toISOString(),
+    items,
+    total,
+    metodo_pago: 'Efectivo',
+    pagado: total,
+    sample: true,
+  };
+};
+
+const sampleTickets = (context) => [
+  {
+    ticket: sampleTicket('VR-PRUEBA-0001', [
+      { cantidad: 1, nombre: 'Cubaris murina', es_cientifico: true, detalle: 'Glacier', precio_unitario: 350 },
+      { cantidad: 2, nombre: 'Cueva de resina', es_cientifico: false, precio_unitario: 80 },
+    ]),
+    business: context.business ?? {},
+  },
+  ...(context.suppliers ?? []).map((s) => ({
+    ticket: sampleTicket(`${s.ticket_prefix || `P${s.id}`}-PRUEBA-0001`, [
+      { cantidad: 2, nombre: 'Slushie mango', es_cientifico: false, precio_unitario: 50 },
+    ]),
+    business: supplierBusiness(s),
+  })),
+];
+
 // Ticket de una venta rápida, armado solo con lo guardado en el dispositivo
 // (la venta de la cola y los datos del negocio): se imprime igual sin internet.
 // El rollo y el ajuste se calibran en Ventas → «Imprimir prueba».
@@ -45,6 +77,10 @@ export function QuickSaleTicketView({ saleKey }) {
     let alive = true;
     Promise.all([listSales(), getKV('context')]).then(([sales, context]) => {
       if (!alive) return;
+      if (saleKey === 'prueba') {
+        setData({ sample: true, context: context ?? {} });
+        return;
+      }
       const sale = sales.find((s) => s.idempotency_key === saleKey);
       setData(sale ? { sale, context: context ?? {} } : null);
     });
@@ -81,6 +117,43 @@ export function QuickSaleTicketView({ saleKey }) {
 
   const { sale, context } = data ?? {};
   const { width, offset } = context?.ticketSettings ?? DEFAULTS;
+
+  if (data?.sample) {
+    const noSuppliers = !(context.suppliers ?? []).length;
+    return (
+      <TicketPrintPage
+        tickets={sampleTickets(context)}
+        extra={<PrepOrder sale={SAMPLE_ORDER} width={width} after />}
+        width={width}
+        offset={offset}
+        hint={
+          noSuppliers ? (
+            <Typography
+              variant="body2"
+              sx={{ px: 2, pb: 2, textAlign: 'center', color: 'text.secondary', '@media print': { display: 'none' } }}
+            >
+              Para que salga el ticket de un proveedor, dalo de alta en Proveedores y toca
+              «Preparar para vender sin internet» en la venta rápida.
+            </Typography>
+          ) : null
+        }
+        controls={
+          <>
+            <Button
+              component={RouterLink}
+              href={paths.dashboard.quickSale.root}
+              variant="outlined"
+            >
+              Volver a la venta rápida
+            </Button>
+            <Button variant="contained" onClick={() => window.print()}>
+              Imprimir prueba
+            </Button>
+          </>
+        }
+      />
+    );
+  }
 
   const ticket = sale && {
     folio: sale.folio,
