@@ -81,7 +81,7 @@ test.describe('Un ticket por dueño', () => {
     const animal = await seed.animal(species.id, { price: 1200, quick_sale: true });
 
     await openQuickSale(page, { print: true });
-    await page.getByRole('button', { name: '+ Agregar productos' }).click();
+    await page.getByRole('button', { name: '+ Agregar productos' }).first().click();
     const picker = page.getByRole('dialog', { name: /Qué se vende/ });
     await picker.getByLabel('Buscar').fill(species.common_name);
     await picker
@@ -243,5 +243,52 @@ test.describe('Cuenta y sitio', () => {
     await page.goto('/dashboard/site/links');
     await expect(page.getByText(/salen solas de las fichas publicadas/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Agregar guía' })).toHaveCount(0);
+  });
+});
+
+test.describe('Por pieza', () => {
+  test('insectos iguales: un lote por sexo y un solo botón en la venta rápida', async ({
+    page,
+    seed,
+    api,
+  }) => {
+    const { species } = await seed.species({ common: unique('Insecto hoja') });
+    await api.put(`/species/${species.id}`, { sale_format: 'piece' });
+    await seed.animal(species.id, { sex: 'unknown', stock: 20, price: 350, quick_sale: true });
+    const hembras = await seed.animal(species.id, {
+      sex: 'female',
+      stock: 4,
+      price: 600,
+      quick_sale: true,
+    });
+
+    await openQuickSale(page, { print: true });
+    const group = page.getByRole('button', {
+      name: new RegExp(`^Elegir ${species.common_name}`, 'i'),
+    });
+    await expect(group).toHaveAttribute('aria-label', /desde \$350, Quedan 24$/);
+    await group.click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /^Agregar Hembra/ })
+      .click();
+    await charge(page);
+
+    await expect(page).toHaveURL(/\/quick-sale\/ticket\//);
+    await expect(tickets(page).first()).toContainText('Hembra');
+    await expect.poll(async () => (await api.get(`/animals/${hembras.id}`)).stock).toBe(3);
+  });
+
+  test('al pasar una especie a «Por pieza», lo que está en venta se junta', async ({
+    seed,
+    api,
+  }) => {
+    const { species } = await seed.species({ common: unique('Mantis') });
+    for (let i = 0; i < 3; i += 1) await seed.animal(species.id, { price: 250 });
+    await api.put(`/species/${species.id}`, { sale_format: 'piece' });
+
+    const { data } = await api.get(`/animals?species_id=${species.id}&page_size=20`);
+    expect(data).toHaveLength(1);
+    expect(data[0].stock).toBe(3);
   });
 });

@@ -26,7 +26,7 @@ import {
 import { toast } from 'src/components/snackbar';
 
 import { VarietyPicker } from './variety-picker';
-import { purposeOf, flattenGroupTree } from './utils';
+import { purposeOf, flattenGroupTree, PIECE_SEX_OPTIONS } from './utils';
 
 // ----------------------------------------------------------------------
 
@@ -35,6 +35,7 @@ const isBulk = (species) => !!species?.sale_format && species.sale_format !== 'i
 function quantityLabel(species) {
   if (species?.sale_format === 'colony') return '¿Cuántas cepas?';
   if (species?.sale_format === 'package') return `¿Cuántos paquetes de ${species.package_size}?`;
+  if (species?.sale_format === 'piece') return '¿Cuántas piezas?';
   return '¿Cuántos ejemplares?';
 }
 
@@ -64,6 +65,8 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
   // Es el alta de la venta rápida: entra como botón y, salvo que se pida,
   // sin anunciarse en el sitio
   const [showOnSite, setShowOnSite] = useState(false);
+  // «Por pieza»: sin sexar, hembras y machos son lotes aparte
+  const [sex, setSex] = useState('unknown');
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -84,6 +87,7 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
   );
 
   const bulk = isBulk(species);
+  const piece = species?.sale_format === 'piece';
 
   // Cepa o paquete que ya está en venta (misma especie y morphs): el servidor
   // no admite dos registros iguales, así que se le suman existencias
@@ -93,7 +97,8 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
           a.species?.id === species.id &&
           a.status === 'available' &&
           purposeOf(a) === 'sale' &&
-          sameMorphs(a, morphIds)
+          sameMorphs(a, morphIds) &&
+          (!piece || a.sex === sex)
       )
     : null;
 
@@ -131,7 +136,7 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
         await createAnimal({
           species_id: species.id,
           purpose: 'sale',
-          sex: 'unknown',
+          sex: piece ? sex : 'unknown',
           price: value,
           price_cost: 0,
           morph_ids: morphIds,
@@ -216,6 +221,23 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
             }
           />
 
+          {piece && (
+            <TextField
+              select
+              size="small"
+              label="Sexo"
+              value={sex}
+              onChange={(e) => setSex(e.target.value)}
+              slotProps={{ select: { native: true }, inputLabel: { shrink: true } }}
+            >
+              {PIECE_SEX_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </TextField>
+          )}
+
           <Stack direction="row" spacing={2}>
             <TextField
               label={quantityLabel(species)}
@@ -236,7 +258,7 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
                 (existing
                   ? `Vacío = se queda en $${existing.price}`
                   : bulk
-                    ? `Por ${species.sale_format === 'package' ? 'paquete' : 'cepa'}`
+                    ? `Por ${{ package: 'paquete', piece: 'pieza' }[species.sale_format] ?? 'cepa'}`
                     : 'Por ejemplar')
               }
               slotProps={{ htmlInput: { inputMode: 'decimal' } }}

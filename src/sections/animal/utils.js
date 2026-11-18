@@ -28,12 +28,23 @@ export const SALE_FORMAT_OPTIONS = [
   { value: 'individual', label: 'Individual' },
   { value: 'package', label: 'Paquete de N' },
   { value: 'colony', label: 'Cepa / colonia' },
+  // iguales que se venden de uno en uno (insecto hoja, mantis): un lote por variedad y sexo
+  { value: 'piece', label: 'Por pieza' },
 ];
+
+// En «Por pieza» el sexo separa lotes: sin sexar (crías), hembras y machos
+export const PIECE_SEX_OPTIONS = [
+  { value: 'unknown', label: 'Sin sexar' },
+  { value: 'female', label: 'Hembra' },
+  { value: 'male', label: 'Macho' },
+];
+export const isPieceSpecies = (species) => species?.sale_format === 'piece';
 
 // "Paquete de 6" / "Cepa" / null para individual
 export function saleFormatLabel(species) {
   if (species?.sale_format === 'package') return `Paquete de ${species.package_size}`;
   if (species?.sale_format === 'colony') return 'Cepa';
+  if (species?.sale_format === 'piece') return 'Por pieza';
   return null;
 }
 
@@ -76,7 +87,7 @@ export const purposeOf = (animal) => animal?.purpose ?? 'sale';
 export function animalUnits(animal, species) {
   if (isClosedStatus(animal.status)) return 0;
   const stock = Number(animal.stock ?? 0);
-  if (species?.sale_format === 'colony') return stock;
+  if (species?.sale_format === 'colony' || species?.sale_format === 'piece') return stock;
   if (species?.sale_format === 'package') {
     return purposeOf(animal) === 'sale' ? stock * Number(species.package_size ?? 1) : stock;
   }

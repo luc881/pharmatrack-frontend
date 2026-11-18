@@ -214,6 +214,54 @@ describe('Poner en venta (alta corta)', () => {
     ]);
   });
 
+  it('por pieza: el sexo separa lotes; suma al del mismo sexo y crea el que falta', async () => {
+    const user = userEvent.setup();
+    const PHYLLIUM = { ...ROACH, id: 9, sale_format: 'piece', package_size: null };
+    const hembras = {
+      id: 41,
+      product_id: 410,
+      purpose: 'sale',
+      status: 'available',
+      stock: 4,
+      price: 600,
+      sex: 'female',
+      morphs: [],
+      species: PHYLLIUM,
+    };
+    wrap(
+      <PutOnSaleDialog
+        initialSpecies={PHYLLIUM}
+        animals={[hembras]}
+        onClose={() => {}}
+        onDone={() => {}}
+      />
+    );
+    const dialog = within(await screen.findByRole('dialog'));
+
+    // sin sexar: aún no hay lote, se crea con su sexo
+    expect(dialog.getByLabelText('Sexo')).toHaveValue('unknown');
+    await user.clear(dialog.getByLabelText('¿Cuántas piezas?'));
+    await user.type(dialog.getByLabelText('¿Cuántas piezas?'), '20');
+    await user.type(dialog.getByLabelText('Precio de venta'), '350');
+    await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toEqual([
+      'POST',
+      '/animals',
+      expect.objectContaining({ species_id: 9, sex: 'unknown', stock: 20, price: 350 }),
+    ]);
+
+    // hembras: ya hay lote, se suma
+    sent.length = 0;
+    await user.selectOptions(dialog.getByLabelText('Sexo'), 'female');
+    expect(dialog.getByText(/Ya hay 4 en venta/)).toBeInTheDocument();
+    await user.clear(dialog.getByLabelText('¿Cuántas piezas?'));
+    await user.type(dialog.getByLabelText('¿Cuántas piezas?'), '2');
+    await user.clear(dialog.getByLabelText('Precio de venta'));
+    await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
+    await waitFor(() => expect(sent[0]).toEqual(['PUT', '/animals/41', { stock: 6 }]));
+  });
+
   it('al sumar a lo que ya hay, «Mostrar también en el sitio» lo publica', async () => {
     const user = userEvent.setup();
     const existing = {

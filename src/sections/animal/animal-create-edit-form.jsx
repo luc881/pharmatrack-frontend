@@ -55,6 +55,7 @@ import {
   isClosedStatus,
   saleFormatLabel,
   flattenGroupTree,
+  PIECE_SEX_OPTIONS,
   SALE_FORMAT_OPTIONS,
 } from './utils';
 
@@ -96,6 +97,7 @@ const PURPOSE_SUFFIX = { sale: 'en venta', breeder: 'de pie de cría', growing: 
 
 function stockLabel(saleFormat, purpose) {
   if (saleFormat === 'colony') return `¿Cuántas cepas ${PURPOSE_SUFFIX[purpose]}?`;
+  if (saleFormat === 'piece') return `¿Cuántas piezas ${PURPOSE_SUFFIX[purpose]}?`;
   if (saleFormat === 'package') {
     return purpose === 'sale' ? '¿Cuántos paquetes en venta?' : `¿Cuántos ${PURPOSE_SUFFIX[purpose]}?`;
   }
@@ -307,6 +309,11 @@ export function AnimalCreateEditForm({ currentAnimal }) {
       setError('stock', { message: 'Para dar de alta necesitas al menos 1' });
       return;
     }
+    // Pasar la especie a «Por pieza» junta lo que está en venta en lotes por
+    // variedad y sexo (este registro puede quedar dentro de otro): solo se
+    // cambia el formato y se regresa a la lista
+    const toPiece =
+      isEdit && canUpdateSpecies && saleFormat === 'piece' && selectedSpecies?.sale_format !== 'piece';
     try {
       // El formato/escala son de la especie: se guardan aparte y afectan a todos
       // sus ejemplares. Va primero para que el backend valide bien el stock.
@@ -323,12 +330,18 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         });
         await speciesMutate();
       }
+      if (toPiece) {
+        toast.success('Listo: lo que estaba en venta quedó en lotes por variedad y sexo');
+        mutate((key) => Array.isArray(key) && key[0] === endpoints.animal.list);
+        navigate(paths.dashboard.animal.root, { state: { expand: Number(data.species_id) } });
+        return;
+      }
 
       // Especies de stock (cepa/paquete): sin sexo, fecha ni papeles por ejemplar
       const legalDoc = !isBulk && data.requires_legal_doc;
       const payload = {
         species_id: Number(data.species_id),
-        sex: isBulk ? 'unknown' : data.sex,
+        sex: isBulk && saleFormat !== 'piece' ? 'unknown' : data.sex,
         birth_date: !isBulk && data.birth_date ? data.birth_date : null,
         // sin venta no hay precio: el backend exige el campo, va en 0
         price: isSale ? Number(data.price) : 0,
@@ -626,9 +639,10 @@ export function AnimalCreateEditForm({ currentAnimal }) {
               </Box>
             )}
 
-            {!isBulk && (
+            {/* en «Por pieza» el sexo separa lotes: sin sexar, hembras y machos */}
+            {(!isBulk || saleFormat === 'piece') && (
               <Field.Select name="sex" label="Sexo">
-                {SEX_OPTIONS.map((o) => (
+                {(saleFormat === 'piece' ? PIECE_SEX_OPTIONS : SEX_OPTIONS).map((o) => (
                   <MenuItem key={o.value} value={o.value}>
                     {o.label}
                   </MenuItem>
@@ -641,7 +655,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                 name="count"
                 label="¿Cuántos ejemplares iguales?"
                 type="number"
-                helperText="Para varios iguales que viven juntos (p. ej. Phyllium): se crea uno por cada uno, cada quien con su código"
+                helperText="Se crea uno por cada uno, cada quien con su código. Si se venden de uno en uno sin distinguirlos (insecto hoja, mantis), pon la especie en «Por pieza»"
                 slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: 1, max: 50 } }}
               />
             )}
@@ -656,7 +670,9 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                     ? 'Cuántos tienes en este destino'
                     : isEdit
                       ? 'Se descuentan al vender. Pon 0 si ya no tienes: se marca como agotado en el sitio.'
-                      : 'Unidades idénticas de esta cepa/paquete; se descuentan al vender'
+                      : saleFormat === 'piece'
+                        ? 'Piezas iguales de esta variedad y sexo; se venden de una en una'
+                        : 'Unidades idénticas de esta cepa/paquete; se descuentan al vender'
                 }
                 slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: isEdit ? 0 : 1 } }}
               />
@@ -735,7 +751,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                   type="number"
                   helperText={
                     isBulk
-                      ? `Precio por ${selectedSpecies?.sale_format === 'package' ? `paquete de ${selectedSpecies.package_size}` : 'cepa'}`
+                      ? `Precio por ${selectedSpecies?.sale_format === 'package' ? `paquete de ${selectedSpecies.package_size}` : selectedSpecies?.sale_format === 'piece' ? 'pieza' : 'cepa'}`
                       : ''
                   }
                   slotProps={{

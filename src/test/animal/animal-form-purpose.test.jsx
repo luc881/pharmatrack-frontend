@@ -338,6 +338,26 @@ describe('Formulario de animal: destino', () => {
     expect(body.sent).toMatchObject({ consignor_id: 9 });
   });
 
+  it('por pieza pide cuántas piezas y el sexo del lote (sin sexar, hembra o macho)', async () => {
+    const body = {};
+    mockApi([capture('post', '/animals', body)]);
+    const PIECE = { ...GECKO, sale_format: 'piece' };
+    server.use(http.get(`${API}/species`, () => HttpResponse.json(page([PIECE]))));
+    wrap(<AnimalCreateEditForm />, '/new?species_id=1&purpose=sale');
+
+    const stock = await screen.findByLabelText(/¿Cuántas piezas en venta\?/);
+    fireEvent.change(stock, { target: { value: '12' } });
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Sexo' }));
+    expect(screen.getByRole('option', { name: 'Sin sexar' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: 'Hembra' }));
+    fireEvent.change(screen.getByLabelText(/Precio de venta/), { target: { value: '600' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar animal' }));
+
+    await waitFor(() => expect(body.sent).toBeDefined());
+    expect(body.sent).toMatchObject({ species_id: 1, sex: 'female', stock: 12, price: 600 });
+    expect(body.sent).not.toHaveProperty('count');
+  });
+
   it('fuera de venta la cantidad no habla de vender y el estado dice «Activo»', async () => {
     mockApi();
     const COLONY = { ...GECKO, sale_format: 'colony' };

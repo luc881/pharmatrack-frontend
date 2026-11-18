@@ -140,8 +140,10 @@ test.describe('Venta rápida', () => {
     await expect(split.getByText('Propio')).toBeVisible();
     await expect(split.getByText(owner.name)).toBeVisible();
     await expect(split.getByText('$300')).toBeVisible();
+    const before = await salesCount(api);
     await charge(page);
-    await expect(page.getByText(/por subir/)).toHaveCount(0, { timeout: 30_000 });
+    // «por subir» aparece un instante después del cobro: se espera a la venta en el servidor
+    await expect.poll(() => salesCount(api), { timeout: 30_000 }).toBe(before + 1);
 
     await page.goto('/dashboard/sale/summary');
     const theirsCard = page.getByRole('region', { name: owner.name });
@@ -284,7 +286,7 @@ test.describe('Venta rápida', () => {
     const b = await seed.animal(species.id);
 
     await openQuickSale(page);
-    await page.getByRole('button', { name: '+ Agregar productos' }).click();
+    await page.getByRole('button', { name: '+ Agregar productos' }).first().click();
     const picker = page.getByRole('dialog', { name: /Qué se vende/ });
     await picker.getByLabel('Buscar').fill(species.common_name);
     await picker.getByRole('button', { name: `Marcar todos: ${species.common_name}` }).click();
@@ -292,8 +294,16 @@ test.describe('Venta rápida', () => {
       .poll(async () => (await api.get('/products/quick-sale')).map((i) => i.id))
       .toEqual(expect.arrayContaining([a.product_id, b.product_id]));
     await picker.getByRole('button', { name: 'Listo' }).click();
+    // los dos de la misma especie van en un solo botón; al tocarlo se elige cuál
+    await page
+      .getByRole('button', { name: new RegExp(`^Elegir ${species.common_name}`, 'i') })
+      .click();
+    const choose = page.getByRole('dialog', { name: new RegExp(species.common_name, 'i') });
     await expect(
-      page.getByRole('button', { name: new RegExp(`^Agregar .*${a.code}`) })
+      choose.getByRole('button', { name: new RegExp(`^Agregar ${a.code}`) })
+    ).toBeVisible();
+    await expect(
+      choose.getByRole('button', { name: new RegExp(`^Agregar ${b.code}`) })
     ).toBeVisible();
   });
 });

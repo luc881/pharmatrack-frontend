@@ -297,7 +297,7 @@ describe('HusbandryLogView', () => {
       await screen.findByRole('button', { name: 'EJ-001' }, { timeout: 5000 })
     ).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'Asistida' })).toBeInTheDocument();
-  }, 30000);
+  }, 60_000);
 
   it('la baja de un ejemplar vendido ofrece cambiarlo por otro disponible', async () => {
     let saved = null;

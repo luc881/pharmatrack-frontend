@@ -64,6 +64,8 @@ function speciesNames(species) {
   return { name: `${species.genus?.name ?? ''} ${epithet}`.trim(), locality };
 }
 
+const PIECE_SEX = { unknown: 'Sin sexar', female: 'Hembra', male: 'Macho' };
+
 export function toItem(detail, product, animal) {
   const base = {
     cantidad: Number(detail.quantity) || 0,
@@ -84,6 +86,9 @@ export function toItem(detail, product, animal) {
     locality && `“${locality}”`,
     ...morphs.map((m) => m.name),
     species.sale_format === 'package' && species.package_size && `${species.package_size} pzas`,
+    // por pieza: el lote (sin sexar, hembra, macho); individual: qué ejemplar fue
+    species.sale_format === 'piece' && PIECE_SEX[animal.sex],
+    (species.sale_format ?? 'individual') === 'individual' && animal.code,
     detail.description,
   ]
     .filter(Boolean)

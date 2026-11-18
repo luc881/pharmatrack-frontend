@@ -31,7 +31,7 @@ export function MoveAnimalDialog({ animal, species, target, open, onClose, onMov
   const [price, setPrice] = useState(initialPrice);
   const [saving, setSaving] = useState(false);
 
-  const bulk = species?.sale_format === 'package' || species?.sale_format === 'colony';
+  const bulk = ['package', 'colony', 'piece'].includes(species?.sale_format);
   // Un paquete se cuenta en paquetes si el origen o el destino es venta
   const inPackages =
     species?.sale_format === 'package' && (purposeOf(animal) === 'sale' || target === 'sale');
