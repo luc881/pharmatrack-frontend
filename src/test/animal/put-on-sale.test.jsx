@@ -342,6 +342,25 @@ describe('Poner en venta (alta corta)', () => {
     expect(dialog.queryByLabelText('Grupo')).toBeNull();
   });
 
+  it('se elige de quién es (otro expositor) y nace con ese dueño', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get(`${API}/suppliers`, () =>
+        HttpResponse.json(page([{ id: 9, name: 'Bd Exóticos', is_active: true }]))
+      )
+    );
+    wrap(<PutOnSaleDialog initialSpecies={GECKO} onClose={() => {}} onDone={() => {}} />);
+    const dialog = within(await screen.findByRole('dialog'));
+    const owner = await dialog.findByRole('combobox', { name: 'Dueño' });
+    await waitFor(() => expect(owner.querySelectorAll('option')).toHaveLength(2));
+    await user.selectOptions(owner, '9');
+    await user.type(dialog.getByLabelText('Precio de venta'), '900');
+    await user.click(dialog.getByRole('button', { name: 'Poner en venta' }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0][2]).toMatchObject({ consignor_id: 9, quick_sale: true });
+  });
+
   it('si se pide, también se anuncia en el sitio', async () => {
     const user = userEvent.setup();
     wrap(<PutOnSaleDialog initialSpecies={GECKO} onClose={() => {}} onDone={() => {}} />);

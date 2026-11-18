@@ -14,6 +14,7 @@ import DialogContent from '@mui/material/DialogContent';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { updateProduct } from 'src/actions/product';
+import { useGetSuppliers } from 'src/actions/supplier';
 import {
   createAnimal,
   updateAnimal,
@@ -67,6 +68,9 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
   const [showOnSite, setShowOnSite] = useState(false);
   // «Por pieza»: sin sexar, hembras y machos son lotes aparte
   const [sex, setSex] = useState('unknown');
+  // de otro expositor: en la venta rápida sale en su propio ticket ('' = propio)
+  const [owner, setOwner] = useState('');
+  const owners = useGetSuppliers({ pageSize: 100 }).suppliers.filter((o) => o.is_active !== false);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -144,6 +148,7 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
           ...(bulk ? { stock: amount } : amount > 1 ? { count: amount } : {}),
           quick_sale: true,
           show_public: showOnSite,
+          ...(owner ? { consignor_id: Number(owner) } : {}),
         });
       }
       toast.success(existing ? 'Existencias agregadas' : 'Ya está en venta');
@@ -270,6 +275,30 @@ export function PutOnSaleDialog({ initialSpecies = null, animals: given, onClose
             <Alert severity="info" icon={false}>
               Ya hay {existing.stock} en venta: lo que pongas aquí se suma a ese registro.
             </Alert>
+          )}
+
+          {/* al sumar a lo que ya hay, el registro se queda con su dueño */}
+          {!existing && owners.length > 0 && (
+            <TextField
+              select
+              size="small"
+              label="Dueño"
+              value={owner}
+              onChange={(e) => setOwner(e.target.value)}
+              helperText="Si es de otro expositor, sale en su ticket."
+              slotProps={{
+                select: { native: true },
+                inputLabel: { shrink: true },
+                htmlInput: { 'aria-label': 'Dueño' },
+              }}
+            >
+              <option value="">Propio</option>
+              {owners.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </TextField>
           )}
 
           <FormControlLabel
