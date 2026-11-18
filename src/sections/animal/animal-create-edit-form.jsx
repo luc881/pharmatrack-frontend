@@ -360,7 +360,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
         legal_doc_url: legalDoc ? data.legal_doc_url || null : null,
         // solo cuentan en venta (pie de cría y crianza nunca se anuncian)
         ...(isSale ? { show_public: data.show_public, quick_sale: data.quick_sale } : {}),
-        ...(isEdit && isSale
+        ...(isSale
           ? { consignor_id: data.consignor_id ? Number(data.consignor_id) : null }
           : {}),
         // si se omite el código, el backend genera uno "AN-XXXXXXXX" (siempre, con varios)
@@ -735,7 +735,7 @@ export function AnimalCreateEditForm({ currentAnimal }) {
                   label="También en la venta rápida (botón para convenciones)"
                 />
                 {/* de otro expositor: en la venta rápida sale en su propio ticket */}
-                {isEdit && owners.length > 0 && (
+                {owners.length > 0 && (
                   <TextField
                     select
                     size="small"

@@ -338,6 +338,26 @@ describe('Formulario de animal: destino', () => {
     expect(body.sent).toMatchObject({ consignor_id: 9 });
   });
 
+  it('en el alta ya se dice de quién es', async () => {
+    const body = {};
+    mockApi([capture('post', '/animals', body)]);
+    server.use(
+      http.get(`${API}/suppliers`, () =>
+        HttpResponse.json(page([{ id: 9, name: 'Bd Exóticos', is_active: true }]))
+      )
+    );
+    wrap(<AnimalCreateEditForm />, '/new?species_id=1&purpose=sale');
+
+    const owner = await screen.findByRole('combobox', { name: 'Dueño' });
+    await waitFor(() => expect(owner.querySelectorAll('option')).toHaveLength(2));
+    fireEvent.change(owner, { target: { value: '9' } });
+    fireEvent.change(screen.getByLabelText(/Precio de venta/), { target: { value: '600' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar animal' }));
+
+    await waitFor(() => expect(body.sent).toBeDefined());
+    expect(body.sent).toMatchObject({ consignor_id: 9 });
+  });
+
   it('por pieza pide cuántas piezas y el sexo del lote (sin sexar, hembra o macho)', async () => {
     const body = {};
     mockApi([capture('post', '/animals', body)]);
