@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
+import Divider from '@mui/material/Divider';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -229,7 +230,39 @@ function GroupButton({ items, stockOf, onAdd }) {
 
 // ----------------------------------------------------------------------
 
-export function QuickSaleGrid({ items, stockOf, onAdd }) {
+// Dividida por dueño (consignor_id): lo mío primero y luego cada proveedor,
+// cada parte bajo un divisor con su nombre. Con un solo dueño no hay divisor.
+export function QuickSaleGrid({ items, stockOf, onAdd, suppliers = [], businessName }) {
+  const parts = useMemo(() => {
+    const owners = [...new Set(items.map((item) => item.consignor_id ?? null))].sort(
+      (a, b) => (a !== null) - (b !== null)
+    );
+    return owners.map((owner) => ({
+      owner,
+      name:
+        owner === null
+          ? businessName || 'Míos'
+          : (suppliers.find((s) => s.id === owner)?.name ?? 'Otro vendedor'),
+      items: items.filter((item) => (item.consignor_id ?? null) === owner),
+    }));
+  }, [items, suppliers, businessName]);
+
+  if (parts.length < 2) return <CategoryGroups items={items} stockOf={stockOf} onAdd={onAdd} />;
+  return (
+    <Stack spacing={4}>
+      {parts.map((part) => (
+        <Box key={part.owner ?? 'mine'} component="section" aria-label={part.name}>
+          <Divider textAlign="left" sx={{ mb: 2, typography: 'subtitle1' }}>
+            {part.name}
+          </Divider>
+          <CategoryGroups items={part.items} stockOf={stockOf} onAdd={onAdd} />
+        </Box>
+      ))}
+    </Stack>
+  );
+}
+
+function CategoryGroups({ items, stockOf, onAdd }) {
   // El catálogo ya viene ordenado por categoría y nombre; dentro de cada
   // categoría, los animales iguales (especie y variedad) van juntos
   const groups = useMemo(() => {

@@ -115,3 +115,33 @@ describe('Venta rápida: un botón por especie y variedad', () => {
     expect(dialog.getByRole('button', { name: /^Agregar Hembra/ })).toBeDisabled();
   });
 });
+
+describe('Venta rápida: dividida por dueño', () => {
+  const slush = { ...ITEMS[6], id: 70, title: 'Slush de mango', category: 'Bebidas', consignor_id: 7 };
+
+  it('lo mío primero y luego cada proveedor, con su nombre como divisor', () => {
+    render(
+      <QuickSaleGrid
+        items={[slush, ...ITEMS]}
+        stockOf={stockOf}
+        onAdd={() => {}}
+        suppliers={[{ id: 7, name: 'BD Exoticos' }]}
+        businessName="Opuntia Den"
+      />
+    );
+    const mine = screen.getByRole('region', { name: 'Opuntia Den' });
+    const theirs = screen.getByRole('region', { name: 'BD Exoticos' });
+    expect(within(mine).queryByText('Slush de mango')).toBeNull();
+    expect(within(theirs).getByText('Slush de mango')).toBeInTheDocument();
+    expect(within(mine).getByText('Cueva de resina')).toBeInTheDocument();
+    // en ese orden
+    expect(screen.getAllByRole('region').indexOf(theirs)).toBeGreaterThan(
+      screen.getAllByRole('region').indexOf(mine)
+    );
+  });
+
+  it('si todo es de un solo dueño no hay divisor', () => {
+    render(<QuickSaleGrid items={ITEMS} stockOf={stockOf} onAdd={() => {}} businessName="Opuntia Den" />);
+    expect(screen.queryByRole('region', { name: 'Opuntia Den' })).toBeNull();
+  });
+});

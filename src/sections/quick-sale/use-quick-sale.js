@@ -38,6 +38,8 @@ export function useQuickSale() {
         ready: true,
         provisionals,
         suppliers: context?.suppliers ?? [],
+        // guardado al «Preparar»: sirve sin internet
+        businessName: context?.business?.business_name ?? null,
         items:
           catalog || provisionals.length
             ? [
@@ -181,6 +183,7 @@ export function useQuickSale() {
     failed: state.failed,
     provisionals: state.provisionals,
     suppliers: state.suppliers,
+    businessName: state.businessName,
     items,
     itemsById,
     fetchedAt: state.fetchedAt,

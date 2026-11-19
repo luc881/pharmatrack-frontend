@@ -403,7 +403,13 @@ export function QuickSaleView() {
               fullWidth
             />
             {found.length ? (
-              <QuickSaleGrid items={found} stockOf={quick.stockOf} onAdd={quick.add} />
+              <QuickSaleGrid
+                items={found}
+                stockOf={quick.stockOf}
+                onAdd={quick.add}
+                suppliers={quick.suppliers}
+                businessName={quick.businessName}
+              />
             ) : (
               <Stack spacing={2} sx={{ py: 6, alignItems: 'center', textAlign: 'center' }}>
                 <Typography variant="body2" sx={{ color: 'text.secondary' }}>
