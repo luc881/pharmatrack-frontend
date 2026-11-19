@@ -223,7 +223,7 @@ describe('Animales: si se ve en el sitio', () => {
     renderView('sale');
     await screen.findByRole('link', { name: 'V-1' });
 
-    const speciesSwitch = screen.getByRole('switch', { name: 'En el sitio: Gecko leopardo' });
+    const speciesSwitch = screen.getByRole('switch', { name: 'Especie en el sitio: Gecko leopardo' });
     expect(speciesSwitch).toBeChecked();
     await user.click(speciesSwitch);
     await waitFor(() => expect(sent).toEqual([['species', 1, { show_public: false }]]));
@@ -446,7 +446,7 @@ describe('Animales: la especie dice si de verdad se ve en el sitio', () => {
     mockApi(ANIMALS.map((a) => ({ ...a, show_public: false })));
     renderView('sale');
     await screen.findByRole('link', { name: 'V-1' });
-    expect(screen.getByRole('switch', { name: 'En el sitio: Gecko leopardo' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Especie en el sitio: Gecko leopardo' })).toBeChecked();
     expect(screen.getByText('No se ve: ningún ejemplar marcado')).toBeInTheDocument();
   });
 
@@ -465,6 +465,47 @@ describe('Animales: la especie dice si de verdad se ve en el sitio', () => {
     renderView('sale');
     await screen.findByRole('link', { name: 'V-1' });
     expect(await screen.findByText('No se ve: ningún ejemplar marcado')).toBeInTheDocument();
+  });
+
+  it('«Ejemplares» marca en el sitio todos los de la especie desde la misma fila', async () => {
+    const user = userEvent.setup();
+    const sent = [];
+    mockApi(ANIMALS.map((a) => ({ ...a, show_public: a.code === 'V-2' })), [
+      http.put(`${API}/animals/:id`, async ({ request, params }) => {
+        sent.push([Number(params.id), await request.json()]);
+        return HttpResponse.json({ id: Number(params.id) });
+      }),
+    ]);
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+
+    const all = screen.getByRole('switch', { name: 'Ejemplares en el sitio: Gecko leopardo' });
+    expect(all).not.toBeChecked();
+    expect(screen.getByText('1 de 3')).toBeInTheDocument();
+    await user.click(all);
+    // solo los que faltan (V-1 y V-3); el vendido no
+    const id = (code) => ANIMALS.find((a) => a.code === code).id;
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent.sort()).toEqual(
+      [
+        [id('V-1'), { show_public: true }],
+        [id('V-3'), { show_public: true }],
+      ].sort()
+    );
+  });
+});
+
+describe('Animales: precio de la especie con descuento', () => {
+  it('la fila de la especie muestra el precio de antes y el %', async () => {
+    mockApi([
+      animal('V-1', 'sale', 'available', { price: 400, compare_at_price: 500 }),
+      animal('V-2', 'sale', 'available', { price: 400, compare_at_price: 500 }),
+    ]);
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+    const speciesRow = screen.getByRole('link', { name: 'Gecko leopardo' }).closest('tr');
+    expect(within(speciesRow).getByText('−20%')).toBeInTheDocument();
+    expect(within(speciesRow).getByText('$500')).toBeInTheDocument();
   });
 });
 

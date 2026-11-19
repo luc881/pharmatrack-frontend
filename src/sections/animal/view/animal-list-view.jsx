@@ -31,6 +31,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { fCurrency } from 'src/utils/format-number';
+import { discountPercent } from 'src/utils/discount';
 import { runInBatches } from 'src/utils/run-in-batches';
 
 import { moduleOn } from 'src/global-config';
@@ -361,9 +362,9 @@ export function AnimalListView({ area = 'sale' }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toDelete, animalsMutate]);
 
-  const applyChannel = async (patch) => {
+  // los seleccionados, o los ids que se le pasen (p. ej. «Ejemplares» de una especie)
+  const applyChannel = async (patch, ids = [...selectedVisible]) => {
     setChannelMenu(null);
-    const ids = [...selectedVisible];
     const results = await runInBatches(ids, 5, (id) => updateAnimal(id, patch));
     const failed = results.filter((r) => r.status === 'rejected');
     await animalsMutate();
@@ -635,7 +636,7 @@ export function AnimalListView({ area = 'sale' }) {
                       <TableCell>Cantidad</TableCell>
                       <TableCell>Precio</TableCell>
                       <TableCell>Formato</TableCell>
-                      {area === 'sale' && <TableCell align="center">En el sitio</TableCell>}
+                      {area === 'sale' && <TableCell>En el sitio</TableCell>}
                       <TableCell align="right"> </TableCell>
                     </TableRow>
                   </TableHead>
@@ -650,6 +651,7 @@ export function AnimalListView({ area = 'sale' }) {
                         site={area === 'sale' ? site : null}
                         canSite={{ species: canUpdateSpecies, morph: canUpdateMorphs }}
                         onSetOnSite={setOnSite}
+                        onPatchAnimals={(ids, patch) => applyChannel(patch, ids)}
                         onDeleteIds={setToDelete}
                         canCreate={canCreate}
                         canUpdate={canUpdate}
@@ -756,27 +758,72 @@ function speciesChips(species, animals) {
 }
 
 // Interruptor «En el sitio». Si un grupo o la especie lo esconden de todos
-// modos, se dice por qué (el propio no basta).
-function OnSiteSwitch({ name, checked, reason, disabled, onChange }) {
+// modos, se dice por qué (el propio no basta). label: qué prende («Especie»,
+// «Ejemplares»), escrito al lado; note: texto chico debajo (p. ej. «1 de 3»).
+function OnSiteSwitch({ name, label, note, checked, reason, disabled, onChange }) {
   const control = (
     <Switch
       size="small"
       checked={checked}
       disabled={disabled || Boolean(reason)}
       onChange={(event) => onChange(event.target.checked)}
-      slotProps={{ input: { role: 'switch', 'aria-label': `En el sitio: ${name}` } }}
+      slotProps={{
+        input: { role: 'switch', 'aria-label': `${label ? `${label} en el sitio` : 'En el sitio'}: ${name}` },
+      }}
     />
   );
-  return reason ? (
+  const wrapped = reason ? (
     <Tooltip title={`${reason}: se esconde aunque esté prendido`}>
       <span>{control}</span>
     </Tooltip>
   ) : (
     control
   );
+  if (!label) return wrapped;
+  return (
+    <Stack direction="row" sx={{ alignItems: 'center', whiteSpace: 'nowrap' }}>
+      {wrapped}
+      <Box sx={{ textAlign: 'left', lineHeight: 1.2 }}>
+        <Typography variant="caption" component="div">
+          {label}
+        </Typography>
+        {note && (
+          <Typography variant="caption" component="div" sx={{ color: 'text.secondary' }}>
+            {note}
+          </Typography>
+        )}
+      </Box>
+    </Stack>
+  );
 }
 
-function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, canSelect, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
+// Precio de la especie (rango de los que están en venta); con descuento lleva
+// el de antes tachado y el % («hasta −N%» si no todos tienen el mismo)
+function SpeciesPrice({ animals }) {
+  if (!animals.length) return '—';
+  const range = (values) => {
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    return min === max ? fCurrency(min) : `${fCurrency(min)} – ${fCurrency(max)}`;
+  };
+  const offs = animals.map((a) => discountPercent(a.price, a.compare_at_price)).filter(Boolean);
+  const now = range(animals.map((a) => Number(a.price)));
+  if (!offs.length) return now;
+  const sameForAll = offs.length === animals.length && new Set(offs).size === 1;
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 0.75 }}>
+      <span>{now}</span>
+      <Box component="span" sx={{ color: 'text.disabled', textDecoration: 'line-through' }}>
+        {range(animals.map((a) => Math.max(Number(a.price), Number(a.compare_at_price ?? 0))))}
+      </Box>
+      <Label variant="soft" color="error">
+        {sameForAll ? '' : 'hasta '}−{Math.max(...offs)}%
+      </Label>
+    </Box>
+  );
+}
+
+function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onPatchAnimals, onDeleteIds, canSelect, open, onToggle, canCreate, canUpdate, canDelete, canUpdateSpecies, onPrintLabels, selected, onToggleSelected, onMoved }) {
   const { species, animals } = entry;
   const { pathname, search } = useLocation();
 
@@ -788,9 +835,10 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, can
   // la especie se ilustra con su propia foto; si no tiene, con la de algún ejemplar
   const photo = species.image || animals.map((a) => displayImage(a, species)).find(Boolean) || '';
   // Precio solo de los que están en venta (pie de cría y crianza no tienen)
-  const prices = animals.filter((a) => purposeOf(a) === 'sale').map((a) => a.price);
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
+  const forSale = animals.filter((a) => purposeOf(a) === 'sale');
+  // «Ejemplares» en el sitio: los vivos en venta (vendidos y muertos no cuentan)
+  const liveForSale = forSale.filter((a) => !isClosedStatus(a.status));
+  const markedOnSite = liveForSale.filter(onSite).length;
   const scientific = [species.genus?.name, species.name].filter(Boolean).join(' ');
   const format = saleFormatLabel(species);
 
@@ -890,34 +938,51 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, can
         </TableCell>
 
         <TableCell>
-          {!prices.length
-            ? '—'
-            : minPrice === maxPrice
-              ? fCurrency(minPrice)
-              : `${fCurrency(minPrice)} – ${fCurrency(maxPrice)}`}
+          <SpeciesPrice animals={forSale} />
         </TableCell>
 
         <TableCell>{format ?? '—'}</TableCell>
 
         {site && (
-          <TableCell align="center" onClick={(event) => event.stopPropagation()}>
-            <OnSiteSwitch
-              name={species.common_name ?? scientific}
-              checked={speciesOn}
-              reason={groupHidden ? 'Grupo oculto' : null}
-              disabled={!canSite.species}
-              onChange={(value) => onSetOnSite('species', species.id, value)}
-            />
+          <TableCell onClick={(event) => event.stopPropagation()}>
+            {/* dos llaves: la especie en el catálogo y sus ejemplares en venta */}
+            <Tooltip title="La especie en el catálogo de la tienda" placement="left">
+              <span>
+                <OnSiteSwitch
+                  name={speciesName}
+                  label="Especie"
+                  checked={speciesOn}
+                  reason={groupHidden ? 'Grupo oculto' : null}
+                  disabled={!canSite.species}
+                  onChange={(value) => onSetOnSite('species', species.id, value)}
+                />
+              </span>
+            </Tooltip>
+            <Tooltip title="«Mostrar en el sitio» de todos sus ejemplares en venta" placement="left">
+              <span>
+                <OnSiteSwitch
+                  name={speciesName}
+                  label="Ejemplares"
+                  note={`${markedOnSite} de ${liveForSale.length}`}
+                  checked={liveForSale.length > 0 && markedOnSite === liveForSale.length}
+                  disabled={!canUpdate || !liveForSale.length}
+                  onChange={(value) =>
+                    onPatchAnimals(
+                      liveForSale.filter((a) => onSite(a) !== value).map((a) => a.id),
+                      { show_public: value }
+                    )
+                  }
+                />
+              </span>
+            </Tooltip>
             {noneOnSite && (
-              <Tooltip title="Prende «Mostrar en el sitio» en algún ejemplar (Editar) para que salga en la tienda">
-                <Typography
-                  variant="caption"
-                  component="div"
-                  sx={{ color: 'warning.main', lineHeight: 1.3, maxWidth: 110, mx: 'auto' }}
-                >
-                  No se ve: ningún ejemplar marcado
-                </Typography>
-              </Tooltip>
+              <Typography
+                variant="caption"
+                component="div"
+                sx={{ color: 'warning.main', lineHeight: 1.3, maxWidth: 130 }}
+              >
+                No se ve: ningún ejemplar marcado
+              </Typography>
             )}
           </TableCell>
         )}

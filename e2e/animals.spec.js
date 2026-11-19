@@ -199,7 +199,9 @@ test.describe('En venta', () => {
     const variety = await seed.animal(species.id, { morphIds: [morphs[0].id] });
 
     await page.goto('/dashboard/animal');
-    await page.getByRole('switch', { name: `En el sitio: ${species.common_name}` }).click();
+    await page
+      .getByRole('switch', { name: `Especie en el sitio: ${species.common_name}` })
+      .click();
     await expect
       .poll(async () => (await api.get(`/species/${species.id}`)).show_public)
       .toBe(false);
