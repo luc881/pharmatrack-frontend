@@ -19,6 +19,19 @@ describe('descuento por porcentaje', () => {
     expect(applyDiscount(10, null, 1)).toBeNull();
   });
 
+  it('con redondeo a decenas queda en la decena más cercana', () => {
+    const tens = (price) => applyDiscount(price, null, 15, { tens: true })?.price;
+    expect(tens(60)).toBe(50); // 51
+    expect(tens(50)).toBe(40); // 42.5
+    expect(tens(150)).toBe(130); // 127.5
+    expect(tens(184)).toBe(160); // 156.4
+  });
+
+  it('si la decena no baja el precio o lo deja en cero, no hay cambio', () => {
+    expect(applyDiscount(60, null, 5, { tens: true })).toBeNull(); // 57 → 60
+    expect(applyDiscount(8, null, 50, { tens: true })).toBeNull(); // 4 → 0
+  });
+
   it('quitar el descuento regresa al precio de antes', () => {
     expect(removeDiscount(480, 600)).toEqual({ price: 600, compare_at_price: null });
     expect(removeDiscount(480, null)).toBeNull();

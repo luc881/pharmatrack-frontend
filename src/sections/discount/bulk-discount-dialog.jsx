@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Checkbox from '@mui/material/Checkbox';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -13,6 +14,7 @@ import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { fCurrency } from 'src/utils/format-number';
 import { runInBatches } from 'src/utils/run-in-batches';
@@ -45,12 +47,13 @@ export function DiscountPrice({ price, compareAt }) {
 export function BulkDiscountDialog({ open, items, onSave, onDone, onClose }) {
   const [percent, setPercent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [tens, setTens] = useState(false);
 
   const value = Number(percent);
   const valid = Number.isInteger(value) && value >= 1 && value <= 90;
   const planned = items.map((item) => ({
     item,
-    patch: valid ? applyDiscount(item.price, item.compare_at_price, value) : null,
+    patch: valid ? applyDiscount(item.price, item.compare_at_price, value, { tens }) : null,
   }));
   const toApply = planned.filter((p) => p.patch);
   const toRemove = items
@@ -91,6 +94,11 @@ export function BulkDiscountDialog({ open, items, onSave, onDone, onClose }) {
           slotProps={{ htmlInput: { inputMode: 'numeric' } }}
           sx={{ maxWidth: 200 }}
           autoFocus
+        />
+        <FormControlLabel
+          sx={{ ml: 1 }}
+          control={<Checkbox checked={tens} onChange={(e) => setTens(e.target.checked)} />}
+          label="Redondear a decenas"
         />
         <Table size="small" sx={{ mt: 2 }}>
           <TableHead>

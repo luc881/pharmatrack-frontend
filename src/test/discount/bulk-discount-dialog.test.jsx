@@ -38,6 +38,22 @@ describe('Descuento en bloque', () => {
     ]);
   });
 
+  it('«Redondear a decenas» deja precios cerrados en la vista previa y al guardar', async () => {
+    const { onSave, onDone, dialog } = open({
+      items: [{ id: 4, name: 'Musgo', price: 150, compare_at_price: null }],
+    });
+    fireEvent.change(dialog.getByLabelText('Descuento (%)'), { target: { value: '15' } });
+    const row = within(dialog.getByText('Musgo').closest('tr'));
+    expect(row.getByText('$128')).toBeInTheDocument();
+
+    fireEvent.click(dialog.getByRole('checkbox', { name: 'Redondear a decenas' }));
+    expect(row.getByText('$130')).toBeInTheDocument();
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Aplicar −15%' }));
+    await waitFor(() => expect(onDone).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][1]).toEqual({ price: 130, compare_at_price: 150 });
+  });
+
   it('el porcentaje va de 1 a 90', () => {
     const { dialog } = open();
     fireEvent.change(dialog.getByLabelText('Descuento (%)'), { target: { value: '95' } });
