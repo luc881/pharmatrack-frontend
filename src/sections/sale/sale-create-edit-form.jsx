@@ -25,6 +25,8 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
 
+import { matchesWords } from 'src/utils/plain';
+
 import axiosInstance, { endpoints } from 'src/lib/axios';
 import { createProductBatch } from 'src/actions/product-batch';
 import {
@@ -45,6 +47,8 @@ import { Field, FormLeaveGuard } from 'src/components/hook-form';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { ProductBrowserDialog } from './product-browser-dialog';
+
 
 // ----------------------------------------------------------------------
 
@@ -54,7 +58,6 @@ let _productsCache = [];
 let _productsLoaded = false;
 
 async function loadAllProducts() {
-  if (_productsLoaded) return _productsCache;
   const first = await axiosInstance
     .get(endpoints.product.list, { params: { page: 1, page_size: PAGE_SIZE } })
     .then((r) => r.data);
@@ -75,16 +78,20 @@ async function loadAllProducts() {
   return items;
 }
 
+// Muestra al instante lo de la vez anterior y siempre vuelve a pedir la lista:
+// lo dado de alta después (otro expositor, un animal nuevo) también sale
 function useAllProducts() {
   const [products, setProducts] = useState(_productsCache);
   const [productsLoading, setProductsLoading] = useState(!_productsLoaded);
   useEffect(() => {
-    if (!_productsLoaded) {
-      loadAllProducts().then((items) => {
-        setProducts(items);
-        setProductsLoading(false);
-      });
-    }
+    let alive = true;
+    loadAllProducts()
+      .then((items) => alive && setProducts(items))
+      .catch(() => {})
+      .finally(() => alive && setProductsLoading(false));
+    return () => {
+      alive = false;
+    };
   }, []);
   return { products, productsLoading };
 }
@@ -423,8 +430,9 @@ export function SaleCreateEditForm({
 // ----------------------------------------------------------------------
 
 function SaleItems({ products, productsLoading, productIdsWithStock, blockedProducts, estimatedTotal }) {
-  const { control, setValue, getValues } = useFormContext();
+  const { control, setValue, getValues, watch } = useFormContext();
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const [browsing, setBrowsing] = useState(false);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [scanFlash, setScanFlash] = useState(null);
   const [lastScanned, setLastScanned] = useState(null);
@@ -465,6 +473,28 @@ function SaleItems({ products, productsLoading, productIdsWithStock, blockedProd
     return () => document.removeEventListener('click', onClickOutside);
   }, [isScanMode]);
 
+  // Escáner y catálogo: si ya está, suma 1; si no, usa la línea vacía o agrega una
+  const addProduct = useCallback(
+    (product) => {
+      const currentItems = getValues('items');
+      const existingIndex = currentItems.findIndex((item) => Number(item.product_id) === product.id);
+      if (existingIndex >= 0) {
+        const currentQty = Number(currentItems[existingIndex].quantity) || 1;
+        setValue(`items[${existingIndex}].quantity`, currentQty + 1);
+        return;
+      }
+      // Reutilizar la primera línea sin producto (la fila inicial vacía bloqueaba
+      // el registro de la venta y había que eliminarla a mano)
+      const emptyIndex = currentItems.findIndex((item) => !item.product_id);
+      if (emptyIndex >= 0) {
+        setValue(`items[${emptyIndex}].product_id`, product.id, { shouldValidate: true });
+      } else {
+        append({ ...defaultItem, product_id: product.id });
+      }
+    },
+    [append, getValues, setValue]
+  );
+
   const handleBarcodeScan = useCallback(
     (value) => {
       const trimmed = value.trim();
@@ -492,25 +522,7 @@ function SaleItems({ products, productsLoading, productIdsWithStock, blockedProd
         setTimeout(() => setScanFlash(null), 500);
         toast.error(blockReason);
       } else if (found) {
-        const currentItems = getValues('items');
-        const existingIndex = currentItems.findIndex(
-          (item) => Number(item.product_id) === found.id
-        );
-
-        if (existingIndex >= 0) {
-          const currentQty = Number(currentItems[existingIndex].quantity) || 1;
-          setValue(`items[${existingIndex}].quantity`, currentQty + 1);
-        } else {
-          // Reutilizar la primera línea sin producto (la fila inicial vacía bloqueaba
-          // el registro de la venta y había que eliminarla a mano)
-          const emptyIndex = currentItems.findIndex((item) => !item.product_id);
-          if (emptyIndex >= 0) {
-            setValue(`items[${emptyIndex}].product_id`, found.id, { shouldValidate: true });
-          } else {
-            append({ ...defaultItem, product_id: found.id });
-          }
-        }
-
+        addProduct(found);
         setScanFlash('success');
         setLastScanned(found.title);
         setTimeout(() => setScanFlash(null), 500);
@@ -523,14 +535,40 @@ function SaleItems({ products, productsLoading, productIdsWithStock, blockedProd
 
       setTimeout(() => barcodeRef.current?.focus(), 50);
     },
-    [products, productsLoading, blockedProducts, append, getValues, setValue]
+    [products, productsLoading, blockedProducts, addProduct]
+  );
+
+  // Cuántos de cada producto lleva la venta (para el catálogo)
+  const items = watch('items');
+  const inCart = new Map(
+    (items ?? []).filter((i) => i.product_id).map((i) => [Number(i.product_id), Number(i.quantity) || 1])
   );
 
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h6">Productos</Typography>
+        <Button
+          variant="outlined"
+          startIcon={<Iconify icon="solar:list-bold" />}
+          onClick={() => setBrowsing(true)}
+          disabled={productsLoading}
+        >
+          Ver catálogo
+        </Button>
       </Box>
+
+      {browsing && (
+        <ProductBrowserDialog
+          open
+          products={products}
+          productIdsWithStock={productIdsWithStock}
+          blockedProducts={blockedProducts}
+          inCart={inCart}
+          onAdd={addProduct}
+          onClose={() => setBrowsing(false)}
+        />
+      )}
 
       {/* Zona de escaneo — el mousedown fuera de aquí desactiva el modo */}
       <Box ref={scanZoneRef}>
@@ -817,7 +855,11 @@ function SaleItem({ index, products, productIdsWithStock, blockedProducts, onRem
                     setValue(`items[${index}].product_id`, newValue.id, { shouldValidate: true });
                   }
                 }}
-                noOptionsText="Sin resultados"
+                // palabras en cualquier orden, sin acentos, también por SKU
+                filterOptions={(opts, { inputValue }) =>
+                  opts.filter((opt) => matchesWords(`${opt.title} ${opt.sku ?? ''}`, inputValue))
+                }
+                noOptionsText="Sin resultados: prueba «Ver catálogo»"
                 getOptionDisabled={(opt) => blockedProducts.has(opt.id)}
                 renderOption={(props, option) => {
                   // key por id: MUI mete el título como key dentro de props y hay títulos duplicados

@@ -353,3 +353,29 @@ test.describe('Descuento a varios', () => {
     await expect(row.getByText('−10%')).toBeVisible();
   });
 });
+
+test.describe('Nueva venta: catálogo', () => {
+  test('se elige sin escribir y se filtra lo de otro vendedor', async ({ page, seed, api }) => {
+    const bd = await api.post('/suppliers', { name: unique('Bd Catalogo') });
+    const mine = await seed.product({ title: unique('Cueva catálogo'), price: 80 });
+    const theirs = await seed.product({ title: unique('Slush catálogo'), price: 50, consignor_id: bd.id });
+
+    await page.goto('/dashboard/sale/new');
+    await page.getByRole('button', { name: 'Ver catálogo' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Catálogo de productos' });
+
+    await dialog.getByRole('combobox', { name: 'Dueño' }).click();
+    await page.getByRole('option', { name: bd.name }).click();
+    await expect(dialog.getByText(theirs.title)).toBeVisible();
+    await expect(dialog.getByText(mine.title)).toHaveCount(0);
+
+    await dialog.getByRole('button', { name: `Agregar ${theirs.title}` }).click();
+    await dialog.getByRole('button', { name: `Agregar ${theirs.title}` }).click();
+    await expect(dialog.getByRole('button', { name: `Agregar ${theirs.title}` })).toHaveText(
+      'Agregado (2) +1'
+    );
+    await dialog.getByRole('button', { name: 'Listo' }).click();
+
+    await expect(page.getByRole('combobox', { name: 'Producto *' })).toHaveValue(theirs.title);
+  });
+});
