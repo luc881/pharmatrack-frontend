@@ -10,10 +10,12 @@ import { fCurrency } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
 
+import { DiscountPrice } from '../discount/bulk-discount-dialog';
+
 // ----------------------------------------------------------------------
 
 export function RenderCellPrice({ params }) {
-  return fCurrency(params.row.price_retail);
+  return <DiscountPrice price={params.row.price_retail} compareAt={params.row.compare_at_price} />;
 }
 
 export function RenderCellPriceCost({ params }) {

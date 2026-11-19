@@ -40,6 +40,7 @@ export function ProductTableToolbar({
   onStatusChange,
   selectedRowCount,
   onOpenConfirmDeleteRows,
+  onOpenDiscount,
   settings,
   onChangeSettings,
 }) {
@@ -70,6 +71,11 @@ export function ProductTableToolbar({
         </ToolbarLeftPanel>
 
         <ToolbarRightPanel>
+          {!!selectedRowCount && onOpenDiscount && (
+            <Button size="small" variant="outlined" onClick={onOpenDiscount}>
+              Descuento ({selectedRowCount})
+            </Button>
+          )}
           {!!selectedRowCount && (
             <Button
               size="small"

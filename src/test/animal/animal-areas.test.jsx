@@ -406,6 +406,41 @@ describe('Animales: por dónde se vende (canales)', () => {
   });
 });
 
+describe('Animales: descuento a varios', () => {
+  it('se eligen varios, se aplica el % y la fila marca el descuento', async () => {
+    const user = userEvent.setup();
+    const sent = [];
+    const id = (code) => ANIMALS.find((a) => a.code === code).id;
+    mockApi(
+      ANIMALS.map((a) => (a.code === 'V-2' ? { ...a, price: 400, compare_at_price: 500 } : a)),
+      [
+        http.put(`${API}/animals/:id`, async ({ request, params }) => {
+          sent.push([Number(params.id), await request.json()]);
+          return HttpResponse.json({ id: Number(params.id) });
+        }),
+      ]
+    );
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+
+    // el que ya está rebajado se ve con su % y el precio de antes
+    expect(within(rowOf('V-2')).getByText('−20%')).toBeInTheDocument();
+
+    fireEvent.click(within(rowOf('V-1')).getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Descuento (1)' }));
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.type(dialog.getByLabelText('Descuento (%)'), '10');
+    await user.click(dialog.getByRole('button', { name: 'Aplicar −10%' }));
+
+    const v1 = ANIMALS.find((a) => a.code === 'V-1');
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toEqual([
+      id('V-1'),
+      { price: Math.round(Number(v1.price) * 0.9), compare_at_price: Number(v1.price) },
+    ]);
+  });
+});
+
 describe('Animales: borrar por bloque', () => {
   it('cada especie y cada variedad tienen su botón para borrar lo suyo', async () => {
     const user = userEvent.setup();

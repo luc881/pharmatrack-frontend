@@ -292,3 +292,64 @@ test.describe('Por pieza', () => {
     expect(data[0].stock).toBe(3);
   });
 });
+
+test.describe('Descuento a varios', () => {
+  test('productos: se eligen varios, se rebajan por % y se quita', async ({ page, seed, api }) => {
+    const tag = unique('Promo');
+    const a = await seed.product({ title: `${tag} sustrato`, price: 200 });
+    const b = await seed.product({ title: `${tag} cueva`, price: 155 });
+
+    await page.goto(`/dashboard/product?search=${encodeURIComponent(tag)}`);
+    const rowOf = (title) => page.getByRole('row').filter({ hasText: title });
+    await rowOf(a.title).getByRole('checkbox').check();
+    await rowOf(b.title).getByRole('checkbox').check();
+    await page.getByRole('button', { name: 'Descuento (2)' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Descuento (%)').fill('20');
+    await dialog.getByRole('button', { name: 'Aplicar −20%' }).click();
+
+    await expect
+      .poll(async () => {
+        const [pa, pb] = await Promise.all([api.get(`/products/${a.id}`), api.get(`/products/${b.id}`)]);
+        return [pa.price_retail, pa.compare_at_price, pb.price_retail, pb.compare_at_price].map(Number);
+      })
+      .toEqual([160, 200, 124, 155]);
+    await expect(rowOf(a.title).getByText('−20%')).toBeVisible();
+
+    await rowOf(a.title).getByRole('checkbox').check();
+    await page.getByRole('button', { name: /^Descuento/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: /^Quitar descuento/ }).click();
+    await expect
+      .poll(async () => {
+        const p = await api.get(`/products/${a.id}`);
+        return [Number(p.price_retail), p.compare_at_price];
+      })
+      .toEqual([200, null]);
+  });
+
+  test('animales en venta: el % baja el precio y la fila lo marca', async ({
+    page,
+    seed,
+    api,
+  }) => {
+    const { species } = await seed.species({ common: unique('Mantis') });
+    const animal = await seed.animal(species.id, { price: 500 });
+
+    await page.goto('/dashboard/animal');
+    await openSpecies(page, species.common_name);
+    // la fila del ejemplar (la de la especie también contiene su enlace)
+    const row = page.getByRole('row', { name: new RegExp(`^${animal.code} `) });
+    await row.getByRole('checkbox').check();
+    await page.getByRole('button', { name: 'Descuento (1)' }).click();
+    await page.getByRole('dialog').getByLabel('Descuento (%)').fill('10');
+    await page.getByRole('dialog').getByRole('button', { name: 'Aplicar −10%' }).click();
+
+    await expect
+      .poll(async () => {
+        const saved = await api.get(`/animals/${animal.id}`);
+        return [Number(saved.price), Number(saved.compare_at_price)];
+      })
+      .toEqual([450, 500]);
+    await expect(row.getByText('−10%')).toBeVisible();
+  });
+});

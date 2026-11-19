@@ -31,6 +31,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { fCurrency } from 'src/utils/format-number';
+import { runInBatches } from 'src/utils/run-in-batches';
 
 import { moduleOn } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -61,6 +62,7 @@ import { SaleViewSwitch } from '../sale-view-switch';
 import { QrLabelsDialog } from '../qr-labels-dialog';
 import { MoveAnimalMenu } from '../move-animal-dialog';
 import { varietyName, VarietyPicker } from '../variety-picker';
+import { DiscountPrice, BulkDiscountDialog } from '../../discount/bulk-discount-dialog';
 import {
   PURPOSES,
   purposeOf,
@@ -173,16 +175,6 @@ function groupBySpecies(animals) {
   return [...map.values()].sort((a, b) => speciesLabel(a.species).localeCompare(speciesLabel(b.species)));
 }
 
-// Como Promise.allSettled, pero de `size` en `size` para no saturar la API
-// ponytail: tandas fijas (no un pool que rellena huecos); basta para decenas
-async function runInBatches(items, size, fn) {
-  const results = [];
-  for (let i = 0; i < items.length; i += size) {
-    results.push(...(await Promise.allSettled(items.slice(i, i + size).map(fn))));
-  }
-  return results;
-}
-
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 // ----------------------------------------------------------------------
@@ -270,6 +262,7 @@ export function AnimalListView({ area = 'sale' }) {
   // canal (solo En venta) y el menú de cambios en bloque
   const [channel, setChannel] = useState('');
   const [channelMenu, setChannelMenu] = useState(null);
+  const [discountOpen, setDiscountOpen] = useState(false);
   const [selected, setSelected] = useState(() => new Set()); // ids de ejemplares
   // recién dado de alta un ejemplar: su especie llega abierta
   const [expanded, setExpanded] = useState(() => new Set(navState?.expand ? [navState.expand] : []));
@@ -539,6 +532,9 @@ export function AnimalListView({ area = 'sale' }) {
                   <Button variant="outlined" onClick={(e) => setChannelMenu(e.currentTarget)}>
                     Canales ({selectedVisible.length})
                   </Button>
+                  <Button variant="outlined" onClick={() => setDiscountOpen(true)}>
+                    Descuento ({selectedVisible.length})
+                  </Button>
                   <Menu
                     anchorEl={channelMenu}
                     open={Boolean(channelMenu)}
@@ -704,6 +700,32 @@ export function AnimalListView({ area = 'sale' }) {
           )}
         </Card>
       </DashboardContent>
+
+      {discountOpen && (
+        <BulkDiscountDialog
+          open
+          items={animals
+            .filter((a) => selectedVisible.includes(a.id))
+            .map((a) => ({
+              id: a.id,
+              name: [
+                a.species?.common_name ?? a.species?.name,
+                a.morphs?.length ? varietyName(a.morphs) : null,
+                a.code,
+              ]
+                .filter(Boolean)
+                .join(' · '),
+              price: a.price,
+              compare_at_price: a.compare_at_price,
+            }))}
+          onSave={(item, patch) => updateAnimal(item.id, patch)}
+          onDone={() => {
+            animalsMutate();
+            setDiscountOpen(false);
+          }}
+          onClose={() => setDiscountOpen(false)}
+        />
+      )}
 
       {labelsFor && (
         <QrLabelsDialog
@@ -1136,7 +1158,13 @@ function CriaderoRow({ animal, species, showStock, showChannels, siteHidden = nu
         </Label>
       </TableCell>
       {showStock && <TableCell>{animal.stock ?? '—'}</TableCell>}
-      <TableCell>{purpose === 'sale' ? fCurrency(animal.price) : '—'}</TableCell>
+      <TableCell>
+        {purpose === 'sale' ? (
+          <DiscountPrice price={animal.price} compareAt={animal.compare_at_price} />
+        ) : (
+          '—'
+        )}
+      </TableCell>
       <TableCell align="right">
         <Stack direction="row" spacing={0.5} justifyContent="flex-end" sx={{ whiteSpace: 'nowrap' }}>
           {canUpdate && <MoveAnimalMenu animal={animal} species={species} onMoved={onMoved} />}
@@ -1228,7 +1256,13 @@ export function AnimalRow({ animal, showStock = false, canUpdate, canDelete, onD
           {PURPOSE_LABELS[purpose]}
         </Label>
       </TableCell>
-      <TableCell>{purpose === 'sale' ? fCurrency(animal.price) : '—'}</TableCell>
+      <TableCell>
+        {purpose === 'sale' ? (
+          <DiscountPrice price={animal.price} compareAt={animal.compare_at_price} />
+        ) : (
+          '—'
+        )}
+      </TableCell>
       <TableCell>
         <Label variant="soft" color={STATUS_COLORS[animal.status] ?? 'default'}>
           {statusLabel(animal) ?? animal.status}

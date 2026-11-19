@@ -17,6 +17,7 @@ import { RouterLink } from 'src/routes/components';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   deleteProduct,
+  updateProduct,
   useGetProducts,
   toggleProductOnline,
   useGetProductBrands,
@@ -34,6 +35,7 @@ import { useToolbarSettings, CustomGridActionsCellItem } from 'src/components/cu
 import { useAuthContext } from 'src/auth/hooks';
 
 import { ProductTableToolbar } from '../product-table-toolbar';
+import { BulkDiscountDialog } from '../../discount/bulk-discount-dialog';
 import {
   RenderCellPrice,
   RenderCellStatus,
@@ -81,6 +83,7 @@ export function ProductListView() {
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 20 });
   const [sortModel, setSortModel] = useState([]);
   const [selectedRows, setSelectedRows] = useState({ type: 'include', ids: new Set() });
+  const [discountOpen, setDiscountOpen] = useState(false);
   const { state: columnVisibilityModel, setState: setColumnVisibilityModel } = useLocalStorage(
     COLUMNS_STORAGE_KEY,
     HIDE_COLUMNS
@@ -304,6 +307,7 @@ export function ProductListView() {
                 onCategoryChange: (v) => setFilter('category', v?.id ?? ''),
                 onStatusChange: (v) => setFilter('status', v),
                 selectedRowCount: selectedRows.ids?.size ?? 0,
+                onOpenDiscount: canUpdate ? () => setDiscountOpen(true) : null,
                 onOpenConfirmDeleteRows: () => {
                   setRowToDelete(null);
                   confirmDialog.onTrue();
@@ -324,6 +328,34 @@ export function ProductListView() {
           />
         </Card>
       </DashboardContent>
+
+      {discountOpen && (
+        <BulkDiscountDialog
+          open
+          // «exclude» = todos los de la página menos esos
+          items={products
+            .filter((p) =>
+              selectedRows.type === 'exclude' ? !selectedRows.ids.has(p.id) : selectedRows.ids.has(p.id)
+            )
+            .map((p) => ({
+              id: p.id,
+              name: p.title,
+              price: p.price_retail,
+              compare_at_price: p.compare_at_price,
+            }))}
+          onSave={(item, patch) =>
+            updateProduct(item.id, {
+              price_retail: patch.price,
+              compare_at_price: patch.compare_at_price,
+            })
+          }
+          onDone={() => {
+            productsMutate();
+            setDiscountOpen(false);
+          }}
+          onClose={() => setDiscountOpen(false)}
+        />
+      )}
 
       <ConfirmDialog
         open={confirmDialog.value}
