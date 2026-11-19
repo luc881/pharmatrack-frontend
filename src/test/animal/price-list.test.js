@@ -1,6 +1,6 @@
 import { it, expect, describe } from 'vitest';
 
-import { priceListRows } from 'src/sections/animal/price-list';
+import { priceListRows, priceListSections } from 'src/sections/animal/price-list';
 
 const LILA = { id: 1, common_name: 'Colembolo Lila', name: 'isabellae', genus: { name: 'Ceratophysella' }, sale_format: 'colony' };
 const MURINA = { id: 2, common_name: 'Isópodo Murina', name: 'murina', genus: { name: 'Cubaris' }, sale_format: 'package', package_size: 6 };
@@ -67,5 +67,34 @@ describe('lista de precios', () => {
       },
     ]);
     expect(rows).toEqual([]);
+  });
+
+  it('se divide por vendedor: lo mío primero y luego cada proveedor', () => {
+    const sections = priceListSections(
+      [
+        {
+          species: LILA,
+          animals: [
+            lot(LILA, { price: 150 }),
+            lot(LILA, { morphs: [ROSA], price: 300, consignor_id: 9 }),
+          ],
+        },
+        { species: MURINA, animals: [lot(MURINA, { price: 350, consignor_id: 4 })] },
+      ],
+      { mine: 'Opuntia Den', suppliers: [{ id: 4, name: 'Zeta' }, { id: 9, name: 'BD Exoticos' }] }
+    );
+    expect(sections.map((s) => [s.key, s.title, s.rows.map((r) => r.variety ?? r.name)])).toEqual([
+      ['mine', 'Opuntia Den', ['Colembolo Lila']],
+      ['9', 'BD Exoticos', ['Rosa']],
+      ['4', 'Zeta', ['Isópodo Murina']],
+    ]);
+  });
+
+  it('un vendedor sin nada disponible no sale', () => {
+    const sections = priceListSections(
+      [{ species: LILA, animals: [lot(LILA, { price: 150, consignor_id: 9, status: 'sold' })] }],
+      { mine: 'Míos', suppliers: [{ id: 9, name: 'BD Exoticos' }] }
+    );
+    expect(sections).toEqual([]);
   });
 });

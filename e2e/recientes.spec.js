@@ -379,3 +379,34 @@ test.describe('Nueva venta: catálogo', () => {
     await expect(page.getByRole('combobox', { name: 'Producto *' })).toHaveValue(theirs.title);
   });
 });
+
+test.describe('Lista de precios por vendedor', () => {
+  test('cada vendedor sale en su hoja, o solo uno', async ({ page, seed, api }) => {
+    const bd = await api.post('/suppliers', { name: unique('Bd Lista') });
+    const { species: mine } = await seed.species({ common: unique('Isópodo propio') });
+    const { species: theirs } = await seed.species({ common: unique('Pitón ajena') });
+    await seed.animal(mine.id, { price: 300 });
+    await seed.animal(theirs.id, { price: 9000, consignor_id: bd.id });
+
+    await page.goto('/dashboard/animal');
+    await page.getByRole('button', { name: 'Lista de precios' }).click();
+    const [all] = await Promise.all([
+      page.waitForEvent('popup'),
+      page.getByRole('menuitem', { name: 'Todos, cada vendedor en su hoja' }).click(),
+    ]);
+    const bdSheet = all.locator('section').filter({ hasText: bd.name });
+    await expect(bdSheet).toContainText(theirs.common_name);
+    await expect(bdSheet).not.toContainText(mine.common_name);
+    await expect(all.locator('section').first()).toContainText(mine.common_name);
+    await all.close();
+
+    await page.getByRole('button', { name: 'Lista de precios' }).click();
+    const [only] = await Promise.all([
+      page.waitForEvent('popup'),
+      page.getByRole('menuitem', { name: `Solo ${bd.name}` }).click(),
+    ]);
+    await expect(only.locator('section')).toHaveCount(1);
+    await expect(only.locator('body')).toContainText(theirs.common_name);
+    await expect(only.locator('body')).not.toContainText(mine.common_name);
+  });
+});

@@ -35,6 +35,7 @@ import { discountPercent } from 'src/utils/discount';
 import { runInBatches } from 'src/utils/run-in-batches';
 
 import { moduleOn } from 'src/global-config';
+import { useGetSuppliers } from 'src/actions/supplier';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   updateMorph,
@@ -56,14 +57,16 @@ import { EmptyContent } from 'src/components/empty-content';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { useTicketTemplate } from 'src/sections/sale/print-ticket';
+
 import { useAuthContext } from 'src/auth/hooks';
 
-import { printPriceList } from '../price-list';
 import { AnimalCapAlert } from '../animal-cap-alert';
 import { SaleViewSwitch } from '../sale-view-switch';
 import { QrLabelsDialog } from '../qr-labels-dialog';
 import { MoveAnimalMenu } from '../move-animal-dialog';
 import { varietyName, VarietyPicker } from '../variety-picker';
+import { printPriceList, priceListSections } from '../price-list';
 import { DiscountPrice, BulkDiscountDialog } from '../../discount/bulk-discount-dialog';
 import {
   PURPOSES,
@@ -212,6 +215,9 @@ export function AnimalListView({ area = 'sale' }) {
   // canal (solo En venta) y el menú de cambios en bloque
   const [channel, setChannel] = useState('');
   const [channelMenu, setChannelMenu] = useState(null);
+  const [priceMenu, setPriceMenu] = useState(null);
+  const { suppliers } = useGetSuppliers({ pageSize: 100 });
+  const businessName = useTicketTemplate()?.business_name;
   const [discountOpen, setDiscountOpen] = useState(false);
   const [selected, setSelected] = useState(() => new Set()); // ids de ejemplares
   // recién dado de alta un ejemplar: su especie llega abierta
@@ -305,6 +311,15 @@ export function AnimalListView({ area = 'sale' }) {
     [animals, destination, morphFilter, channel]
   );
   const grouped = useMemo(() => groupBySpecies(visible), [visible]);
+  // lista de precios: de todo lo de venta (no solo lo filtrado), por vendedor
+  const priceSections = useMemo(
+    () =>
+      priceListSections(groupBySpecies(animals), {
+        mine: businessName || 'Míos',
+        suppliers,
+      }),
+    [animals, businessName, suppliers]
+  );
 
   const toggleExpanded = (speciesId) =>
     setExpanded((prev) => {
@@ -520,11 +535,35 @@ export function AnimalListView({ area = 'sale' }) {
                 <Button
                   variant="outlined"
                   startIcon={<Iconify icon="solar:printer-minimalistic-bold" />}
-                  onClick={() => printPriceList(groupBySpecies(animals))}
+                  endIcon={<Iconify icon="eva:arrow-ios-downward-fill" />}
+                  onClick={(event) => setPriceMenu(event.currentTarget)}
                 >
                   Lista de precios
                 </Button>
               )}
+              {/* toda la mesa (cada vendedor en su hoja) o la de uno solo */}
+              <Menu open={Boolean(priceMenu)} anchorEl={priceMenu} onClose={() => setPriceMenu(null)}>
+                <MenuItem
+                  onClick={() => {
+                    setPriceMenu(null);
+                    printPriceList(priceSections);
+                  }}
+                >
+                  {priceSections.length > 1 ? 'Todos, cada vendedor en su hoja' : 'Imprimir'}
+                </MenuItem>
+                {priceSections.length > 1 &&
+                  priceSections.map((section) => (
+                    <MenuItem
+                      key={section.key}
+                      onClick={() => {
+                        setPriceMenu(null);
+                        printPriceList([section]);
+                      }}
+                    >
+                      Solo {section.title}
+                    </MenuItem>
+                  ))}
+              </Menu>
               {canCreate && area === 'sale' && (
                 <Button
                   component={RouterLink}

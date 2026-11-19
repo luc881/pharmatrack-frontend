@@ -69,11 +69,33 @@ export function priceListRows(grouped) {
   });
 }
 
-const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+// Una sección por vendedor (lo mío primero, luego cada proveedor por nombre),
+// solo con lo que tiene disponible. key: 'mine' o el id del proveedor.
+export function priceListSections(grouped, { mine, suppliers = [] }) {
+  const owners = [
+    { key: 'mine', title: mine, test: (a) => !a.consignor_id },
+    ...[...suppliers]
+      .sort((x, y) => x.name.localeCompare(y.name))
+      .map((s) => ({ key: String(s.id), title: s.name, test: (a) => a.consignor_id === s.id })),
+  ];
+  return owners
+    .map(({ key, title, test }) => ({
+      key,
+      title,
+      rows: priceListRows(
+        grouped.map((entry) => ({ ...entry, animals: entry.animals.filter(test) }))
+      ),
+    }))
+    .filter((section) => section.rows.length);
+}
+
+const ESCAPES ={ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
 const escape = (text) => String(text).replace(/[&<>"]/g, (c) => ESCAPES[c]);
 
-export function printPriceList(grouped) {
-  const rows = priceListRows(grouped)
+// sections: [{ title, rows }] de priceListSections; cada vendedor en su hoja
+export function printPriceList(sections) {
+  const renderRows = (rows) =>
+    rows
     .map(
       (r) => `<tr>
         <td><strong>${escape(r.name)}</strong>${r.variety ? ` <span class="variety">${escape(r.variety)}</span>` : ''}<br/><em>${escape(r.scientific)}</em></td>
@@ -85,6 +107,17 @@ export function printPriceList(grouped) {
             : r.price
         }</td>
       </tr>`
+    )
+    .join('');
+  const date = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+  const body = sections
+    .map(
+      (section) => `<section>
+    <h1>Lista de precios${section.title ? ` · ${escape(section.title)}` : ''}</h1>
+    <p>${date} — solo disponibles</p>
+    <table><thead><tr><th>Especie y variedad</th><th>Formato</th><th>Disp.</th><th>Precio</th></tr></thead>
+    <tbody>${renderRows(section.rows)}</tbody></table>
+  </section>`
     )
     .join('');
 
@@ -102,12 +135,8 @@ export function printPriceList(grouped) {
     s { color: #888; }
     .off { font-weight: 700; color: #c62828; }
     tr { break-inside: avoid; }
-  </style></head><body>
-    <h1>Lista de precios</h1>
-    <p>${new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })} — solo disponibles</p>
-    <table><thead><tr><th>Especie y variedad</th><th>Formato</th><th>Disp.</th><th>Precio</th></tr></thead>
-    <tbody>${rows}</tbody></table>
-  </body></html>`);
+    section + section { break-before: page; }
+  </style></head><body>${body || '<p>No hay nada disponible.</p>'}</body></html>`);
   win.document.close();
   setTimeout(() => win.print(), 300);
 }
