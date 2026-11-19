@@ -441,6 +441,33 @@ describe('Animales: descuento a varios', () => {
   });
 });
 
+describe('Animales: la especie dice si de verdad se ve en el sitio', () => {
+  it('prendida pero sin ningún ejemplar marcado avisa que no se ve', async () => {
+    mockApi(ANIMALS.map((a) => ({ ...a, show_public: false })));
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+    expect(screen.getByRole('switch', { name: 'En el sitio: Gecko leopardo' })).toBeChecked();
+    expect(screen.getByText('No se ve: ningún ejemplar marcado')).toBeInTheDocument();
+  });
+
+  it('con alguno marcado no avisa nada', async () => {
+    mockApi(ANIMALS.map((a) => ({ ...a, show_public: a.code === 'V-2' })));
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+    expect(screen.queryByText(/ningún ejemplar marcado/)).toBeNull();
+  });
+
+  it('si el único marcado es de una variedad apagada, tampoco se ve', async () => {
+    mockApi(ANIMALS.map((a) => ({ ...a, show_public: a.code === 'V-2' })));
+    server.use(
+      http.get(`${API}/morphs`, () => HttpResponse.json(page([{ ...TANGERINE, show_public: false }])))
+    );
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+    expect(await screen.findByText('No se ve: ningún ejemplar marcado')).toBeInTheDocument();
+  });
+});
+
 describe('Animales: seleccionar una especie entera', () => {
   it('la casilla de la especie elige todas sus variedades sin abrirla', async () => {
     mockApi();
@@ -455,6 +482,19 @@ describe('Animales: seleccionar una especie entera', () => {
 
     fireEvent.click(all);
     expect(screen.queryByRole('button', { name: /^Descuento/ })).toBeNull();
+  });
+
+  it('la casilla del encabezado elige todo lo que está a la vista', () => {
+    mockApi([...ANIMALS, animal('D-1', 'sale', 'available', { species_id: ROACH.id, species: ROACH })]);
+    renderView('sale');
+    return screen.findByText('Dubia').then(() => {
+      const all = screen.getByRole('checkbox', { name: 'Seleccionar todo' });
+      fireEvent.click(all);
+      // 3 del gecko (sin el vendido) + 1 dubia
+      expect(screen.getByRole('button', { name: 'Descuento (4)' })).toBeInTheDocument();
+      fireEvent.click(all);
+      expect(screen.queryByRole('button', { name: /^Descuento/ })).toBeNull();
+    });
   });
 });
 

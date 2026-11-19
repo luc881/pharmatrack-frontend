@@ -373,12 +373,20 @@ export function AnimalListView({ area = 'sale' }) {
     });
   }, []);
 
+  const canSelectAny = canDelete || (canUpdate && area === 'sale');
+
   // Solo cuenta lo seleccionado que sigue a la vista: al cambiar de filtro no
   // se borran ejemplares que ya no aparecen en pantalla
   const selectedVisible = useMemo(() => {
     const ids = new Set(visible.map((a) => a.id));
     return [...selected].filter((id) => ids.has(id));
   }, [visible, selected]);
+  const selectableIds = useMemo(
+    () => visible.filter((a) => !isClosedStatus(a.status)).map((a) => a.id),
+    [visible]
+  );
+  const someChecked = selectableIds.some((id) => selected.has(id));
+  const allChecked = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
 
   const deleteIds = toDelete ?? [];
 
@@ -660,7 +668,19 @@ export function AnimalListView({ area = 'sale' }) {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ width: 48 }} />
+                      <TableCell sx={{ width: 48, pr: 0 }}>
+                        {/* todo lo que está a la vista (vendidos y muertos no) */}
+                        {canSelectAny && (
+                          <Checkbox
+                            size="small"
+                            disabled={!selectableIds.length}
+                            checked={allChecked}
+                            indeterminate={someChecked && !allChecked}
+                            onChange={() => toggleSelected(selectableIds, !allChecked)}
+                            slotProps={{ input: { 'aria-label': 'Seleccionar todo' } }}
+                          />
+                        )}
+                      </TableCell>
                       <TableCell>Especie</TableCell>
                       <TableCell>Grupo</TableCell>
                       <TableCell>Cantidad</TableCell>
@@ -685,7 +705,7 @@ export function AnimalListView({ area = 'sale' }) {
                         canCreate={canCreate}
                         canUpdate={canUpdate}
                         canDelete={canDelete}
-                        canSelect={canDelete || (canUpdate && area === 'sale')}
+                        canSelect={canSelectAny}
                         canUpdateSpecies={canUpdateSpecies}
                         onPrintLabels={() => setLabelsFor(entry)}
                         selected={selected}
@@ -840,6 +860,24 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, can
   }, [animals]);
   const columns = 7 + (canSelect ? 1 : 0) + (isBulk ? 1 : 0);
 
+  // La especie prendida no basta: la tienda solo la muestra si algún ejemplar
+  // en venta está marcado (y su variedad, si tiene, también está prendida)
+  const speciesOn = site?.species[species.id]?.show_public !== false;
+  const groupHidden = site?.hiddenGroups.has(species.genus?.group?.id);
+  const morphOn = (m) => site?.morphsOf(species.id).find((x) => x.id === m.id)?.show_public !== false;
+  const noneOnSite =
+    site &&
+    speciesOn &&
+    !groupHidden &&
+    !animals.some(
+      (a) =>
+        purposeOf(a) === 'sale' &&
+        a.status === 'available' &&
+        a.show_public !== false &&
+        Number(a.stock ?? 1) > 0 &&
+        (a.morphs ?? []).every(morphOn)
+    );
+
   return (
     <>
       <TableRow hover sx={{ cursor: 'pointer', '& > td': { borderBottom: 'none' } }} onClick={onToggle}>
@@ -916,11 +954,22 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, can
           <TableCell align="center" onClick={(event) => event.stopPropagation()}>
             <OnSiteSwitch
               name={species.common_name ?? scientific}
-              checked={site.species[species.id]?.show_public !== false}
-              reason={site.hiddenGroups.has(species.genus?.group?.id) ? 'Grupo oculto' : null}
+              checked={speciesOn}
+              reason={groupHidden ? 'Grupo oculto' : null}
               disabled={!canSite.species}
               onChange={(value) => onSetOnSite('species', species.id, value)}
             />
+            {noneOnSite && (
+              <Tooltip title="Prende «Mostrar en el sitio» en algún ejemplar (Editar) para que salga en la tienda">
+                <Typography
+                  variant="caption"
+                  component="div"
+                  sx={{ color: 'warning.main', lineHeight: 1.3, maxWidth: 110, mx: 'auto' }}
+                >
+                  No se ve: ningún ejemplar marcado
+                </Typography>
+              </Tooltip>
+            )}
           </TableCell>
         )}
 
