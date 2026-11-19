@@ -843,7 +843,19 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onDeleteIds, can
   return (
     <>
       <TableRow hover sx={{ cursor: 'pointer', '& > td': { borderBottom: 'none' } }} onClick={onToggle}>
-        <TableCell sx={{ pr: 0 }}>
+        <TableCell sx={{ pr: 0, whiteSpace: 'nowrap' }}>
+          {/* toda la especie (todas sus variedades) sin abrirla */}
+          {canSelect && (
+            <Checkbox
+              size="small"
+              disabled={!deletable.length}
+              checked={allSelected}
+              indeterminate={selectedHere > 0 && !allSelected}
+              onClick={(event) => event.stopPropagation()}
+              onChange={() => onToggleSelected(deletable.map((a) => a.id), !allSelected)}
+              slotProps={{ input: { 'aria-label': `Seleccionar todo ${speciesName}` } }}
+            />
+          )}
           <IconButton size="small">
             <Iconify icon={open ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'} />
           </IconButton>

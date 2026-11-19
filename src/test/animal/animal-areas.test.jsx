@@ -441,6 +441,23 @@ describe('Animales: descuento a varios', () => {
   });
 });
 
+describe('Animales: seleccionar una especie entera', () => {
+  it('la casilla de la especie elige todas sus variedades sin abrirla', async () => {
+    mockApi();
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+
+    const all = screen.getByRole('checkbox', { name: 'Seleccionar todo Gecko leopardo' });
+    fireEvent.click(all);
+    // V-1 y V-3 (nominal) y V-2 (Tangerine); el vendido no cuenta
+    expect(screen.getByRole('button', { name: 'Descuento (3)' })).toBeInTheDocument();
+    expect(all).toBeChecked();
+
+    fireEvent.click(all);
+    expect(screen.queryByRole('button', { name: /^Descuento/ })).toBeNull();
+  });
+});
+
 describe('Animales: borrar por bloque', () => {
   it('cada especie y cada variedad tienen su botón para borrar lo suyo', async () => {
     const user = userEvent.setup();
