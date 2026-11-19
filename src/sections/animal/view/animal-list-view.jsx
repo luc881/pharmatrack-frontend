@@ -57,6 +57,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { printPriceList } from '../price-list';
 import { AnimalCapAlert } from '../animal-cap-alert';
 import { SaleViewSwitch } from '../sale-view-switch';
 import { QrLabelsDialog } from '../qr-labels-dialog';
@@ -178,58 +179,6 @@ function groupBySpecies(animals) {
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 // ----------------------------------------------------------------------
-
-// Lista de precios imprimible para la mesa de una convención
-function printPriceList(grouped) {
-  const rows = grouped
-    .map((entry) => {
-      const { species, animals } = entry;
-      const sci = [species.genus?.name, species.name].filter(Boolean).join(' ');
-      const available = animals.filter(
-        (a) => a.status === 'available' && purposeOf(a) === 'sale' && !isEmptyBulk(a)
-      );
-      if (!available.length) return null;
-      const units = available.reduce((sum, a) => sum + (a.stock ?? 1), 0);
-      const tiers = species.price_tiers ?? [];
-      const prices = available.map((a) => Number(a.price));
-      const price = tiers.length
-        ? tiers.map((t) => `${t.quantity} × $${Number(t.price).toLocaleString()}`).join('  ·  ')
-        : (() => {
-            const min = Math.min(...prices);
-            const max = Math.max(...prices);
-            return min === max
-              ? `$${min.toLocaleString()}`
-              : `$${min.toLocaleString()} – $${max.toLocaleString()}`;
-          })();
-      return `<tr>
-        <td><strong>${species.common_name ?? sci}</strong><br/><em>${sci}</em></td>
-        <td>${saleFormatLabel(species) ?? 'Individual'}</td>
-        <td>${units}</td>
-        <td>${price}</td>
-      </tr>`;
-    })
-    .filter(Boolean)
-    .join('');
-
-  const win = window.open('', '_blank', 'width=900,height=700');
-  if (!win) return;
-  win.document.write(`<!doctype html><html><head><title>Lista de precios</title><style>
-    body { font-family: Arial, sans-serif; margin: 24px; }
-    h1 { font-size: 20px; margin: 0 0 4px; }
-    p { color: #666; font-size: 12px; margin: 0 0 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { padding: 8px 10px; border-bottom: 1px solid #ddd; text-align: left; }
-    th { background: #f4f6f8; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; }
-    em { color: #666; font-size: 11px; }
-  </style></head><body>
-    <h1>Lista de precios</h1>
-    <p>${new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })} — solo disponibles</p>
-    <table><thead><tr><th>Especie</th><th>Formato</th><th>Disp.</th><th>Precio</th></tr></thead>
-    <tbody>${rows}</tbody></table>
-  </body></html>`);
-  win.document.close();
-  setTimeout(() => win.print(), 300);
-}
 
 // Una de las tres páginas de animales (`area`: sale | breeding | history).
 // Arriba los conteos; la lista agrupa por especie (como producto → lotes) y al
