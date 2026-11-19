@@ -30,6 +30,7 @@ import TableContainer from '@mui/material/TableContainer';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { ownerTest } from 'src/utils/owner';
 import { fCurrency } from 'src/utils/format-number';
 import { discountPercent } from 'src/utils/discount';
 import { runInBatches } from 'src/utils/run-in-batches';
@@ -214,6 +215,7 @@ export function AnimalListView({ area = 'sale' }) {
   const [toDelete, setToDelete] = useState(null);
   // canal (solo En venta) y el menú de cambios en bloque
   const [channel, setChannel] = useState('');
+  const [owner, setOwner] = useState(''); // ver ownerTest
   const [channelMenu, setChannelMenu] = useState(null);
   const [priceMenu, setPriceMenu] = useState(null);
   const { suppliers } = useGetSuppliers({ pageSize: 100 });
@@ -307,8 +309,9 @@ export function AnimalListView({ area = 'sale' }) {
       animals
         .filter(FILTERS[destination])
         .filter((a) => !morphFilter || a.morphs?.some((m) => m.id === morphFilter))
-        .filter(CHANNELS.find((c) => c.value === channel).test),
-    [animals, destination, morphFilter, channel]
+        .filter(CHANNELS.find((c) => c.value === channel).test)
+        .filter(ownerTest(owner)),
+    [animals, destination, morphFilter, channel, owner]
   );
   const grouped = useMemo(() => groupBySpecies(visible), [visible]);
   // lista de precios: de todo lo de venta (no solo lo filtrado), por vendedor
@@ -438,6 +441,27 @@ export function AnimalListView({ area = 'sale' }) {
           {CHANNELS.map((c) => (
             <MenuItem key={c.value} value={c.value}>
               {c.label}
+            </MenuItem>
+          ))}
+        </TextField>
+      )}
+      {/* lo de otro expositor (consignor_id); sin proveedores no hace falta */}
+      {area === 'sale' && suppliers.length > 0 && (
+        <TextField
+          select
+          size="small"
+          label="Dueño"
+          value={owner}
+          onChange={(e) => setOwner(e.target.value)}
+          slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+          sx={{ minWidth: 190 }}
+        >
+          <MenuItem value="">Todos</MenuItem>
+          <MenuItem value="mine">Míos</MenuItem>
+          <MenuItem value="others">De otros (no míos)</MenuItem>
+          {suppliers.map((s) => (
+            <MenuItem key={s.id} value={String(s.id)}>
+              {s.name}
             </MenuItem>
           ))}
         </TextField>

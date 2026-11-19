@@ -19,6 +19,7 @@ import DialogActions from '@mui/material/DialogActions';
 import TableContainer from '@mui/material/TableContainer';
 import TablePagination from '@mui/material/TablePagination';
 
+import { ownerTest } from 'src/utils/owner';
 import { matchesWords } from 'src/utils/plain';
 
 import { useGetSuppliers } from 'src/actions/supplier';
@@ -29,14 +30,6 @@ import { Label } from 'src/components/label';
 import { DiscountPrice } from '../discount/bulk-discount-dialog';
 
 // ----------------------------------------------------------------------
-
-// Dueño: '' todos · 'mine' los míos · 'others' de cualquier proveedor · id de uno
-const ownerTest = (owner) => (p) => {
-  if (owner === '') return true;
-  if (owner === 'mine') return !p.consignor_id;
-  if (owner === 'others') return Boolean(p.consignor_id);
-  return p.consignor_id === Number(owner);
-};
 
 // Catálogo para elegir sin acordarse del nombre: todos los productos por
 // páginas, con búsqueda por palabras y filtros por dueño y categoría. La lista

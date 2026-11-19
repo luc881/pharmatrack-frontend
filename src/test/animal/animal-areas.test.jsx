@@ -495,6 +495,37 @@ describe('Animales: la especie dice si de verdad se ve en el sitio', () => {
   });
 });
 
+describe('Animales: filtro por dueño', () => {
+  it('En venta muestra solo lo de un dueño, lo mío o lo de otros', async () => {
+    const user = userEvent.setup();
+    mockApi(
+      [
+        animal('V-1', 'sale'),
+        animal('V-2', 'sale', 'available', { consignor_id: 7 }),
+        animal('V-3', 'sale', 'available', { consignor_id: 8 }),
+      ],
+      [
+        http.get(`${API}/suppliers`, () =>
+          HttpResponse.json(page([{ id: 7, name: 'BD Exoticos' }, { id: 8, name: 'Otro' }]))
+        ),
+      ]
+    );
+    renderView('sale');
+    await screen.findByRole('link', { name: 'V-1' });
+
+    const pick = async (name) => {
+      await user.click(await screen.findByRole('combobox', { name: 'Dueño' }));
+      await user.click(screen.getByRole('option', { name }));
+    };
+    await pick('BD Exoticos');
+    expect(codes()).toEqual(['V-2']);
+    await pick('De otros (no míos)');
+    expect(codes().sort()).toEqual(['V-2', 'V-3']);
+    await pick('Míos');
+    expect(codes()).toEqual(['V-1']);
+  });
+});
+
 describe('Animales: precio de la especie con descuento', () => {
   it('la fila de la especie muestra el precio de antes y el %', async () => {
     mockApi([
