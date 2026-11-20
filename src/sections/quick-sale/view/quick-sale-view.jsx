@@ -28,10 +28,10 @@ import { PutOnSaleDialog } from 'src/sections/animal/put-on-sale-dialog';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { useQuickSale } from '../use-quick-sale';
-import { PriceDialog, QuickSaleCart } from '../quick-sale-cart';
 import { QuickSaleGrid } from '../quick-sale-grid';
 import { getKV, setKV } from '../quick-sale-store';
 import { QuickSalePicker } from '../quick-sale-picker';
+import { PriceDialog, QuickSaleCart } from '../quick-sale-cart';
 import { QuickSaleNewProduct } from '../quick-sale-new-product';
 import { QuickSaleAddButtons } from '../quick-sale-add-buttons';
 import { QuickSaleStatus, QuickSalePriceReview } from '../quick-sale-status';
