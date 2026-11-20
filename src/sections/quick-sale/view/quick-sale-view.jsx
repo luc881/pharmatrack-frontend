@@ -28,7 +28,7 @@ import { PutOnSaleDialog } from 'src/sections/animal/put-on-sale-dialog';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { useQuickSale } from '../use-quick-sale';
-import { QuickSaleCart } from '../quick-sale-cart';
+import { PriceDialog, QuickSaleCart } from '../quick-sale-cart';
 import { QuickSaleGrid } from '../quick-sale-grid';
 import { getKV, setKV } from '../quick-sale-store';
 import { QuickSalePicker } from '../quick-sale-picker';
@@ -87,6 +87,7 @@ export function QuickSaleView() {
   const [query, setQuery] = useState('');
   // null = cerrado; si no, el nombre con el que abre «Producto nuevo»
   const [creating, setCreating] = useState(null);
+  const [priceFor, setPriceFor] = useState(null);
   const [charging, setCharging] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -432,6 +433,10 @@ export function QuickSaleView() {
         onBackup={exportBackup}
       />
 
+      {priceFor !== null && (
+        <PriceDialog productId={priceFor} quick={quick} onClose={() => setPriceFor(null)} />
+      )}
+
       <QuickSalePriceReview
         items={quick.priceReview}
         online={online && reachable}
@@ -462,6 +467,7 @@ export function QuickSaleView() {
                 items={found}
                 stockOf={quick.stockOf}
                 onAdd={quick.add}
+                onPrice={user?.role === 'admin' ? (item) => setPriceFor(item.id) : undefined}
                 suppliers={quick.suppliers}
                 businessName={quick.businessName}
               />

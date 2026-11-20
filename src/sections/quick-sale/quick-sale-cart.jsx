@@ -115,7 +115,7 @@ function DiscountDialog({ target, quick, onClose }) {
 
 // Precio al vuelo de una línea (solo admin): se cobra a ese precio; si se
 // vuelve el precio del producto se decide después, en «Precios cambiados»
-function PriceDialog({ productId, quick, onClose }) {
+export function PriceDialog({ productId, quick, onClose }) {
   const line = quick.cart.find((l) => l.product_id === productId);
   const item = quick.itemsById.get(productId);
   const [value, setValue] = useState(() => String(Number(priced(item, line)?.price_retail ?? 0)));

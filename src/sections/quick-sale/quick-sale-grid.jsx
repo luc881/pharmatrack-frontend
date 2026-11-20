@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import ButtonBase from '@mui/material/ButtonBase';
@@ -125,9 +126,23 @@ function Tile({ title, image, price, note, extra, disabled, ariaLabel, onClick }
   );
 }
 
-function ProductButton({ item, left, onAdd }) {
-  const { disabled, note } = statusOf(item, left);
+// Solo admin (onPrice): debajo de la tarjeta, fuera del botón (no se anidan)
+function PriceButton({ name, disabled, onClick }) {
   return (
+    <Button
+      size="small"
+      disabled={disabled}
+      aria-label={`Cambiar precio de ${name}`}
+      onClick={onClick}
+    >
+      Cambiar precio
+    </Button>
+  );
+}
+
+function ProductButton({ item, left, onAdd, onPrice }) {
+  const { disabled, note } = statusOf(item, left);
+  const tile = (
     <Tile
       title={item.title}
       image={item.image}
@@ -141,12 +156,21 @@ function ProductButton({ item, left, onAdd }) {
       onClick={() => onAdd(item)}
     />
   );
+  if (!onPrice) return tile;
+  return (
+    <Stack>
+      {tile}
+      <PriceButton name={item.title} disabled={disabled} onClick={() => onPrice(item)} />
+    </Stack>
+  );
 }
 
 // Varios lotes (por sexo) o ejemplares de la misma especie y variedad: un
 // botón; al tocarlo se elige cuál. Así 20 insectos hoja no tapan lo demás.
-function GroupButton({ items, stockOf, onAdd }) {
+// Con «Cambiar precio» se abre la misma lista, pero elegir uno pide su precio
+function GroupButton({ items, stockOf, onAdd, onPrice }) {
   const [open, setOpen] = useState(false);
+  const [pricing, setPricing] = useState(false);
   const name = groupName(items[0].animal);
   const options = [...items].sort(optionOrder);
   const open_ = options.filter((item) => !statusOf(item, stockOf(item)).disabled);
@@ -155,7 +179,7 @@ function GroupButton({ items, stockOf, onAdd }) {
   const note = open_.length ? `Quedan ${left}` : 'Agotado';
 
   return (
-    <>
+    <Stack>
       <Tile
         title={name}
         image={items[0].image}
@@ -163,10 +187,23 @@ function GroupButton({ items, stockOf, onAdd }) {
         note={note}
         disabled={!open_.length}
         ariaLabel={`Elegir ${name}, desde ${fCurrency(from)}, ${note}`}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setPricing(false);
+          setOpen(true);
+        }}
       />
+      {onPrice && (
+        <PriceButton
+          name={name}
+          disabled={!open_.length}
+          onClick={() => {
+            setPricing(true);
+            setOpen(true);
+          }}
+        />
+      )}
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
-        <DialogTitle>{name}</DialogTitle>
+        <DialogTitle>{pricing ? `Cambiar precio · ${name}` : name}</DialogTitle>
         <DialogContent>
           <Stack spacing={1} sx={{ pb: 1 }}>
             {options.map((item) => {
@@ -176,11 +213,16 @@ function GroupButton({ items, stockOf, onAdd }) {
                 <ButtonBase
                   key={item.id}
                   disabled={disabled}
-                  aria-label={[`Agregar ${label}`, fCurrency(item.price_retail), status]
+                  aria-label={[
+                    `${pricing ? 'Cambiar precio de' : 'Agregar'} ${label}`,
+                    fCurrency(item.price_retail),
+                    status,
+                  ]
                     .filter(Boolean)
                     .join(', ')}
                   onClick={() => {
-                    onAdd(item);
+                    if (pricing) onPrice(item);
+                    else onAdd(item);
                     setOpen(false);
                   }}
                   sx={{
@@ -224,7 +266,7 @@ function GroupButton({ items, stockOf, onAdd }) {
           </Stack>
         </DialogContent>
       </Dialog>
-    </>
+    </Stack>
   );
 }
 
@@ -232,7 +274,7 @@ function GroupButton({ items, stockOf, onAdd }) {
 
 // Dividida por dueño (consignor_id): lo mío primero y luego cada proveedor,
 // cada parte bajo un divisor con su nombre. Con un solo dueño no hay divisor.
-export function QuickSaleGrid({ items, stockOf, onAdd, suppliers = [], businessName }) {
+export function QuickSaleGrid({ items, stockOf, onAdd, onPrice, suppliers = [], businessName }) {
   const parts = useMemo(() => {
     const owners = [...new Set(items.map((item) => item.consignor_id ?? null))].sort(
       (a, b) => (a !== null) - (b !== null)
@@ -247,7 +289,9 @@ export function QuickSaleGrid({ items, stockOf, onAdd, suppliers = [], businessN
     }));
   }, [items, suppliers, businessName]);
 
-  if (parts.length < 2) return <CategoryGroups items={items} stockOf={stockOf} onAdd={onAdd} />;
+  if (parts.length < 2) {
+    return <CategoryGroups items={items} stockOf={stockOf} onAdd={onAdd} onPrice={onPrice} />;
+  }
   return (
     <Stack spacing={4}>
       {parts.map((part) => (
@@ -255,14 +299,14 @@ export function QuickSaleGrid({ items, stockOf, onAdd, suppliers = [], businessN
           <Divider textAlign="left" sx={{ mb: 2, typography: 'subtitle1' }}>
             {part.name}
           </Divider>
-          <CategoryGroups items={part.items} stockOf={stockOf} onAdd={onAdd} />
+          <CategoryGroups items={part.items} stockOf={stockOf} onAdd={onAdd} onPrice={onPrice} />
         </Box>
       ))}
     </Stack>
   );
 }
 
-function CategoryGroups({ items, stockOf, onAdd }) {
+function CategoryGroups({ items, stockOf, onAdd, onPrice }) {
   // El catálogo ya viene ordenado por categoría y nombre; dentro de cada
   // categoría, los animales iguales (especie y variedad) van juntos
   const groups = useMemo(() => {
@@ -300,9 +344,16 @@ function CategoryGroups({ items, stockOf, onAdd }) {
                   item={tile[0]}
                   left={stockOf(tile[0])}
                   onAdd={onAdd}
+                  onPrice={onPrice}
                 />
               ) : (
-                <GroupButton key={groupKey(tile[0])} items={tile} stockOf={stockOf} onAdd={onAdd} />
+                <GroupButton
+                  key={groupKey(tile[0])}
+                  items={tile}
+                  stockOf={stockOf}
+                  onAdd={onAdd}
+                  onPrice={onPrice}
+                />
               )
             )}
           </Box>

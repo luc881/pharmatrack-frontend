@@ -219,11 +219,34 @@ describe('venta rápida: pantalla', () => {
     );
   });
 
+  it('un admin cambia el precio desde la tarjeta: lo agrega a la cuenta con ese precio', async () => {
+    const user = userEvent.setup();
+    mount();
+    await product('Cueva de resina');
+    await user.click(screen.getByRole('button', { name: 'Cambiar precio de Cueva de resina' }));
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.clear(dialog.getByLabelText('Precio por pieza'));
+    await user.type(dialog.getByLabelText('Precio por pieza'), '150');
+    await user.click(dialog.getByRole('button', { name: 'Aplicar' }));
+
+    expect(cart().getByText('1×')).toBeInTheDocument();
+    expect(cart().getByTestId('total')).toHaveTextContent('$150');
+    // ya en la cuenta: otro cambio no suma pieza
+    await user.click(screen.getByRole('button', { name: 'Cambiar precio de Cueva de resina' }));
+    const again = within(await screen.findByRole('dialog'));
+    await user.clear(again.getByLabelText('Precio por pieza'));
+    await user.type(again.getByLabelText('Precio por pieza'), '120');
+    await user.click(again.getByRole('button', { name: 'Aplicar' }));
+    expect(cart().getByText('1×')).toBeInTheDocument();
+    expect(cart().getByTestId('total')).toHaveTextContent('$120');
+  });
+
   it('quien no es admin no puede cambiar el precio', async () => {
     auth.role = 'seller';
     const user = userEvent.setup();
     mount();
     await user.click(await product('Cueva de resina'));
+    expect(screen.queryByRole('button', { name: /^Cambiar precio de/ })).toBeNull();
     expect(cart().getByRole('button', { name: 'Descuento' })).toBeInTheDocument();
     expect(cart().queryByRole('button', { name: /^Precio de/ })).toBeNull();
   });

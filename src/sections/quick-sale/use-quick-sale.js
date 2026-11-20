@@ -161,24 +161,31 @@ export function useQuickSale() {
 
   // Precio al vuelo (solo admin): esta línea se cobra a `price`; el producto
   // no cambia hasta que se revise. Igual al del catálogo = sin cambio. El
-  // descuento de la línea se quita: era sobre el precio anterior.
+  // descuento de la línea se quita: era sobre el precio anterior. Si aún no
+  // está en la cuenta (desde la tarjeta), entra con una pieza a ese precio.
   const setPrice = useCallback(
     (productId, price) => {
       const item = itemsById.get(productId);
-      if (!item || !cart.some((l) => l.product_id === productId)) {
-        return 'Ese producto ya no está en la cuenta';
-      }
+      if (!item) return 'Ese producto ya no está';
       const value = Math.round(Number(price) * 100) / 100;
       if (!Number.isFinite(value) || value < 0) return 'Escribe un precio válido';
       const unitPrice = value === Number(item.price_retail) ? null : value;
-      setCart((prev) =>
-        prev.map((l) =>
+      setCart((prev) => {
+        if (!prev.some((l) => l.product_id === productId)) {
+          const left = stockOf(item, usedWith(prev));
+          if (item.blocked_reason || (left !== null && left < 1)) return prev;
+          return [
+            ...prev,
+            { product_id: productId, quantity: 1, discount: 0, unit_price: unitPrice },
+          ];
+        }
+        return prev.map((l) =>
           l.product_id === productId ? { ...l, unit_price: unitPrice, discount: 0 } : l
-        )
-      );
+        );
+      });
       return null;
     },
-    [cart, itemsById]
+    [itemsById, usedWith]
   );
 
   // Mismo % en todas las líneas; devuelve los pesos que no cupieron por topes
