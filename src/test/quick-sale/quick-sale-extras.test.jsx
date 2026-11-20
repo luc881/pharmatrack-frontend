@@ -30,7 +30,12 @@ vi.mock('src/routes/hooks', async (original) => ({
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
 vi.mock('src/auth/hooks', () => ({
   useAuthContext: () => ({
-    user: { id: 3, email: 'a@b.mx', role: 'admin', permissions: ['sales.create', 'animals.create', 'products.create'] },
+    user: {
+      id: 3,
+      email: 'a@b.mx',
+      role: 'admin',
+      permissions: ['sales.create', 'animals.create', 'products.create'],
+    },
   }),
 }));
 

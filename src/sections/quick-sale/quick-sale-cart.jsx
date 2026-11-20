@@ -118,7 +118,15 @@ function DiscountDialog({ target, quick, onClose }) {
 export function PriceDialog({ productId, quick, onClose }) {
   const line = quick.cart.find((l) => l.product_id === productId);
   const item = quick.itemsById.get(productId);
-  const [value, setValue] = useState(() => String(Number(priced(item, line)?.price_retail ?? 0)));
+  const [value, setValue] = useState(() =>
+    String(
+      Number(
+        line
+          ? priced(item, line)?.price_retail
+          : (quick.overrides[productId] ?? item?.price_retail ?? 0)
+      )
+    )
+  );
   const [error, setError] = useState(null);
 
   const apply = () => {
@@ -145,7 +153,7 @@ export function PriceDialog({ productId, quick, onClose }) {
             error={Boolean(error)}
             helperText={
               error ??
-              `Solo para esta venta. En el sistema: ${fCurrency(item?.price_retail) || '$0'}`
+              `Se cobra así en este equipo hasta que decidas en «Precios cambiados». En el sistema: ${fCurrency(item?.price_retail) || '$0'}`
             }
             slotProps={{ htmlInput: { inputMode: 'decimal' } }}
           />

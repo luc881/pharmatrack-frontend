@@ -24,7 +24,11 @@ const GECKO = {
 };
 const TANGERINE = { id: 5, name: 'Tangerine' };
 
-const animalItem = (id, species, { sex = 'unknown', code = `AN-${id}`, price, stock = 1, morphs = [], birth_date = null }) => ({
+const animalItem = (
+  id,
+  species,
+  { sex = 'unknown', code = `AN-${id}`, price, stock = 1, morphs = [], birth_date = null }
+) => ({
   id,
   title: `${species.common_name} ${code}`,
   category: 'Animales',
@@ -41,7 +45,13 @@ const ITEMS = [
   animalItem(1, PHYLLIUM, { sex: 'unknown', price: 350, stock: 20 }),
   animalItem(2, PHYLLIUM, { sex: 'female', price: 600, stock: 4 }),
   animalItem(3, PHYLLIUM, { sex: 'male', price: 450, stock: 3 }),
-  animalItem(4, GECKO, { code: 'G-12', sex: 'female', price: 1500, morphs: [TANGERINE], birth_date: '2025-03-01' }),
+  animalItem(4, GECKO, {
+    code: 'G-12',
+    sex: 'female',
+    price: 1500,
+    morphs: [TANGERINE],
+    birth_date: '2025-03-01',
+  }),
   animalItem(5, GECKO, { code: 'G-14', sex: 'male', price: 1200, morphs: [TANGERINE] }),
   animalItem(6, GECKO, { code: 'G-20', sex: 'male', price: 900 }),
   {
@@ -117,7 +127,13 @@ describe('Venta rápida: un botón por especie y variedad', () => {
 });
 
 describe('Venta rápida: dividida por dueño', () => {
-  const slush = { ...ITEMS[6], id: 70, title: 'Slush de mango', category: 'Bebidas', consignor_id: 7 };
+  const slush = {
+    ...ITEMS[6],
+    id: 70,
+    title: 'Slush de mango',
+    category: 'Bebidas',
+    consignor_id: 7,
+  };
 
   it('lo mío primero y luego cada proveedor, con su nombre como divisor', () => {
     render(
@@ -141,7 +157,9 @@ describe('Venta rápida: dividida por dueño', () => {
   });
 
   it('si todo es de un solo dueño no hay divisor', () => {
-    render(<QuickSaleGrid items={ITEMS} stockOf={stockOf} onAdd={() => {}} businessName="Opuntia Den" />);
+    render(
+      <QuickSaleGrid items={ITEMS} stockOf={stockOf} onAdd={() => {}} businessName="Opuntia Den" />
+    );
     expect(screen.queryByRole('region', { name: 'Opuntia Den' })).toBeNull();
   });
 });

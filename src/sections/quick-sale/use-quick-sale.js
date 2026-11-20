@@ -2,8 +2,8 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import { fCurrency } from 'src/utils/format-number';
 
-import { provisionalItem } from './quick-sale-sync';
 import { getKV, listSales } from './quick-sale-store';
+import { provisionalItem, setPriceOverride } from './quick-sale-sync';
 import { usage, priced, stockOf, cartTotals, maxDiscount, spreadDiscount } from './quick-sale-math';
 
 // Estado de la venta rápida: catálogo y ventas del dispositivo (IndexedDB)
@@ -17,6 +17,7 @@ export function useQuickSale() {
     requestedAt: null,
     sales: [],
     priceReview: [],
+    overrides: {},
     provisionals: [],
     suppliers: [],
     failed: false,
@@ -25,12 +26,13 @@ export function useQuickSale() {
 
   const reload = useCallback(async () => {
     try {
-      const [catalog, sales, saved, context, priceReview] = await Promise.all([
+      const [catalog, sales, saved, context, priceReview, overrides] = await Promise.all([
         getKV('catalog'),
         listSales(),
         getKV('provisionals'),
         getKV('context'),
         getKV('priceReview'),
+        getKV('priceOverrides'),
       ]);
       // Los productos de último momento de este equipo van siempre con su id
       // local, aunque el catálogo ya los traiga dados de alta
@@ -54,6 +56,8 @@ export function useQuickSale() {
         sales,
         // precios cambiados al cobrar, para decidir si se guardan (con red)
         priceReview: priceReview ?? [],
+        // precios cambiados en este equipo, hasta decidir
+        overrides: overrides ?? {},
         failed: false,
       });
     } catch {
@@ -67,7 +71,7 @@ export function useQuickSale() {
     reload();
   }, [reload]);
 
-  const { items, sales, requestedAt } = state;
+  const { items, sales, requestedAt, overrides } = state;
 
   const itemsById = useMemo(() => new Map((items ?? []).map((i) => [i.id, i])), [items]);
 
@@ -107,11 +111,15 @@ export function useQuickSale() {
         const left = stockOf(item, usedWith(prev));
         if (left !== null && left < 1) return prev;
         const line = prev.find((l) => l.product_id === item.id);
-        if (!line) return [...prev, { product_id: item.id, quantity: 1, discount: 0 }];
+        if (!line) {
+          const fresh = { product_id: item.id, quantity: 1, discount: 0 };
+          if (overrides[item.id] !== undefined) fresh.unit_price = overrides[item.id];
+          return [...prev, fresh];
+        }
         return prev.map((l) => (l === line ? { ...l, quantity: l.quantity + 1 } : l));
       });
     },
-    [usedWith]
+    [usedWith, overrides]
   );
 
   const setQuantity = useCallback(
@@ -159,10 +167,11 @@ export function useQuickSale() {
     [cart, itemsById]
   );
 
-  // Precio al vuelo (solo admin): esta línea se cobra a `price`; el producto
-  // no cambia hasta que se revise. Igual al del catálogo = sin cambio. El
-  // descuento de la línea se quita: era sobre el precio anterior. Si aún no
-  // está en la cuenta (desde la tarjeta), entra con una pieza a ese precio.
+  // Precio al vuelo (solo admin): este equipo cobra `price` en todas las
+  // piezas hasta que se decida en «Precios cambiados»; el producto no cambia
+  // antes. Igual al del catálogo = sin cambio. El descuento de la línea se
+  // quita: era sobre el precio anterior. Si aún no está en la cuenta (desde
+  // la tarjeta), entra con una pieza a ese precio.
   const setPrice = useCallback(
     (productId, price) => {
       const item = itemsById.get(productId);
@@ -170,6 +179,16 @@ export function useQuickSale() {
       const value = Math.round(Number(price) * 100) / 100;
       if (!Number.isFinite(value) || value < 0) return 'Escribe un precio válido';
       const unitPrice = value === Number(item.price_retail) ? null : value;
+      setState((prev) => {
+        const next = { ...prev.overrides };
+        if (unitPrice === null) delete next[productId];
+        else next[productId] = unitPrice;
+        return { ...prev, overrides: next };
+      });
+      setPriceOverride(item, unitPrice)
+        .then(() => getKV('priceReview'))
+        .then((priceReview) => setState((prev) => ({ ...prev, priceReview: priceReview ?? [] })))
+        .catch(() => {});
       setCart((prev) => {
         if (!prev.some((l) => l.product_id === productId)) {
           const left = stockOf(item, usedWith(prev));
@@ -221,6 +240,7 @@ export function useQuickSale() {
     fetchedAt: state.fetchedAt,
     sales,
     priceReview: state.priceReview,
+    overrides,
     cart,
     totals,
     counts,

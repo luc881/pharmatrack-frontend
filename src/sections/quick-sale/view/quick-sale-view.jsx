@@ -287,13 +287,18 @@ export function QuickSaleView() {
     await reload();
   };
 
-  // Cada palabra escrita debe estar en el nombre o la categoría
+  // Cada palabra escrita debe estar en el nombre o la categoría. La tarjeta
+  // muestra el precio cambiado en este equipo, si hay
   const found = useMemo(
     () =>
-      (quick.items ?? []).filter((item) =>
-        matchesWords(`${item.title} ${item.category ?? ''}`, query)
-      ),
-    [quick.items, query]
+      (quick.items ?? [])
+        .filter((item) => matchesWords(`${item.title} ${item.category ?? ''}`, query))
+        .map((item) =>
+          quick.overrides[item.id] === undefined
+            ? item
+            : { ...item, price_retail: quick.overrides[item.id] }
+        ),
+    [quick.items, quick.overrides, query]
   );
 
   if (!quick.ready) return <LoadingScreen />;

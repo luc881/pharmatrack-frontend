@@ -378,6 +378,25 @@ async function notePriceChanges(cart, itemsById) {
   await setKV(PRICE_REVIEW, list);
 }
 
+// Precio cambiado en este equipo: lo usan todas las piezas que se vendan
+// aquí hasta decidir en «Precios cambiados» (por eso entra ahí de una vez).
+// price null (o el del catálogo) = quitarlo.
+const PRICE_OVERRIDES = 'priceOverrides';
+
+export async function setPriceOverride(item, price) {
+  const overrides = (await getKV(PRICE_OVERRIDES)) ?? {};
+  if (price === null) delete overrides[item.id];
+  else overrides[item.id] = price;
+  await setKV(PRICE_OVERRIDES, overrides);
+  if (price !== null && !isLocal(item.id)) {
+    await notePriceChanges(
+      [{ product_id: item.id, unit_price: price }],
+      new Map([[item.id, item]])
+    );
+  }
+  return overrides;
+}
+
 // price: el que se guarda como precio del producto; null = se queda el que tenía
 export async function resolvePriceChange(productId, price) {
   const entry = ((await getKV(PRICE_REVIEW)) ?? []).find((e) => e.product_id === productId);
@@ -393,6 +412,9 @@ export async function resolvePriceChange(productId, price) {
     PRICE_REVIEW,
     ((await getKV(PRICE_REVIEW)) ?? []).filter((e) => e.product_id !== productId)
   );
+  const overrides = (await getKV(PRICE_OVERRIDES)) ?? {};
+  delete overrides[productId];
+  await setKV(PRICE_OVERRIDES, overrides);
 }
 
 const REJECTED = [400, 404, 409, 422];

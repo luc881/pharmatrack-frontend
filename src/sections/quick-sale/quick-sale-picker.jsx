@@ -77,12 +77,7 @@ export function QuickSalePicker({ onClose }) {
           <Tab value="products" label="Productos" />
         </Tabs>
         {tab === 'animals' ? (
-          <AnimalsTab
-            search={search}
-            onSearch={setSearch}
-            busy={busy}
-            onToggle={toggle}
-          />
+          <AnimalsTab search={search} onSearch={setSearch} busy={busy} onToggle={toggle} />
         ) : (
           <ProductsTab search={search} onSearch={setSearch} busy={busy} onToggle={toggle} />
         )}
@@ -195,14 +190,14 @@ function AnimalsTab({ search, onSearch, busy, onToggle }) {
 
   const toolbar = (
     <Toolbar
-        search={search}
-        onSearch={onSearch}
-        suggestions={suggestions}
-        filterLabel="Grupo"
-        filter={group}
-        onFilter={setGroup}
-        filterOptions={groupOptions}
-      />
+      search={search}
+      onSearch={onSearch}
+      suggestions={suggestions}
+      filterLabel="Grupo"
+      filter={group}
+      onFilter={setGroup}
+      filterOptions={groupOptions}
+    />
   );
 
   if (!animalsLoading && groups.length === 0) {

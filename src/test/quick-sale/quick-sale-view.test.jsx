@@ -241,6 +241,33 @@ describe('venta rápida: pantalla', () => {
     expect(cart().getByTestId('total')).toHaveTextContent('$120');
   });
 
+  it('el precio cambiado se queda para las siguientes ventas hasta decidir', async () => {
+    const user = userEvent.setup();
+    mount();
+    await product('Cueva de resina');
+    await user.click(screen.getByRole('button', { name: 'Cambiar precio de Cueva de resina' }));
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.clear(dialog.getByLabelText('Precio por pieza'));
+    await user.type(dialog.getByLabelText('Precio por pieza'), '150');
+    await user.click(dialog.getByRole('button', { name: 'Aplicar' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Imprimir ticket' }));
+    await user.click(cart().getByRole('button', { name: /^Cobrar/ }));
+    await waitFor(() => expect(checkouts).toHaveLength(1));
+
+    // la tarjeta ya dice $150 y otra pieza entra a ese precio
+    await user.click(await product('Cueva de resina, \\$150'));
+    expect(cart().getByTestId('total')).toHaveTextContent('$150');
+    await user.click(cart().getByRole('button', { name: /^Cobrar/ }));
+    await waitFor(() => expect(checkouts).toHaveLength(2));
+    expect(checkouts[1].items[0]).toMatchObject({ product_id: 1, unit_price: 150 });
+
+    // «Dejar $80» lo regresa
+    const review = within(await screen.findByRole('region', { name: 'Precios cambiados' }));
+    await user.click(review.getByRole('button', { name: 'Dejar $80' }));
+    await user.click(await product('Cueva de resina, \\$80'));
+    expect(cart().getByTestId('total')).toHaveTextContent('$80');
+  });
+
   it('un superadmin también cambia el precio', async () => {
     auth.role = 'superadmin';
     mount();
