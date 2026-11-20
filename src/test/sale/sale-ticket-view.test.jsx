@@ -1,8 +1,8 @@
 import { SWRConfig } from 'swr';
 import { http, HttpResponse } from 'msw';
 import { MemoryRouter } from 'react-router';
-import { render, waitFor } from '@testing-library/react';
 import { it, expect, describe, afterEach } from 'vitest';
+import { render, waitFor, fireEvent } from '@testing-library/react';
 
 import { SaleTicketView } from 'src/sections/sale/view/sale-ticket-view';
 
@@ -60,14 +60,14 @@ describe('ajuste de la impresora de tickets', () => {
     expect(getByText('Gracias por tu compra')).toBeInTheDocument();
   });
 
-  it('en 80 mm el ticket mide 68 mm y queda centrado en los 72 imprimibles', async () => {
+  it('en 80 mm el contenido sale al 95 % y centrado: el papel queda igual, con margen', async () => {
     server.use(
-      http.get(URL, () => HttpResponse.json({ width: 80, offset: 0, inset: 0, saved: true })),
+      http.get(URL, () => HttpResponse.json({ width: 80, offset: 0, scale: null, saved: true })),
       http.get('https://api.opuntiaden.com/api/v1/settings/email-ticket', () =>
         HttpResponse.json({ business_name: 'Opuntia Den' })
       )
     );
-    const { findByText, container } = render(
+    const { findByText, getByText, container } = render(
       <SWRConfig value={{ provider: () => new Map() }}>
         <MemoryRouter>
           <SaleTicketView />
@@ -77,20 +77,25 @@ describe('ajuste de la impresora de tickets', () => {
 
     await findByText('Gracias por tu compra');
     const css = [...container.querySelectorAll('style')].map((el) => el.textContent).join('');
-    expect(css).toContain('.od-ticket { width: 68mm !important; }');
+    expect(css).toContain('.od-ticket { zoom: 0.95; margin: 0 auto !important; }');
+    // la página sigue midiendo lo imprimible del rollo
     expect(css).toContain('html, body { width: 72mm;');
-    // 2 mm de margen de cada lado
-    expect(css).toContain('translateX(2mm)');
+    expect(getByText('Tamaño: 95 %')).toBeInTheDocument();
   });
 
-  it('«Más angosto» quita más y lo sigue centrando, con el ajuste horizontal', async () => {
+  it('«Más chico» reduce el contenido y lo guarda en la cuenta', async () => {
+    let saved;
     server.use(
-      http.get(URL, () => HttpResponse.json({ width: 80, offset: -1, inset: 8, saved: true })),
+      http.get(URL, () => HttpResponse.json({ width: 80, offset: 0, scale: 90, saved: true })),
+      http.put(URL, async ({ request }) => {
+        saved = await request.json();
+        return HttpResponse.json({ ...saved, saved: true });
+      }),
       http.get('https://api.opuntiaden.com/api/v1/settings/email-ticket', () =>
         HttpResponse.json({ business_name: 'Opuntia Den' })
       )
     );
-    const { findByText, container } = render(
+    const { findByText, getByRole, container } = render(
       <SWRConfig value={{ provider: () => new Map() }}>
         <MemoryRouter>
           <SaleTicketView />
@@ -98,10 +103,11 @@ describe('ajuste de la impresora de tickets', () => {
       </SWRConfig>
     );
 
-    await findByText('Gracias por tu compra');
+    await findByText('Tamaño: 90 %');
+    fireEvent.click(getByRole('button', { name: 'Más chico' }));
+    await findByText('Tamaño: 89 %');
     const css = [...container.querySelectorAll('style')].map((el) => el.textContent).join('');
-    expect(css).toContain('.od-ticket { width: 60mm !important; }');
-    // (72 − 60) / 2 = 6 mm de cada lado, menos 1 mm del ajuste
-    expect(css).toContain('translateX(5mm)');
+    expect(css).toContain('zoom: 0.89;');
+    await waitFor(() => expect(saved).toMatchObject({ width: 80, offset: 0, scale: 89 }));
   });
 });

@@ -274,11 +274,11 @@ describe('venta rápida: imprimir prueba con todos los dueños', () => {
     expect(screen.getByText(/Preparar para vender sin internet/)).toBeInTheDocument();
   });
 
-  it('se calibra desde aquí: el ancho va a la cuenta y a la copia del equipo', async () => {
+  it('se calibra desde aquí: el tamaño va a la cuenta y a la copia del equipo', async () => {
     let put;
     server.use(
       http.get('https://api.opuntiaden.com/api/v1/settings/ticket-print', () =>
-        HttpResponse.json({ width: 80, offset: 0, inset: 0, saved: true })
+        HttpResponse.json({ width: 80, offset: 0, scale: null, saved: true })
       ),
       http.put('https://api.opuntiaden.com/api/v1/settings/ticket-print', async ({ request }) => {
         put = await request.json();
@@ -299,12 +299,12 @@ describe('venta rápida: imprimir prueba con todos los dueños', () => {
     );
 
     // trae al equipo el rollo de la cuenta
-    const ancho = (mm) => (_, el) => el?.tagName === 'P' && el.textContent === `Ancho: ${mm} mm`;
-    expect(await screen.findByText(ancho(68))).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Más angosto' }));
-    expect(screen.getByText(ancho(67))).toBeInTheDocument();
+    const size = (pct) => (_, el) => el?.tagName === 'P' && el.textContent === `Tamaño: ${pct} %`;
+    expect(await screen.findByText(size(95))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Más chico' }));
+    expect(screen.getByText(size(94))).toBeInTheDocument();
 
-    await waitFor(() => expect(put).toMatchObject({ width: 80, offset: 0, inset: 1 }));
-    expect((await getKV('context')).ticketSettings).toEqual({ width: 80, offset: 0, inset: 1 });
+    await waitFor(() => expect(put).toMatchObject({ width: 80, offset: 0, scale: 94 }));
+    expect((await getKV('context')).ticketSettings).toEqual({ width: 80, offset: 0, scale: 94 });
   });
 });

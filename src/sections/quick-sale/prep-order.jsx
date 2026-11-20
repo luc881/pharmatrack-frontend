@@ -1,4 +1,3 @@
-import { TICKET_WIDTH } from 'src/sections/sale/sale-ticket';
 import { fmtTicketDate } from 'src/sections/sale/print-ticket';
 
 // ----------------------------------------------------------------------
@@ -8,9 +7,9 @@ import { fmtTicketDate } from 'src/sections/sale/print-ticket';
 // ----------------------------------------------------------------------
 
 const CSS = `
-.od-ticket.od-order { width: ${TICKET_WIDTH[80]}mm; margin: 0 auto; padding: 4mm 0; background: #fff; color: #000;
+.od-ticket.od-order { width: 72mm; margin: 0 auto; padding: 4mm 0; background: #fff; color: #000;
   font: 700 15pt/1.3 'Inter Variable', Inter, Arial, sans-serif; }
-.od-ticket--58.od-order { width: ${TICKET_WIDTH[58]}mm; font-size: 12pt; }
+.od-ticket--58.od-order { width: 48mm; font-size: 12pt; }
 .od-order--after { break-before: page; border-top: 1px dashed #000; }
 .od-order .title { text-align: center; font-size: 1.3em; letter-spacing: 0.12em; }
 .od-order .meta { display: flex; justify-content: space-between; gap: 2mm; font-size: 0.6em; font-weight: 400; }

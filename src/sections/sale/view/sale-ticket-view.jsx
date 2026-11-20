@@ -18,7 +18,7 @@ import axiosInstance, { fetcher } from 'src/lib/axios';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
-import { SaleTicket, TICKET_WIDTH } from '../sale-ticket';
+import { SaleTicket } from '../sale-ticket';
 import { PrepOrder, SAMPLE_ORDER } from '../../quick-sale/prep-order';
 import { SAMPLE_TICKET, useSaleTicket, useTicketTemplate } from '../print-ticket';
 
@@ -28,10 +28,15 @@ import { SAMPLE_TICKET, useSaleTicket, useTicketTemplate } from '../print-ticket
 // Sin saleId imprime el ticket de prueba.
 // ----------------------------------------------------------------------
 
-// Área imprimible de cada rollo; el ticket (TICKET_WIDTH) va centrado en ella
+// Área imprimible de cada rollo (lo mismo que .od-ticket en sale-ticket.jsx)
 const PRINTABLE = { 58: 48, 80: 72 };
+const PAPER = { 58: 58, 80: 80 };
 const SETTINGS_URL = '/api/v1/settings/ticket-print';
-const DEFAULTS = { width: 80, offset: 0, inset: 0 };
+const DEFAULTS = { width: 80, offset: 0, scale: null };
+// Tamaño del contenido si no se ha elegido: en 80 mm, 5 % más chico para que
+// quede margen (el cabezal imprime pálido en la orilla)
+const DEFAULT_SCALE = { 58: 100, 80: 95 };
+export const scaleOf = ({ width, scale }) => scale ?? DEFAULT_SCALE[width];
 
 // Antes el ajuste vivía en el navegador; se lee solo para subirlo a la cuenta
 const readLocal = (key) => {
@@ -83,10 +88,11 @@ export function useTicketPrintSettings({ fallback = DEFAULTS, enabled = true } =
 // Rollo, ajuste horizontal y ancho: los mismos controles en Ventas y en la
 // venta rápida. onChange recibe la configuración completa.
 export function TicketPrintControls({ settings, onChange }) {
-  const { width, offset, inset = 0 } = settings;
+  const { width, offset } = settings;
+  const scale = scaleOf(settings);
   const clamp = (v, min, max) => Math.max(min, Math.min(max, Math.round(v * 10) / 10));
   const nudge = (delta) => onChange({ ...settings, offset: clamp(offset + delta, -8, 8) });
-  const narrow = (delta) => onChange({ ...settings, inset: clamp(inset + delta, 0, 24) });
+  const resize = (delta) => onChange({ ...settings, scale: clamp(scale + delta, 50, 100) });
 
   return (
     <>
@@ -117,16 +123,17 @@ export function TicketPrintControls({ settings, onChange }) {
           1 mm →
         </Button>
       </Stack>
-      {/* Hay cabezales que imprimen pálido en la orilla: el ticket se angosta */}
+      {/* Todo el contenido (letra, logo, QR) más chico: el papel queda igual
+          y crecen los márgenes */}
       <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-        <Button size="small" variant="outlined" disabled={inset >= 24} onClick={() => narrow(1)}>
-          Más angosto
+        <Button size="small" variant="outlined" disabled={scale <= 50} onClick={() => resize(-1)}>
+          Más chico
         </Button>
         <Typography variant="body2" sx={{ minWidth: 92, textAlign: 'center' }}>
-          Ancho: {(TICKET_WIDTH[width] - inset).toFixed(0)} mm
+          Tamaño: {scale} %
         </Typography>
-        <Button size="small" variant="outlined" disabled={inset <= 0} onClick={() => narrow(-1)}>
-          Más ancho
+        <Button size="small" variant="outlined" disabled={scale >= 100} onClick={() => resize(1)}>
+          Más grande
         </Button>
       </Stack>
     </>
@@ -138,7 +145,8 @@ export function SaleTicketView({ saleId }) {
   const autoPrint = searchParams.get('print') === '1';
   // ponytail: perilla de calibración; cada driver/cabezal trae unos mm de desfase propio
   const [settings, saveSettings] = useTicketPrintSettings();
-  const { width, offset, inset = 0 } = settings ?? DEFAULTS;
+  const { width, offset } = settings ?? DEFAULTS;
+  const scale = scaleOf(settings ?? DEFAULTS);
   const saleTicket = useSaleTicket(saleId);
   const business = useTicketTemplate();
   // El ticket espera al ajuste de la cuenta (para no imprimir con el de
@@ -155,7 +163,7 @@ export function SaleTicketView({ saleId }) {
       business={business}
       width={width}
       offset={offset}
-      inset={inset}
+      scale={scale}
       autoPrint={autoPrint}
       controls={
         <>
@@ -223,7 +231,7 @@ export function TicketPrintPage({
   business,
   width,
   offset,
-  inset = 0,
+  scale = 100,
   autoPrint,
   controls,
   hint,
@@ -231,7 +239,6 @@ export function TicketPrintPage({
   hideTicket = false,
 }) {
   const printed = useRef(false);
-  const content = TICKET_WIDTH[width] - inset;
   const list = tickets ?? (ticket ? [{ ticket, business }] : null);
   const readyCount = useRef(new Set());
 
@@ -258,13 +265,12 @@ export function TicketPrintPage({
         '@media print': { minHeight: 0, bgcolor: '#fff', p: 0 },
       }}
     >
-      {/* La página mide justo lo imprimible: más ancha y el driver la recorre o la escala */}
-      {/* El ticket (más angosto si se pidió) va centrado en lo imprimible */}
+      {/* La página mide justo lo imprimible: más ancha y el driver la recorre o la escala.
+          El contenido va a scale % (zoom: letra, logo y QR), centrado: el resto es margen */}
       <style>{`@page { margin: 0; }
-        .od-ticket { width: ${content}mm !important; }
+        .od-ticket { zoom: ${scale / 100}; margin: 0 auto !important; }
         @media print {
           html, body { width: ${PRINTABLE[width]}mm; margin: 0; padding: 0; background: #fff; }
-          .od-ticket { margin: 0 !important; transform: translateX(${offset + (PRINTABLE[width] - content) / 2}mm); }
         }`}</style>
 
       <Stack
@@ -284,14 +290,22 @@ export function TicketPrintPage({
 
       {hint}
 
+      {/* En pantalla, el rollo completo para ver los márgenes; al imprimir, lo
+          imprimible, corrido por el ajuste horizontal (left: no parte las páginas) */}
       <Box
         sx={{
-          width: 'fit-content',
+          width: `${PAPER[width]}mm`,
           mx: 'auto',
-          px: 2,
           bgcolor: '#fff',
           boxShadow: 3,
-          '@media print': { boxShadow: 'none', p: 0, m: 0 },
+          '@media print': {
+            width: `${PRINTABLE[width]}mm`,
+            boxShadow: 'none',
+            p: 0,
+            m: 0,
+            position: 'relative',
+            left: `${offset}mm`,
+          },
         }}
       >
         {!hideTicket &&

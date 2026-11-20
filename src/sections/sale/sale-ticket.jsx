@@ -10,14 +10,10 @@ import { folio, money, qrLabel, fmtTicketDate, ticketSubtotal } from './print-ti
 // negro sobre blanco: la térmica no imprime grises ni colores.
 // ----------------------------------------------------------------------
 
-// Ancho del ticket en cada rollo. En 80 mm, 5 % menos que los 72 mm
-// imprimibles: el cabezal imprime pálido en la orilla y así queda margen.
-export const TICKET_WIDTH = { 58: 48, 80: 68 };
-
 const CSS = `
-.od-ticket { width: ${TICKET_WIDTH[80]}mm; margin: 0 auto; padding: 4mm 0; background: #fff;
+.od-ticket { width: 72mm; margin: 0 auto; padding: 4mm 0; background: #fff;
   font: 8pt/1.4 'Inter Variable', Inter, Arial, sans-serif; }
-.od-ticket--58 { width: ${TICKET_WIDTH[58]}mm; font-size: 7.5pt; }
+.od-ticket--58 { width: 48mm; font-size: 7.5pt; }
 .od-ticket * { color: #000 !important; background: transparent !important; box-shadow: none !important; }
 .od-ticket .c { text-align: center; }
 .od-ticket .logo { display: block; width: 35mm; margin: 0 auto 2.5mm; }
@@ -64,8 +60,7 @@ export function SaleTicket({ ticket, business = {}, width = 80, onReady }) {
   const [logoDone, setLogoDone] = useState(false);
 
   useEffect(() => {
-    if (qrUrl)
-      QRCode.toString(qrUrl, { type: 'svg', errorCorrectionLevel: 'M', margin: 2 }).then(setQr);
+    if (qrUrl) QRCode.toString(qrUrl, { type: 'svg', errorCorrectionLevel: 'M', margin: 2 }).then(setQr);
   }, [qrUrl]);
 
   const ready = (!qrUrl || qr) && (!b.ticket_logo_url || logoDone);

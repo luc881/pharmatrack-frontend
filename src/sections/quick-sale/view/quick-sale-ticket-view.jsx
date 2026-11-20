@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { PAYMENT_LABELS } from 'src/sections/sale/print-ticket';
 import {
+  scaleOf,
   TicketPrintPage,
   TicketPrintControls,
   useTicketPrintSettings,
@@ -20,7 +21,7 @@ import { PrepOrder, prepLines, SAMPLE_ORDER } from '../prep-order';
 
 // ----------------------------------------------------------------------
 
-const DEFAULTS = { width: 80, offset: 0, inset: 0 };
+const DEFAULTS = { width: 80, offset: 0, scale: null };
 
 // Encabezado del ticket de un proveedor, con lo que tenga en su ficha (Proveedores)
 const supplierBusiness = (s) => ({
@@ -93,11 +94,11 @@ export function QuickSaleTicketView({ saleKey }) {
   // (p. ej. el rollo cambiado en Ventas) sin tener que «Preparar» de nuevo
   useEffect(() => {
     if (!data?.sample || !live?.saved) return;
-    const { width, offset, inset = 0 } = live;
+    const { width, offset, scale = null } = live;
     const copy = data.context.ticketSettings;
-    if (copy && copy.width === width && copy.offset === offset && (copy.inset ?? 0) === inset)
+    if (copy && copy.width === width && copy.offset === offset && (copy.scale ?? null) === scale)
       return;
-    const nextContext = { ...data.context, ticketSettings: { width, offset, inset } };
+    const nextContext = { ...data.context, ticketSettings: { width, offset, scale } };
     setData((prev) => ({ ...prev, context: nextContext }));
     setKV('context', nextContext);
   }, [data, live]);
@@ -146,7 +147,9 @@ export function QuickSaleTicketView({ saleKey }) {
 
   const { sale, context } = data ?? {};
   const saved = context?.ticketSettings ?? DEFAULTS;
-  const { width, offset, inset = 0 } = data?.sample ? (live ?? saved) : saved;
+  const current = data?.sample ? (live ?? saved) : saved;
+  const { width, offset } = current;
+  const scale = current.scale ?? null;
 
   // Calibrar desde la prueba: a la cuenta y a la copia del equipo (sin internet)
   const changeSettings = (next) => {
@@ -164,7 +167,7 @@ export function QuickSaleTicketView({ saleKey }) {
         extra={<PrepOrder sale={SAMPLE_ORDER} width={width} after />}
         width={width}
         offset={offset}
-        inset={inset}
+        scale={scaleOf(current)}
         hint={
           noSuppliers ? (
             <Typography
@@ -190,7 +193,7 @@ export function QuickSaleTicketView({ saleKey }) {
             <Button variant="contained" onClick={() => window.print()}>
               Imprimir prueba
             </Button>
-            <TicketPrintControls settings={{ width, offset, inset }} onChange={changeSettings} />
+            <TicketPrintControls settings={{ width, offset, scale }} onChange={changeSettings} />
           </>
         }
       />
@@ -241,7 +244,7 @@ export function QuickSaleTicketView({ saleKey }) {
       business={context?.business ?? {}}
       width={width}
       offset={offset}
-      inset={inset}
+      scale={scaleOf(current)}
       autoPrint={autoPrint}
       controls={
         <>
