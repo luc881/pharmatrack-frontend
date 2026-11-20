@@ -133,6 +133,9 @@ export function SaleTicketView({ saleId }) {
             {saleId ? 'Imprimir ticket' : 'Imprimir prueba'}
           </Button>
           <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+            <Button size="small" variant="outlined" onClick={() => nudge(-1)}>
+              ← 1 mm
+            </Button>
             <Button size="small" variant="outlined" onClick={() => nudge(-0.1)}>
               ← 0.1 mm
             </Button>
@@ -142,6 +145,9 @@ export function SaleTicketView({ saleId }) {
             </Typography>
             <Button size="small" variant="outlined" onClick={() => nudge(0.1)}>
               0.1 mm →
+            </Button>
+            <Button size="small" variant="outlined" onClick={() => nudge(1)}>
+              1 mm →
             </Button>
           </Stack>
           {saleId && (
