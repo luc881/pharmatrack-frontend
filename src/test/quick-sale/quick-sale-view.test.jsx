@@ -241,6 +241,13 @@ describe('venta rápida: pantalla', () => {
     expect(cart().getByTestId('total')).toHaveTextContent('$120');
   });
 
+  it('un superadmin también cambia el precio', async () => {
+    auth.role = 'superadmin';
+    mount();
+    await product('Cueva de resina');
+    expect(screen.getByRole('button', { name: 'Cambiar precio de Cueva de resina' })).toBeEnabled();
+  });
+
   it('quien no es admin no puede cambiar el precio', async () => {
     auth.role = 'seller';
     const user = userEvent.setup();

@@ -88,6 +88,8 @@ export function QuickSaleView() {
   // null = cerrado; si no, el nombre con el que abre «Producto nuevo»
   const [creating, setCreating] = useState(null);
   const [priceFor, setPriceFor] = useState(null);
+  // precio al vuelo: lo mismo que acepta el API
+  const canEditPrice = ['admin', 'superadmin'].includes(user?.role);
   const [charging, setCharging] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -467,7 +469,7 @@ export function QuickSaleView() {
                 items={found}
                 stockOf={quick.stockOf}
                 onAdd={quick.add}
-                onPrice={user?.role === 'admin' ? (item) => setPriceFor(item.id) : undefined}
+                onPrice={canEditPrice ? (item) => setPriceFor(item.id) : undefined}
                 suppliers={quick.suppliers}
                 businessName={quick.businessName}
               />
@@ -495,7 +497,7 @@ export function QuickSaleView() {
             printTicket={prefs.printTicket}
             onPrintTicketChange={(printTicket) => savePrefs({ printTicket })}
             onCharge={charge}
-            canEditPrice={user?.role === 'admin'}
+            canEditPrice={canEditPrice}
           />
         </Box>
       </Box>
