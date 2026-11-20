@@ -31,7 +31,7 @@ import { SAMPLE_TICKET, useSaleTicket, useTicketTemplate } from '../print-ticket
 // Área imprimible de cada rollo (lo mismo que .od-ticket en sale-ticket.jsx)
 const PRINTABLE = { 58: 48, 80: 72 };
 const SETTINGS_URL = '/api/v1/settings/ticket-print';
-const DEFAULTS = { width: 80, offset: 0 };
+const DEFAULTS = { width: 80, offset: 0, inset: 0 };
 
 // Antes el ajuste vivía en el navegador; se lee solo para subirlo a la cuenta
 const readLocal = (key) => {
@@ -43,8 +43,10 @@ const readLocal = (key) => {
 };
 
 // Rollo y ajuste horizontal guardados en la cuenta (API /settings/ticket-print)
-function useTicketPrintSettings() {
-  const { data, error, mutate } = useSWR(SETTINGS_URL, fetcher, {
+// fallback: lo que se usa sin API (sin internet, la copia guardada en el equipo).
+// enabled=false no pide nada a la red (el ticket de la venta rápida).
+export function useTicketPrintSettings({ fallback = DEFAULTS, enabled = true } = {}) {
+  const { data, error, mutate } = useSWR(enabled ? SETTINGS_URL : null, fetcher, {
     revalidateIfStale: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -75,7 +77,60 @@ function useTicketPrintSettings() {
   }, [data, save]);
 
   // Sin API (p. ej. versión vieja en modo convención) se imprime con los valores base
-  return [data ?? (error ? DEFAULTS : null), save];
+  return [data ?? (error ? fallback : null), save];
+}
+
+// Rollo, ajuste horizontal y ancho: los mismos controles en Ventas y en la
+// venta rápida. onChange recibe la configuración completa.
+export function TicketPrintControls({ settings, onChange }) {
+  const { width, offset, inset = 0 } = settings;
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, Math.round(v * 10) / 10));
+  const nudge = (delta) => onChange({ ...settings, offset: clamp(offset + delta, -8, 8) });
+  const narrow = (delta) => onChange({ ...settings, inset: clamp(inset + delta, 0, 24) });
+
+  return (
+    <>
+      <ToggleButtonGroup
+        size="small"
+        exclusive
+        value={width}
+        onChange={(_, value) => value && onChange({ ...settings, width: value })}
+      >
+        <ToggleButton value={58}>Rollo 58 mm</ToggleButton>
+        <ToggleButton value={80}>Rollo 80 mm</ToggleButton>
+      </ToggleButtonGroup>
+      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+        <Button size="small" variant="outlined" onClick={() => nudge(-1)}>
+          ← 1 mm
+        </Button>
+        <Button size="small" variant="outlined" onClick={() => nudge(-0.1)}>
+          ← 0.1 mm
+        </Button>
+        <Typography variant="body2" sx={{ minWidth: 92, textAlign: 'center' }}>
+          Ajuste: {offset > 0 ? '+' : ''}
+          {offset.toFixed(1)} mm
+        </Typography>
+        <Button size="small" variant="outlined" onClick={() => nudge(0.1)}>
+          0.1 mm →
+        </Button>
+        <Button size="small" variant="outlined" onClick={() => nudge(1)}>
+          1 mm →
+        </Button>
+      </Stack>
+      {/* Hay cabezales que imprimen pálido en la orilla: el ticket se angosta */}
+      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+        <Button size="small" variant="outlined" disabled={inset >= 24} onClick={() => narrow(1)}>
+          Más angosto
+        </Button>
+        <Typography variant="body2" sx={{ minWidth: 92, textAlign: 'center' }}>
+          Ancho: {(PRINTABLE[width] - inset).toFixed(0)} mm
+        </Typography>
+        <Button size="small" variant="outlined" disabled={inset <= 0} onClick={() => narrow(-1)}>
+          Más ancho
+        </Button>
+      </Stack>
+    </>
+  );
 }
 
 export function SaleTicketView({ saleId }) {
@@ -83,22 +138,12 @@ export function SaleTicketView({ saleId }) {
   const autoPrint = searchParams.get('print') === '1';
   // ponytail: perilla de calibración; cada driver/cabezal trae unos mm de desfase propio
   const [settings, saveSettings] = useTicketPrintSettings();
-  const { width, offset } = settings ?? DEFAULTS;
+  const { width, offset, inset = 0 } = settings ?? DEFAULTS;
   const saleTicket = useSaleTicket(saleId);
   const business = useTicketTemplate();
   // El ticket espera al ajuste de la cuenta (para no imprimir con el de
   // fábrica) y a los datos del negocio
   const ticket = settings && business && (saleId ? saleTicket : SAMPLE_TICKET);
-
-  const changeWidth = (_, value) => {
-    if (!value) return;
-    saveSettings({ width: value, offset });
-  };
-
-  const nudge = (delta) => {
-    const next = Math.max(-8, Math.min(8, Math.round((offset + delta) * 10) / 10));
-    saveSettings({ width, offset: next });
-  };
 
   return (
     <TicketPrintPage
@@ -110,6 +155,7 @@ export function SaleTicketView({ saleId }) {
       business={business}
       width={width}
       offset={offset}
+      inset={inset}
       autoPrint={autoPrint}
       controls={
         <>
@@ -120,10 +166,6 @@ export function SaleTicketView({ saleId }) {
           >
             {saleId ? 'Ver venta' : 'Ventas'}
           </Button>
-          <ToggleButtonGroup size="small" exclusive value={width} onChange={changeWidth}>
-            <ToggleButton value={58}>Rollo 58 mm</ToggleButton>
-            <ToggleButton value={80}>Rollo 80 mm</ToggleButton>
-          </ToggleButtonGroup>
           <Button
             variant="contained"
             disabled={!ticket}
@@ -132,24 +174,7 @@ export function SaleTicketView({ saleId }) {
           >
             {saleId ? 'Imprimir ticket' : 'Imprimir prueba'}
           </Button>
-          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-            <Button size="small" variant="outlined" onClick={() => nudge(-1)}>
-              ← 1 mm
-            </Button>
-            <Button size="small" variant="outlined" onClick={() => nudge(-0.1)}>
-              ← 0.1 mm
-            </Button>
-            <Typography variant="body2" sx={{ minWidth: 92, textAlign: 'center' }}>
-              Ajuste: {offset > 0 ? '+' : ''}
-              {offset.toFixed(1)} mm
-            </Typography>
-            <Button size="small" variant="outlined" onClick={() => nudge(0.1)}>
-              0.1 mm →
-            </Button>
-            <Button size="small" variant="outlined" onClick={() => nudge(1)}>
-              1 mm →
-            </Button>
-          </Stack>
+          <TicketPrintControls settings={settings ?? DEFAULTS} onChange={saveSettings} />
           {saleId && (
             <Button
               component={RouterLink}
@@ -198,6 +223,7 @@ export function TicketPrintPage({
   business,
   width,
   offset,
+  inset = 0,
   autoPrint,
   controls,
   hint,
@@ -232,10 +258,12 @@ export function TicketPrintPage({
       }}
     >
       {/* La página mide justo lo imprimible: más ancha y el driver la recorre o la escala */}
+      {/* inset: el ticket se angosta y se centra en lo imprimible */}
       <style>{`@page { margin: 0; }
+        ${inset ? `.od-ticket { width: ${PRINTABLE[width] - inset}mm !important; }` : ''}
         @media print {
           html, body { width: ${PRINTABLE[width]}mm; margin: 0; padding: 0; background: #fff; }
-          .od-ticket { margin: 0 !important; transform: translateX(${offset}mm); }
+          .od-ticket { margin: 0 !important; transform: translateX(${offset + inset / 2}mm); }
         }`}</style>
 
       <Stack

@@ -9,14 +9,18 @@ import { RouterLink } from 'src/routes/components';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { PAYMENT_LABELS } from 'src/sections/sale/print-ticket';
-import { TicketPrintPage } from 'src/sections/sale/view/sale-ticket-view';
+import {
+  TicketPrintPage,
+  TicketPrintControls,
+  useTicketPrintSettings,
+} from 'src/sections/sale/view/sale-ticket-view';
 
-import { getKV, listSales } from '../quick-sale-store';
+import { getKV, setKV, listSales } from '../quick-sale-store';
 import { PrepOrder, prepLines, SAMPLE_ORDER } from '../prep-order';
 
 // ----------------------------------------------------------------------
 
-const DEFAULTS = { width: 80, offset: 0 };
+const DEFAULTS = { width: 80, offset: 0, inset: 0 };
 
 // Encabezado del ticket de un proveedor, con lo que tenga en su ficha (Proveedores)
 const supplierBusiness = (s) => ({
@@ -49,7 +53,13 @@ const sampleTicket = (folio, items) => {
 const sampleTickets = (context) => [
   {
     ticket: sampleTicket('VR-PRUEBA-0001', [
-      { cantidad: 1, nombre: 'Cubaris murina', es_cientifico: true, detalle: 'Glacier', precio_unitario: 350 },
+      {
+        cantidad: 1,
+        nombre: 'Cubaris murina',
+        es_cientifico: true,
+        detalle: 'Glacier',
+        precio_unitario: 350,
+      },
       { cantidad: 2, nombre: 'Cueva de resina', es_cientifico: false, precio_unitario: 80 },
     ]),
     business: context.business ?? {},
@@ -64,7 +74,8 @@ const sampleTickets = (context) => [
 
 // Ticket de una venta rápida, armado solo con lo guardado en el dispositivo
 // (la venta de la cola y los datos del negocio): se imprime igual sin internet.
-// El rollo y el ajuste se calibran en Ventas → «Imprimir prueba».
+// El rollo, el ajuste y el ancho se calibran en «Imprimir prueba» (aquí o en
+// Ventas): se guardan en la cuenta y en la copia del equipo.
 export function QuickSaleTicketView({ saleKey }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -72,6 +83,24 @@ export function QuickSaleTicketView({ saleKey }) {
   // ?only=order: se cobró con «Imprimir ticket» apagado y solo sale la orden
   const onlyOrder = params.get('only') === 'order';
   const [data, setData] = useState(); // undefined = leyendo; null = no está
+  // La de la cuenta, para la prueba; sin internet, la copia del equipo
+  const [live, saveLive] = useTicketPrintSettings({
+    fallback: data?.context?.ticketSettings ?? DEFAULTS,
+    enabled: saleKey === 'prueba',
+  });
+
+  // Abrir la prueba con internet trae al equipo lo calibrado en la cuenta
+  // (p. ej. el rollo cambiado en Ventas) sin tener que «Preparar» de nuevo
+  useEffect(() => {
+    if (!data?.sample || !live?.saved) return;
+    const { width, offset, inset = 0 } = live;
+    const copy = data.context.ticketSettings;
+    if (copy && copy.width === width && copy.offset === offset && (copy.inset ?? 0) === inset)
+      return;
+    const nextContext = { ...data.context, ticketSettings: { width, offset, inset } };
+    setData((prev) => ({ ...prev, context: nextContext }));
+    setKV('context', nextContext);
+  }, [data, live]);
 
   useEffect(() => {
     let alive = true;
@@ -116,7 +145,16 @@ export function QuickSaleTicketView({ saleKey }) {
   }
 
   const { sale, context } = data ?? {};
-  const { width, offset } = context?.ticketSettings ?? DEFAULTS;
+  const saved = context?.ticketSettings ?? DEFAULTS;
+  const { width, offset, inset = 0 } = data?.sample ? (live ?? saved) : saved;
+
+  // Calibrar desde la prueba: a la cuenta y a la copia del equipo (sin internet)
+  const changeSettings = (next) => {
+    saveLive(next);
+    const nextContext = { ...context, ticketSettings: next };
+    setData((prev) => ({ ...prev, context: nextContext }));
+    setKV('context', nextContext);
+  };
 
   if (data?.sample) {
     const noSuppliers = !(context.suppliers ?? []).length;
@@ -126,29 +164,33 @@ export function QuickSaleTicketView({ saleKey }) {
         extra={<PrepOrder sale={SAMPLE_ORDER} width={width} after />}
         width={width}
         offset={offset}
+        inset={inset}
         hint={
           noSuppliers ? (
             <Typography
               variant="body2"
-              sx={{ px: 2, pb: 2, textAlign: 'center', color: 'text.secondary', '@media print': { display: 'none' } }}
+              sx={{
+                px: 2,
+                pb: 2,
+                textAlign: 'center',
+                color: 'text.secondary',
+                '@media print': { display: 'none' },
+              }}
             >
-              Para que salga el ticket de un proveedor, dalo de alta en Proveedores y toca
-              «Preparar para vender sin internet» en la venta rápida.
+              Para que salga el ticket de un proveedor, dalo de alta en Proveedores y toca «Preparar
+              para vender sin internet» en la venta rápida.
             </Typography>
           ) : null
         }
         controls={
           <>
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.quickSale.root}
-              variant="outlined"
-            >
+            <Button component={RouterLink} href={paths.dashboard.quickSale.root} variant="outlined">
               Volver a la venta rápida
             </Button>
             <Button variant="contained" onClick={() => window.print()}>
               Imprimir prueba
             </Button>
+            <TicketPrintControls settings={{ width, offset, inset }} onChange={changeSettings} />
           </>
         }
       />
@@ -172,7 +214,9 @@ export function QuickSaleTicketView({ saleKey }) {
     ticket: {
       ...ticket,
       folio: part.folio,
-      items: sale.lines.filter((l) => l.consignor_id === part.consignor_id).map((l) => l.ticketItem),
+      items: sale.lines
+        .filter((l) => l.consignor_id === part.consignor_id)
+        .map((l) => l.ticketItem),
       descuento: part.totals.discount || undefined,
       impuestos: part.totals.tax || undefined,
       total: part.totals.total,
@@ -197,6 +241,7 @@ export function QuickSaleTicketView({ saleKey }) {
       business={context?.business ?? {}}
       width={width}
       offset={offset}
+      inset={inset}
       autoPrint={autoPrint}
       controls={
         <>

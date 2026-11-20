@@ -1,13 +1,14 @@
+import { SWRConfig } from 'swr';
 import { http, HttpResponse } from 'msw';
 import { IDBFactory } from 'fake-indexeddb';
 import { MemoryRouter } from 'react-router';
-import { render, screen } from '@testing-library/react';
 import { it, expect, describe, beforeEach } from 'vitest';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 import { SaleTicket } from 'src/sections/sale/sale-ticket';
 import { SAMPLE_TICKET } from 'src/sections/sale/print-ticket';
 import { buildLocalSale } from 'src/sections/quick-sale/quick-sale-sync';
-import { setKV, addSale } from 'src/sections/quick-sale/quick-sale-store';
+import { getKV, setKV, addSale } from 'src/sections/quick-sale/quick-sale-store';
 import { QuickSaleTicketView } from 'src/sections/quick-sale/view/quick-sale-ticket-view';
 
 import { server } from '../mocks/server';
@@ -271,5 +272,39 @@ describe('venta rápida: imprimir prueba con todos los dueños', () => {
     );
     expect(await screen.findByText('OPUNTIA DEN')).toBeInTheDocument();
     expect(screen.getByText(/Preparar para vender sin internet/)).toBeInTheDocument();
+  });
+
+  it('se calibra desde aquí: el ancho va a la cuenta y a la copia del equipo', async () => {
+    let put;
+    server.use(
+      http.get('https://api.opuntiaden.com/api/v1/settings/ticket-print', () =>
+        HttpResponse.json({ width: 80, offset: 0, inset: 0, saved: true })
+      ),
+      http.put('https://api.opuntiaden.com/api/v1/settings/ticket-print', async ({ request }) => {
+        put = await request.json();
+        return HttpResponse.json({ ...put, saved: true });
+      })
+    );
+    // el equipo se preparó con el rollo viejo
+    await setKV('context', {
+      business: { business_name: 'Opuntia Den' },
+      ticketSettings: { width: 58, offset: 0 },
+    });
+    render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <MemoryRouter>
+          <QuickSaleTicketView saleKey="prueba" />
+        </MemoryRouter>
+      </SWRConfig>
+    );
+
+    // trae al equipo el rollo de la cuenta
+    const ancho = (mm) => (_, el) => el?.tagName === 'P' && el.textContent === `Ancho: ${mm} mm`;
+    expect(await screen.findByText(ancho(72))).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Más angosto' }));
+    expect(screen.getByText(ancho(71))).toBeInTheDocument();
+
+    await waitFor(() => expect(put).toMatchObject({ width: 80, offset: 0, inset: 1 }));
+    expect((await getKV('context')).ticketSettings).toEqual({ width: 80, offset: 0, inset: 1 });
   });
 });

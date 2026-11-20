@@ -59,4 +59,26 @@ describe('ajuste de la impresora de tickets', () => {
     // y el ticket de siempre sigue ahí
     expect(getByText('Gracias por tu compra')).toBeInTheDocument();
   });
+
+  it('«Más angosto» angosta el ticket y lo centra en lo imprimible', async () => {
+    server.use(
+      http.get(URL, () => HttpResponse.json({ width: 80, offset: -1, inset: 8, saved: true })),
+      http.get('https://api.opuntiaden.com/api/v1/settings/email-ticket', () =>
+        HttpResponse.json({ business_name: 'Opuntia Den' })
+      )
+    );
+    const { findByText, container } = render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <MemoryRouter>
+          <SaleTicketView />
+        </MemoryRouter>
+      </SWRConfig>
+    );
+
+    await findByText('Gracias por tu compra');
+    const css = [...container.querySelectorAll('style')].map((el) => el.textContent).join('');
+    expect(css).toContain('.od-ticket { width: 64mm !important; }');
+    // la mitad de lo quitado de cada lado, más el ajuste horizontal
+    expect(css).toContain('translateX(3mm)');
+  });
 });
