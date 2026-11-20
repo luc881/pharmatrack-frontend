@@ -1,6 +1,7 @@
 import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Menu from '@mui/material/Menu';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -10,8 +11,11 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
+import { RouterLink } from 'src/routes/components';
 
 import { matchesWords } from 'src/utils/plain';
+import { fDateTime } from 'src/utils/format-time';
+import { fCurrency } from 'src/utils/format-number';
 
 import { useGetBranches } from 'src/actions/sale';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -85,6 +89,7 @@ export function QuickSaleView() {
   const [charging, setCharging] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [reprintMenu, setReprintMenu] = useState(null);
   const [needsLogin, setNeedsLogin] = useState(false);
   // Hay wifi pero el sistema no responde (red del lugar sin salida, API caído)
   const [reachable, setReachable] = useState(true);
@@ -360,6 +365,29 @@ export function QuickSaleView() {
           >
             Imprimir prueba
           </Button>
+          {/* Las ventas de este equipo (la última semana, también las ya
+              subidas): el ticket se arma con lo guardado aquí, sin internet */}
+          <Button
+            color="inherit"
+            disabled={!quick.sales.length}
+            onClick={(e) => setReprintMenu(e.currentTarget)}
+          >
+            Reimprimir ticket
+          </Button>
+          <Menu anchorEl={reprintMenu} open={!!reprintMenu} onClose={() => setReprintMenu(null)}>
+            {quick.sales
+              .slice(-20)
+              .reverse()
+              .map((sale) => (
+                <MenuItem
+                  key={sale.idempotency_key}
+                  component={RouterLink}
+                  href={`${paths.dashboard.quickSale.ticket(sale.idempotency_key)}?print=1`}
+                >
+                  {fDateTime(sale.sold_at)} · {sale.folio} · {fCurrency(sale.totals.total)}
+                </MenuItem>
+              ))}
+          </Menu>
           <Button color="inherit" onClick={() => router.push(paths.dashboard.sale.root)}>
             Ver ventas
           </Button>

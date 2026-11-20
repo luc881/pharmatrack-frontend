@@ -164,6 +164,26 @@ describe('venta rápida: pantalla', () => {
     expect(await listSales()).toHaveLength(1);
   });
 
+  it('«Reimprimir ticket» lista las ventas del equipo y abre su ticket, sin red', async () => {
+    const user = userEvent.setup();
+    mount();
+    expect(await screen.findByRole('button', { name: 'Reimprimir ticket' })).toBeDisabled();
+
+    await user.click(await product('Cueva de resina'));
+    await user.click(screen.getByRole('checkbox', { name: 'Imprimir ticket' }));
+    server.use(http.post(`${BASE}/api/v1/sales/checkout`, () => HttpResponse.error()));
+    await user.click(cart().getByRole('button', { name: /^Cobrar/ }));
+    await screen.findByText(/1 por subir/);
+
+    await user.click(screen.getByRole('button', { name: 'Reimprimir ticket' }));
+    const item = await screen.findByRole('menuitem', { name: /VR-\w+-0001.*\$80/ });
+    const [sale] = await listSales();
+    expect(item).toHaveAttribute(
+      'href',
+      `/dashboard/quick-sale/ticket/${sale.idempotency_key}?print=1`
+    );
+  });
+
   it('sin productos marcados invita a agregarlos', async () => {
     mount([]);
     expect(await screen.findByText(/Aún no hay productos/)).toBeInTheDocument();
