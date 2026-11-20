@@ -95,6 +95,12 @@ const isBulkSpecies = (species) => !!species?.sale_format && species.sale_format
 const isEmptyBulk = (animal) =>
   animal.status === 'available' && isBulkSpecies(animal.species) && Number(animal.stock) === 0;
 
+// Cepa o paquete en venta que la venta dejó en 0 (el API lo marca vendido):
+// sigue en En venta, en gris, para resurtirlo (Editar → cantidad) o quitarlo
+// de la venta rápida. Un individual vendido sí se va al historial.
+const isSoldOutBulk = (animal) =>
+  animal.status === 'sold' && isBulkSpecies(animal.species) && purposeOf(animal) === 'sale';
+
 // Por dónde se vende un ejemplar en venta: la tienda en línea (show_public)
 // y la venta rápida de convenciones (quick_sale). Es un solo inventario; los
 // canales solo dicen dónde se ofrece.
@@ -121,7 +127,7 @@ const isLive = (animal) => animal.status === 'available' || animal.status === 'r
 // Qué ejemplares entran en cada filtro. Los de área (sale, breeding, history)
 // son el «Todo» de su página; una cepa o paquete en 0 solo se ve ahí, en gris.
 const FILTERS = {
-  sale: (a) => isLive(a) && purposeOf(a) === 'sale',
+  sale: (a) => (isLive(a) || isSoldOutBulk(a)) && purposeOf(a) === 'sale',
   breeding: (a) => isLive(a) && purposeOf(a) !== 'sale',
   breeder: (a) => isLive(a) && !isEmptyBulk(a) && purposeOf(a) === 'breeder',
   growing: (a) => isLive(a) && !isEmptyBulk(a) && purposeOf(a) === 'growing',
@@ -1228,7 +1234,8 @@ function SpeciesRows({ entry, area, site, canSite, onSetOnSite, onPatchAnimals, 
 // borrar va por la casilla y el botón «Eliminar (N)» de arriba
 function CriaderoRow({ animal, species, showStock, showChannels, siteHidden = null, canUpdate, isSelected, onToggleSelect, onMoved }) {
   const purpose = purposeOf(animal);
-  const empty = isEmptyBulk(animal);
+  const soldOut = isSoldOutBulk(animal);
+  const empty = isEmptyBulk(animal) || soldOut;
 
   return (
     <TableRow hover selected={isSelected} sx={empty ? { '& td': { color: 'text.disabled' } } : undefined}>
@@ -1292,7 +1299,7 @@ function CriaderoRow({ animal, species, showStock, showChannels, siteHidden = nu
       </TableCell>
       <TableCell>
         <Label variant="soft" color={empty ? 'default' : (STATUS_COLORS[animal.status] ?? 'default')}>
-          {statusLabel(animal) ?? animal.status}
+          {soldOut ? 'Agotado' : (statusLabel(animal) ?? animal.status)}
         </Label>
       </TableCell>
       {showStock && <TableCell>{animal.stock ?? '—'}</TableCell>}

@@ -175,6 +175,21 @@ describe('Animales: En venta', () => {
     expect(await screen.findByText('6 paquetes en venta (36)')).toBeInTheDocument();
   });
 
+  it('un paquete agotado por la venta sigue aquí, en gris, para resurtirlo o quitarlo de la venta rápida', async () => {
+    mockApi([
+      animal('P-9', 'sale', 'sold', { stock: 0, quick_sale: true, species_id: 2, species: ROACH }),
+      // un individual vendido sí se va al historial
+      animal('S-9', 'sale', 'sold'),
+    ]);
+    renderView('sale');
+
+    const row = (await screen.findByRole('link', { name: 'P-9' })).closest('tr');
+    expect(within(row).getByText('Agotado')).toBeInTheDocument();
+    expect(within(row).getByText('Venta rápida')).toBeInTheDocument();
+    expect(within(row).getByRole('link', { name: 'Editar' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'S-9' })).toBeNull();
+  });
+
   it('sin nada en venta invita a poner algo', async () => {
     mockApi([animal('B-9', 'breeder', 'available', { price: 0 })]);
     renderView('sale');
