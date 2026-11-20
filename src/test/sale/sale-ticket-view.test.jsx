@@ -60,7 +60,30 @@ describe('ajuste de la impresora de tickets', () => {
     expect(getByText('Gracias por tu compra')).toBeInTheDocument();
   });
 
-  it('«Más angosto» angosta el ticket y lo centra en lo imprimible', async () => {
+  it('en 80 mm el ticket mide 68 mm y queda centrado en los 72 imprimibles', async () => {
+    server.use(
+      http.get(URL, () => HttpResponse.json({ width: 80, offset: 0, inset: 0, saved: true })),
+      http.get('https://api.opuntiaden.com/api/v1/settings/email-ticket', () =>
+        HttpResponse.json({ business_name: 'Opuntia Den' })
+      )
+    );
+    const { findByText, container } = render(
+      <SWRConfig value={{ provider: () => new Map() }}>
+        <MemoryRouter>
+          <SaleTicketView />
+        </MemoryRouter>
+      </SWRConfig>
+    );
+
+    await findByText('Gracias por tu compra');
+    const css = [...container.querySelectorAll('style')].map((el) => el.textContent).join('');
+    expect(css).toContain('.od-ticket { width: 68mm !important; }');
+    expect(css).toContain('html, body { width: 72mm;');
+    // 2 mm de margen de cada lado
+    expect(css).toContain('translateX(2mm)');
+  });
+
+  it('«Más angosto» quita más y lo sigue centrando, con el ajuste horizontal', async () => {
     server.use(
       http.get(URL, () => HttpResponse.json({ width: 80, offset: -1, inset: 8, saved: true })),
       http.get('https://api.opuntiaden.com/api/v1/settings/email-ticket', () =>
@@ -77,8 +100,8 @@ describe('ajuste de la impresora de tickets', () => {
 
     await findByText('Gracias por tu compra');
     const css = [...container.querySelectorAll('style')].map((el) => el.textContent).join('');
-    expect(css).toContain('.od-ticket { width: 64mm !important; }');
-    // la mitad de lo quitado de cada lado, más el ajuste horizontal
-    expect(css).toContain('translateX(3mm)');
+    expect(css).toContain('.od-ticket { width: 60mm !important; }');
+    // (72 − 60) / 2 = 6 mm de cada lado, menos 1 mm del ajuste
+    expect(css).toContain('translateX(5mm)');
   });
 });

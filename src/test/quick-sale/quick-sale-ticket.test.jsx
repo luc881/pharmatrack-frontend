@@ -300,9 +300,9 @@ describe('venta rápida: imprimir prueba con todos los dueños', () => {
 
     // trae al equipo el rollo de la cuenta
     const ancho = (mm) => (_, el) => el?.tagName === 'P' && el.textContent === `Ancho: ${mm} mm`;
-    expect(await screen.findByText(ancho(72))).toBeInTheDocument();
+    expect(await screen.findByText(ancho(68))).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Más angosto' }));
-    expect(screen.getByText(ancho(71))).toBeInTheDocument();
+    expect(screen.getByText(ancho(67))).toBeInTheDocument();
 
     await waitFor(() => expect(put).toMatchObject({ width: 80, offset: 0, inset: 1 }));
     expect((await getKV('context')).ticketSettings).toEqual({ width: 80, offset: 0, inset: 1 });

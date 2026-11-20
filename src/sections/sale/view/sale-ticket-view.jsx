@@ -18,7 +18,7 @@ import axiosInstance, { fetcher } from 'src/lib/axios';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
-import { SaleTicket } from '../sale-ticket';
+import { SaleTicket, TICKET_WIDTH } from '../sale-ticket';
 import { PrepOrder, SAMPLE_ORDER } from '../../quick-sale/prep-order';
 import { SAMPLE_TICKET, useSaleTicket, useTicketTemplate } from '../print-ticket';
 
@@ -28,7 +28,7 @@ import { SAMPLE_TICKET, useSaleTicket, useTicketTemplate } from '../print-ticket
 // Sin saleId imprime el ticket de prueba.
 // ----------------------------------------------------------------------
 
-// Área imprimible de cada rollo (lo mismo que .od-ticket en sale-ticket.jsx)
+// Área imprimible de cada rollo; el ticket (TICKET_WIDTH) va centrado en ella
 const PRINTABLE = { 58: 48, 80: 72 };
 const SETTINGS_URL = '/api/v1/settings/ticket-print';
 const DEFAULTS = { width: 80, offset: 0, inset: 0 };
@@ -123,7 +123,7 @@ export function TicketPrintControls({ settings, onChange }) {
           Más angosto
         </Button>
         <Typography variant="body2" sx={{ minWidth: 92, textAlign: 'center' }}>
-          Ancho: {(PRINTABLE[width] - inset).toFixed(0)} mm
+          Ancho: {(TICKET_WIDTH[width] - inset).toFixed(0)} mm
         </Typography>
         <Button size="small" variant="outlined" disabled={inset <= 0} onClick={() => narrow(-1)}>
           Más ancho
@@ -231,6 +231,7 @@ export function TicketPrintPage({
   hideTicket = false,
 }) {
   const printed = useRef(false);
+  const content = TICKET_WIDTH[width] - inset;
   const list = tickets ?? (ticket ? [{ ticket, business }] : null);
   const readyCount = useRef(new Set());
 
@@ -258,12 +259,12 @@ export function TicketPrintPage({
       }}
     >
       {/* La página mide justo lo imprimible: más ancha y el driver la recorre o la escala */}
-      {/* inset: el ticket se angosta y se centra en lo imprimible */}
+      {/* El ticket (más angosto si se pidió) va centrado en lo imprimible */}
       <style>{`@page { margin: 0; }
-        ${inset ? `.od-ticket { width: ${PRINTABLE[width] - inset}mm !important; }` : ''}
+        .od-ticket { width: ${content}mm !important; }
         @media print {
           html, body { width: ${PRINTABLE[width]}mm; margin: 0; padding: 0; background: #fff; }
-          .od-ticket { margin: 0 !important; transform: translateX(${offset + inset / 2}mm); }
+          .od-ticket { margin: 0 !important; transform: translateX(${offset + (PRINTABLE[width] - content) / 2}mm); }
         }`}</style>
 
       <Stack
