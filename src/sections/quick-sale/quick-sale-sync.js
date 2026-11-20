@@ -6,7 +6,7 @@ import { toItem, BUSINESS_URL } from 'src/sections/sale/print-ticket';
 
 import { refreshSession } from 'src/auth/context/jwt/utils';
 
-import { cartTotals, namedSplit, ownerSplit } from './quick-sale-math';
+import { priced, cartTotals, namedSplit, ownerSplit } from './quick-sale-math';
 import {
   getKV,
   setKV,
@@ -68,7 +68,8 @@ export function buildLocalSale({
     branch_id: branchId,
     status: 'pending',
     lines: cart.map((line) => {
-      const item = itemsById.get(line.product_id);
+      // con el precio de la línea (el que puso un admin al cobrar, si hubo)
+      const item = priced(itemsById.get(line.product_id), line);
       return {
         product_id: line.product_id,
         consignor_id: item.consignor_id ?? null,
@@ -76,6 +77,9 @@ export function buildLocalSale({
         quantity: line.quantity,
         discount: line.discount,
         price_retail: item.price_retail,
+        ...(line.unit_price !== undefined && line.unit_price !== null
+          ? { unit_price: line.unit_price }
+          : {}),
         tax_percentage: item.tax_percentage ?? null,
         // para el talón de orden
         needs_prep: Boolean(item.needs_prep),
@@ -323,7 +327,7 @@ export async function enqueueSale({ key, cart, itemsById, method, branchId }) {
   ];
   for (const id of owners) {
     const prefix = suppliers.find((s) => s.id === id)?.ticket_prefix || `P${id}`;
-     
+
     ownerFolios[id] = await nextFolio(prefix);
   }
   const sale = buildLocalSale({
@@ -337,7 +341,58 @@ export async function enqueueSale({ key, cart, itemsById, method, branchId }) {
     suppliers,
     ownerFolios,
   });
-  return (await addSale(sale)) ? sale : null;
+  if (!(await addSale(sale))) return null;
+  await notePriceChanges(cart, itemsById);
+  return sale;
+}
+
+// ----------------------------------------------------------------------
+// Precios cambiados al cobrar: quedan en el equipo hasta que alguien decide,
+// con red, si el nuevo se vuelve el precio del producto o fue solo esa venta
+// ----------------------------------------------------------------------
+
+const PRICE_REVIEW = 'priceReview';
+
+async function notePriceChanges(cart, itemsById) {
+  // los de último momento ya nacen con el precio que se les puso
+  const changed = cart.filter(
+    (l) => l.unit_price !== undefined && l.unit_price !== null && !isLocal(l.product_id)
+  );
+  if (!changed.length) return;
+  const list = (await getKV(PRICE_REVIEW)) ?? [];
+  changed.forEach((line) => {
+    const item = itemsById.get(line.product_id);
+    const entry = list.find((e) => e.product_id === line.product_id);
+    if (entry) {
+      if (!entry.prices.includes(line.unit_price)) entry.prices.push(line.unit_price);
+    } else {
+      list.push({
+        product_id: line.product_id,
+        animal_id: item.animal?.id ?? null,
+        title: item.title,
+        catalog_price: Number(item.price_retail),
+        prices: [line.unit_price],
+      });
+    }
+  });
+  await setKV(PRICE_REVIEW, list);
+}
+
+// price: el que se guarda como precio del producto; null = se queda el que tenía
+export async function resolvePriceChange(productId, price) {
+  const entry = ((await getKV(PRICE_REVIEW)) ?? []).find((e) => e.product_id === productId);
+  if (entry && price !== null) {
+    // un animal se cambia por su ficha (el producto gemelo se sincroniza solo)
+    if (entry.animal_id) {
+      await axiosInstance.put(endpoints.animal.update(entry.animal_id), { price });
+    } else {
+      await axiosInstance.put(endpoints.product.update(productId), { price_retail: price });
+    }
+  }
+  await setKV(
+    PRICE_REVIEW,
+    ((await getKV(PRICE_REVIEW)) ?? []).filter((e) => e.product_id !== productId)
+  );
 }
 
 const REJECTED = [400, 404, 409, 422];
@@ -354,11 +409,13 @@ async function upload(sale, { timeout, retried = false }) {
   try {
     // Los productos de último momento se dan de alta antes que la venta
     const items = [];
-    for (const { product_id, quantity, discount } of sale.lines) {
+    for (const { product_id, quantity, discount, unit_price } of sale.lines) {
       items.push({
         product_id: isLocal(product_id) ? await serverIdOf(product_id) : product_id,
         quantity,
         discount,
+        // precio al vuelo: el servidor cobra ese (solo admin)
+        ...(unit_price !== undefined ? { unit_price } : {}),
       });
     }
     const { data: res } = await axiosInstance.post(

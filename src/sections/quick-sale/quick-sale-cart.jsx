@@ -18,7 +18,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
 import { fCurrency } from 'src/utils/format-number';
 
-import { toNumber, lineTotals, namedSplit } from './quick-sale-math';
+import { priced, toNumber, lineTotals, namedSplit } from './quick-sale-math';
 
 // ----------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ function DiscountDialog({ target, quick, onClose }) {
   const [error, setError] = useState(null);
 
   const line = whole ? null : quick.cart.find((l) => l.product_id === target);
-  const item = whole ? null : quick.itemsById.get(target);
+  const item = whole ? null : priced(quick.itemsById.get(target), line);
 
   const apply = () => {
     const number = toNumber(value);
@@ -113,13 +113,70 @@ function DiscountDialog({ target, quick, onClose }) {
   );
 }
 
+// Precio al vuelo de una línea (solo admin): se cobra a ese precio; si se
+// vuelve el precio del producto se decide después, en «Precios cambiados»
+function PriceDialog({ productId, quick, onClose }) {
+  const line = quick.cart.find((l) => l.product_id === productId);
+  const item = quick.itemsById.get(productId);
+  const [value, setValue] = useState(() => String(Number(priced(item, line)?.price_retail ?? 0)));
+  const [error, setError] = useState(null);
+
+  const apply = () => {
+    const message = quick.setPrice(productId, toNumber(value));
+    if (message) setError(message);
+    else onClose();
+  };
+
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Precio · {item?.title ?? ''}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <TextField
+            autoFocus
+            label="Precio por pieza"
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setError(null);
+            }}
+            onFocus={(e) => e.target.select()}
+            onKeyDown={(e) => e.key === 'Enter' && apply()}
+            error={Boolean(error)}
+            helperText={
+              error ??
+              `Solo para esta venta. En el sistema: ${fCurrency(item?.price_retail) || '$0'}`
+            }
+            slotProps={{ htmlInput: { inputMode: 'decimal' } }}
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cerrar</Button>
+        <Button variant="contained" onClick={apply}>
+          Aplicar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 // ----------------------------------------------------------------------
 
-export function QuickSaleCart({ quick, charging, printTicket, onPrintTicketChange, onCharge }) {
+// canEditPrice: solo administradores cambian el precio al cobrar
+export function QuickSaleCart({
+  quick,
+  charging,
+  printTicket,
+  onPrintTicketChange,
+  onCharge,
+  canEditPrice = false,
+}) {
   const { cart, totals, itemsById } = quick;
   const [method, setMethod] = useState('cash');
   const [received, setReceived] = useState('');
   const [discountFor, setDiscountFor] = useState(null);
+  const [priceFor, setPriceFor] = useState(null);
 
   const empty = cart.length === 0;
   // Solo si la cuenta mezcla productos de más de un dueño
@@ -143,8 +200,10 @@ export function QuickSaleCart({ quick, charging, printTicket, onPrintTicketChang
       ) : (
         <Stack divider={<Divider sx={{ borderStyle: 'dashed' }} />} sx={{ mt: 1 }}>
           {cart.map((line) => {
-            const item = itemsById.get(line.product_id);
-            if (!item) return null;
+            const catalogItem = itemsById.get(line.product_id);
+            if (!catalogItem) return null;
+            const item = priced(catalogItem, line);
+            const repriced = item !== catalogItem;
             const { total } = lineTotals(item, line.quantity, line.discount);
             return (
               <Box key={line.product_id} sx={{ py: 1.25 }}>
@@ -179,10 +238,24 @@ export function QuickSaleCart({ quick, charging, printTicket, onPrintTicketChang
                     +
                   </Button>
                   <Box sx={{ flexGrow: 1 }} />
+                  {repriced && (
+                    <Typography variant="caption" sx={{ color: 'warning.main' }}>
+                      a {fCurrency(item.price_retail) || '$0'}
+                    </Typography>
+                  )}
                   {line.discount > 0 && (
                     <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                       −{fCurrency(line.discount)}
                     </Typography>
+                  )}
+                  {canEditPrice && (
+                    <Button
+                      size="small"
+                      aria-label={`Precio de ${item.title}`}
+                      onClick={() => setPriceFor(line.product_id)}
+                    >
+                      Precio
+                    </Button>
                   )}
                   <Button size="small" onClick={() => setDiscountFor(line.product_id)}>
                     Descuento
@@ -298,6 +371,9 @@ export function QuickSaleCart({ quick, charging, printTicket, onPrintTicketChang
         Cobrar {empty ? '' : fCurrency(totals.total)}
       </Button>
 
+      {priceFor !== null && (
+        <PriceDialog productId={priceFor} quick={quick} onClose={() => setPriceFor(null)} />
+      )}
       {discountFor !== null && (
         <DiscountDialog target={discountFor} quick={quick} onClose={() => setDiscountFor(null)} />
       )}

@@ -144,3 +144,64 @@ export function QuickSaleStatus({
     </Card>
   );
 }
+
+// ----------------------------------------------------------------------
+
+// Precios que un admin cambió al cobrar: con red se decide si el nuevo queda
+// como precio del producto (también en el sitio) o fue solo para esa venta.
+// Se queda en el equipo hasta decidir.
+export function QuickSalePriceReview({ items, online, busy, onResolve }) {
+  if (!items.length) return null;
+  return (
+    <Card component="section" aria-label="Precios cambiados" sx={{ p: 2, mb: 3 }}>
+      <Typography variant="subtitle2">
+        {items.length === 1 ? '1 precio cambiado' : `${items.length} precios cambiados`} al cobrar
+      </Typography>
+      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+        {online
+          ? 'Elige si el precio nuevo queda en el sistema (y en el sitio) o fue solo para esa venta.'
+          : 'Cuando vuelva el internet podrás decidir si el precio nuevo queda en el sistema.'}
+      </Typography>
+      <Stack component="ul" spacing={1.5} sx={{ m: 0, mt: 1.5, p: 0, listStyle: 'none' }}>
+        {items.map((entry) => (
+          <Stack
+            key={entry.product_id}
+            component="li"
+            direction="row"
+            sx={{ gap: 1, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <Box>
+              <Typography variant="subtitle2">{entry.title}</Typography>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                Sistema {fCurrency(entry.catalog_price) || '$0'} · vendido a{' '}
+                {entry.prices.map((p) => fCurrency(p) || '$0').join(', ')}
+              </Typography>
+            </Box>
+            <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap' }}>
+              {entry.prices.map((price) => (
+                <Button
+                  key={price}
+                  size="small"
+                  variant="contained"
+                  disabled={!online || busy}
+                  onClick={() => onResolve(entry, price)}
+                >
+                  Guardar {fCurrency(price) || '$0'} como precio
+                </Button>
+              ))}
+              <Button
+                size="small"
+                variant="outlined"
+                color="inherit"
+                disabled={busy}
+                onClick={() => onResolve(entry, null)}
+              >
+                Dejar {fCurrency(entry.catalog_price) || '$0'}
+              </Button>
+            </Stack>
+          </Stack>
+        ))}
+      </Stack>
+    </Card>
+  );
+}

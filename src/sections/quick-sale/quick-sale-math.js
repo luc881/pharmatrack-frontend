@@ -15,6 +15,13 @@ function lineCents(item, quantity, discount = 0) {
   return { subtotal, tax, total: subtotal + tax };
 }
 
+// El producto con el precio de la línea: el del catálogo o el que un admin
+// puso al cobrar (unit_price; el servidor cobra ese mismo)
+export const priced = (item, line) =>
+  !item || line?.unit_price === undefined || line.unit_price === null
+    ? item
+    : { ...item, price_retail: line.unit_price };
+
 export function lineTotals(item, quantity, discount = 0) {
   const { subtotal, tax, total } = lineCents(item, quantity, discount);
   return { subtotal: pesos(subtotal), tax: pesos(tax), total: pesos(total) };
@@ -23,7 +30,7 @@ export function lineTotals(item, quantity, discount = 0) {
 export function cartTotals(lines, itemsById) {
   const sum = { subtotal: 0, discount: 0, tax: 0, total: 0 };
   lines.forEach((line) => {
-    const item = itemsById.get(line.product_id);
+    const item = priced(itemsById.get(line.product_id), line);
     if (!item) return;
     const t = lineCents(item, line.quantity, line.discount);
     sum.subtotal += t.subtotal;
@@ -44,7 +51,7 @@ export function cartTotals(lines, itemsById) {
 export function ownerSplit(lines, itemsById) {
   const byOwner = new Map();
   lines.forEach((line) => {
-    const item = itemsById.get(line.product_id);
+    const item = priced(itemsById.get(line.product_id), line);
     if (!item) return;
     const owner = item.consignor_id ?? null;
     const { total } = lineCents(item, line.quantity, line.discount);
@@ -79,7 +86,7 @@ export function maxDiscount(item, quantity) {
 export function spreadDiscount(lines, itemsById, percent) {
   let unapplied = 0;
   const next = lines.map((line) => {
-    const item = itemsById.get(line.product_id);
+    const item = priced(itemsById.get(line.product_id), line);
     if (!item) return line;
     const wanted = Math.round((cents(item.price_retail) * Number(line.quantity) * percent) / 100);
     const cap = maxDiscount(item, line.quantity);

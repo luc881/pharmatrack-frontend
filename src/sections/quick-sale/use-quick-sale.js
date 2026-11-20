@@ -4,7 +4,7 @@ import { fCurrency } from 'src/utils/format-number';
 
 import { provisionalItem } from './quick-sale-sync';
 import { getKV, listSales } from './quick-sale-store';
-import { usage, stockOf, cartTotals, maxDiscount, spreadDiscount } from './quick-sale-math';
+import { usage, priced, stockOf, cartTotals, maxDiscount, spreadDiscount } from './quick-sale-math';
 
 // Estado de la venta rápida: catálogo y ventas del dispositivo (IndexedDB)
 // más la cuenta en curso. El stock no se guarda: es el del catálogo menos lo
@@ -16,6 +16,7 @@ export function useQuickSale() {
     fetchedAt: null,
     requestedAt: null,
     sales: [],
+    priceReview: [],
     provisionals: [],
     suppliers: [],
     failed: false,
@@ -24,11 +25,12 @@ export function useQuickSale() {
 
   const reload = useCallback(async () => {
     try {
-      const [catalog, sales, saved, context] = await Promise.all([
+      const [catalog, sales, saved, context, priceReview] = await Promise.all([
         getKV('catalog'),
         listSales(),
         getKV('provisionals'),
         getKV('context'),
+        getKV('priceReview'),
       ]);
       // Los productos de último momento de este equipo van siempre con su id
       // local, aunque el catálogo ya los traiga dados de alta
@@ -50,6 +52,8 @@ export function useQuickSale() {
         fetchedAt: catalog?.fetchedAt ?? null,
         requestedAt: catalog?.requestedAt ?? null,
         sales,
+        // precios cambiados al cobrar, para decidir si se guardan (con red)
+        priceReview: priceReview ?? [],
         failed: false,
       });
     } catch {
@@ -119,16 +123,15 @@ export function useQuickSale() {
         const left = item ? stockOf(item, usedWith(others)) : null;
         const next = left === null ? quantity : Math.min(quantity, left);
         if (next <= 0) return others;
-        const cap = item ? maxDiscount(item, next) : null;
-        return prev.map((l) =>
-          l.product_id === productId
-            ? {
-                ...l,
-                quantity: next,
-                discount: cap === null ? l.discount : Math.min(l.discount, cap),
-              }
-            : l
-        );
+        return prev.map((l) => {
+          if (l.product_id !== productId) return l;
+          const cap = item ? maxDiscount(priced(item, l), next) : null;
+          return {
+            ...l,
+            quantity: next,
+            discount: cap === null ? l.discount : Math.min(l.discount, cap),
+          };
+        });
       });
     },
     [itemsById, usedWith]
@@ -138,7 +141,7 @@ export function useQuickSale() {
   const setDiscount = useCallback(
     (productId, amount) => {
       const line = cart.find((l) => l.product_id === productId);
-      const item = itemsById.get(productId);
+      const item = priced(itemsById.get(productId), line);
       if (!line || !item) return 'Ese producto ya no está en la cuenta';
       const value = Math.max(0, Math.round(Number(amount || 0) * 100) / 100);
       const cap = maxDiscount(item, line.quantity);
@@ -150,6 +153,28 @@ export function useQuickSale() {
       }
       setCart((prev) =>
         prev.map((l) => (l.product_id === productId ? { ...l, discount: value } : l))
+      );
+      return null;
+    },
+    [cart, itemsById]
+  );
+
+  // Precio al vuelo (solo admin): esta línea se cobra a `price`; el producto
+  // no cambia hasta que se revise. Igual al del catálogo = sin cambio. El
+  // descuento de la línea se quita: era sobre el precio anterior.
+  const setPrice = useCallback(
+    (productId, price) => {
+      const item = itemsById.get(productId);
+      if (!item || !cart.some((l) => l.product_id === productId)) {
+        return 'Ese producto ya no está en la cuenta';
+      }
+      const value = Math.round(Number(price) * 100) / 100;
+      if (!Number.isFinite(value) || value < 0) return 'Escribe un precio válido';
+      const unitPrice = value === Number(item.price_retail) ? null : value;
+      setCart((prev) =>
+        prev.map((l) =>
+          l.product_id === productId ? { ...l, unit_price: unitPrice, discount: 0 } : l
+        )
       );
       return null;
     },
@@ -188,6 +213,7 @@ export function useQuickSale() {
     itemsById,
     fetchedAt: state.fetchedAt,
     sales,
+    priceReview: state.priceReview,
     cart,
     totals,
     counts,
@@ -195,6 +221,7 @@ export function useQuickSale() {
     add,
     setQuantity,
     setDiscount,
+    setPrice,
     discountAll,
     clear,
     reload,

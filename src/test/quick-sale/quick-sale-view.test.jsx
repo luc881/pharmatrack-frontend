@@ -14,9 +14,10 @@ import { server } from '../mocks/server';
 
 // El layout importa el tema completo (CSS de data-grid), que vitest no carga
 vi.mock('src/layouts/dashboard', () => ({ DashboardContent: ({ children }) => children }));
+const auth = vi.hoisted(() => ({ role: 'admin' }));
 vi.mock('src/auth/hooks', () => ({
   useAuthContext: () => ({
-    user: { id: 3, email: 'a@b.mx', role: 'admin', permissions: ['sales.create'] },
+    user: { id: 3, email: 'a@b.mx', role: auth.role, permissions: ['sales.create'] },
   }),
 }));
 
@@ -93,6 +94,7 @@ const cart = () => within(screen.getByRole('region', { name: 'Cuenta' }));
 describe('venta rápida: pantalla', () => {
   beforeEach(() => {
     globalThis.indexedDB = new IDBFactory();
+    auth.role = 'admin';
   });
 
   it('cada toque suma uno y actualiza el total', async () => {
@@ -182,6 +184,48 @@ describe('venta rápida: pantalla', () => {
       'href',
       `/dashboard/quick-sale/ticket/${sale.idempotency_key}?print=1`
     );
+  });
+
+  it('un admin cambia el precio al cobrar y después decide si lo guarda', async () => {
+    const user = userEvent.setup();
+    const puts = [];
+    mount();
+    server.use(
+      http.put(`${BASE}/api/v1/products/:id`, async ({ request, params }) => {
+        puts.push([Number(params.id), await request.json()]);
+        return HttpResponse.json({ id: Number(params.id) });
+      })
+    );
+    await user.click(await product('Cueva de resina'));
+    await user.click(cart().getByRole('button', { name: 'Precio de Cueva de resina' }));
+    const dialog = within(await screen.findByRole('dialog'));
+    await user.clear(dialog.getByLabelText('Precio por pieza'));
+    await user.type(dialog.getByLabelText('Precio por pieza'), '150');
+    await user.click(dialog.getByRole('button', { name: 'Aplicar' }));
+    expect(cart().getByTestId('total')).toHaveTextContent('$150');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Imprimir ticket' }));
+    await user.click(cart().getByRole('button', { name: /^Cobrar/ }));
+    await waitFor(() => expect(checkouts).toHaveLength(1));
+    expect(checkouts[0].items[0]).toMatchObject({ product_id: 1, unit_price: 150 });
+
+    // el producto no cambia solo: se revisa
+    const review = within(await screen.findByRole('region', { name: 'Precios cambiados' }));
+    expect(review.getByText(/Cueva de resina/)).toBeInTheDocument();
+    await user.click(review.getByRole('button', { name: 'Guardar $150 como precio' }));
+    await waitFor(() => expect(puts).toEqual([[1, { price_retail: 150 }]]));
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Precios cambiados' })).toBeNull()
+    );
+  });
+
+  it('quien no es admin no puede cambiar el precio', async () => {
+    auth.role = 'seller';
+    const user = userEvent.setup();
+    mount();
+    await user.click(await product('Cueva de resina'));
+    expect(cart().getByRole('button', { name: 'Descuento' })).toBeInTheDocument();
+    expect(cart().queryByRole('button', { name: /^Precio de/ })).toBeNull();
   });
 
   it('sin productos marcados invita a agregarlos', async () => {

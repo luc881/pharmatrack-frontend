@@ -32,9 +32,9 @@ import { QuickSaleCart } from '../quick-sale-cart';
 import { QuickSaleGrid } from '../quick-sale-grid';
 import { getKV, setKV } from '../quick-sale-store';
 import { QuickSalePicker } from '../quick-sale-picker';
-import { QuickSaleStatus } from '../quick-sale-status';
 import { QuickSaleNewProduct } from '../quick-sale-new-product';
 import { QuickSaleAddButtons } from '../quick-sale-add-buttons';
+import { QuickSaleStatus, QuickSalePriceReview } from '../quick-sale-status';
 import {
   retrySale,
   syncQueue,
@@ -46,6 +46,7 @@ import {
   prepareOffline,
   provisionalItem,
   removeProvisional,
+  resolvePriceChange,
 } from '../quick-sale-sync';
 
 // ----------------------------------------------------------------------
@@ -90,6 +91,7 @@ export function QuickSaleView() {
   const [preparing, setPreparing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [reprintMenu, setReprintMenu] = useState(null);
+  const [resolving, setResolving] = useState(false);
   const [needsLogin, setNeedsLogin] = useState(false);
   // Hay wifi pero el sistema no responde (red del lugar sin salida, API caído)
   const [reachable, setReachable] = useState(true);
@@ -239,6 +241,24 @@ export function QuickSaleView() {
   const retry = async (sale) => {
     await retrySale(sale.idempotency_key);
     await sync();
+  };
+
+  // «Guardar $X como precio» (price) o «Dejar» (null); al guardar se vuelve
+  // a bajar el catálogo para cobrar ya con el precio nuevo
+  const resolvePrice = async (entry, price) => {
+    setResolving(true);
+    try {
+      await resolvePriceChange(entry.product_id, price);
+      if (price !== null) {
+        toast.success(`${entry.title}: precio guardado`);
+        await prepare();
+      }
+      await reload();
+    } catch (error) {
+      toast.error(error?.message || 'No se pudo guardar el precio');
+    } finally {
+      setResolving(false);
+    }
   };
 
   const discard = async (sale) => {
@@ -412,6 +432,13 @@ export function QuickSaleView() {
         onBackup={exportBackup}
       />
 
+      <QuickSalePriceReview
+        items={quick.priceReview}
+        online={online && reachable}
+        busy={resolving}
+        onResolve={resolvePrice}
+      />
+
       <Box
         sx={{
           gap: 3,
@@ -462,6 +489,7 @@ export function QuickSaleView() {
             printTicket={prefs.printTicket}
             onPrintTicketChange={(printTicket) => savePrefs({ printTicket })}
             onCharge={charge}
+            canEditPrice={user?.role === 'admin'}
           />
         </Box>
       </Box>

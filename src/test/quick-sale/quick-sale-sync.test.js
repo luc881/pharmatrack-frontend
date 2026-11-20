@@ -10,6 +10,7 @@ import {
   discardSale,
   enqueueSale,
   prepareOffline,
+  resolvePriceChange,
 } from 'src/sections/quick-sale/quick-sale-sync';
 
 import { setSession } from 'src/auth/context/jwt/utils';
@@ -441,5 +442,44 @@ describe('venta rápida: cola y subida', () => {
     expect(await syncQueue({ timeout: 150 })).toMatchObject({ synced: 0, pending: 1 });
     hang = false;
     expect(await syncQueue({ timeout: 150 })).toMatchObject({ synced: 1, pending: 0 });
+  });
+});
+
+describe('venta rápida: precios cambiados al cobrar', () => {
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+  });
+
+  it('un animal a otro precio queda por revisar; guardarlo cambia su ficha', async () => {
+    const puts = [];
+    server.use(
+      http.put(`${API}/animals/:id`, async ({ request, params }) => {
+        puts.push([Number(params.id), await request.json()]);
+        return HttpResponse.json({ id: Number(params.id) });
+      })
+    );
+    const isopod = {
+      ...cueva,
+      id: 4,
+      title: 'Orange Freezy',
+      price_retail: '1.00',
+      animal: { id: 9 },
+    };
+    const sale = await enqueueSale({
+      key: 'k-precio-1',
+      cart: [{ product_id: 4, quantity: 2, discount: 0, unit_price: 150 }],
+      itemsById: new Map([[4, isopod]]),
+      method: 'cash',
+      branchId: 7,
+    });
+    expect(sale.totals.total).toBe(300);
+    expect(sale.lines[0]).toMatchObject({ unit_price: 150, price_retail: 150 });
+    expect(await getKV('priceReview')).toEqual([
+      { product_id: 4, animal_id: 9, title: 'Orange Freezy', catalog_price: 1, prices: [150] },
+    ]);
+
+    await resolvePriceChange(4, 150);
+    expect(puts).toEqual([[9, { price: 150 }]]);
+    expect(await getKV('priceReview')).toEqual([]);
   });
 });

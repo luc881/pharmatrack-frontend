@@ -5,6 +5,7 @@ import {
   stockOf,
   lineTotals,
   cartTotals,
+  ownerSplit,
   maxDiscount,
   spreadDiscount,
 } from 'src/sections/quick-sale/quick-sale-math';
@@ -48,6 +49,14 @@ describe('venta rápida: cálculo', () => {
       { product_id: 2, quantity: 1, discount: 0 },
     ];
     expect(cartTotals(lines, byId)).toEqual({ subtotal: 350, discount: 10, tax: 24, total: 374 });
+  });
+
+  it('una línea con precio al vuelo se cobra a ese precio (como el servidor)', () => {
+    const lines = [{ product_id: 1, quantity: 2, discount: 0, unit_price: 150 }];
+    expect(cartTotals(lines, byId)).toEqual({ subtotal: 300, discount: 0, tax: 48, total: 348 });
+    expect(ownerSplit(lines, byId)).toEqual([{ consignor_id: null, total: 348 }]);
+    // el % de descuento a la cuenta va sobre el precio nuevo
+    expect(spreadDiscount(lines, byId, 5).lines[0].discount).toBe(15);
   });
 
   it('tope de descuento por línea', () => {
