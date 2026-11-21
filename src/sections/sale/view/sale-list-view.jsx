@@ -45,6 +45,7 @@ import { useAllProducts } from 'src/sections/product-batch/use-all-products';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { SalePDFRowButton } from '../sale-pdf';
+import { SaleItemsButton } from '../sale-items-button';
 
 // ----------------------------------------------------------------------
 
@@ -133,6 +134,15 @@ export function SaleListView() {
   const columns = useMemo(
     () => [
       { field: 'id', headerName: '# Venta', width: 90 },
+      {
+        field: 'items',
+        headerName: 'Productos',
+        width: 110,
+        sortable: false,
+        filterable: false,
+        disableColumnMenu: true,
+        renderCell: (params) => <SaleItemsButton saleId={params.row.id} productMap={productMap} />,
+      },
       {
         field: 'date_sale',
         headerName: 'Fecha',
