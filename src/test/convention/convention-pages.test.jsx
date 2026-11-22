@@ -90,8 +90,12 @@ describe('productos por revisar', () => {
     const tronco = await row('Tronco de corcho');
     expect(tronco.getByText('3')).toBeInTheDocument();
     expect(tronco.getByText('$360')).toBeInTheDocument();
-    expect(tronco.getByText('Insectario Vecino')).toBeInTheDocument();
-    expect((await row('Sin ventas')).getByText('Propio')).toBeInTheDocument();
+    expect(
+      await tronco.findByRole('combobox', { name: 'De quién es Tronco de corcho' })
+    ).toHaveDisplayValue('Insectario Vecino');
+    expect(
+      (await row('Sin ventas')).getByRole('combobox', { name: 'De quién es Sin ventas' })
+    ).toHaveDisplayValue('Propio');
     expect(screen.queryByText('Ya desechado')).toBeNull();
   });
 
@@ -118,6 +122,17 @@ describe('productos por revisar', () => {
     await waitFor(() => expect(screen.queryByText('Sin ventas')).toBeNull());
     expect(puts).toEqual([[901, { is_active: false, quick_sale: false }]]);
     confirm.mockRestore();
+  });
+
+  it('se le puede cambiar el dueño (para el corte)', async () => {
+    const user = userEvent.setup();
+    wrap(<ProductProvisionalView />);
+    const owner = (await row('Sin ventas')).getByRole('combobox', {
+      name: 'De quién es Sin ventas',
+    });
+    await screen.findAllByRole('option', { name: 'Insectario Vecino' });
+    await user.selectOptions(owner, 'Insectario Vecino');
+    await waitFor(() => expect(puts).toEqual([[901, { consignor_id: 9 }]]));
   });
 
   it('sin pendientes lo dice', async () => {

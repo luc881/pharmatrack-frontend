@@ -29,9 +29,9 @@ export function useGetBranches() {
 
 export function useGetSales({ page = 1, pageSize = 10, status, dateFrom, dateTo } = {}) {
   const params = { page, page_size: pageSize };
-  if (status)   params.status    = status;
+  if (status) params.status = status;
   if (dateFrom) params.date_from = dateFrom;
-  if (dateTo)   params.date_to   = dateTo;
+  if (dateTo) params.date_to = dateTo;
 
   const url = [endpoints.sale.list, { params }];
 
@@ -67,9 +67,7 @@ export function useGetSale(saleId) {
 // ----------------------------------------------------------------------
 
 export function useGetSaleDetails(saleId) {
-  const url = saleId
-    ? [endpoints.saleDetail.list, { params: { sale_id: saleId } }]
-    : null;
+  const url = saleId ? [endpoints.saleDetail.list, { params: { sale_id: saleId } }] : null;
   const { data, isLoading } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(() => {
@@ -84,9 +82,7 @@ export function useGetSaleDetails(saleId) {
 // ----------------------------------------------------------------------
 
 export function useGetSalePayments(saleId) {
-  const url = saleId
-    ? [endpoints.salePayment.list, { params: { sale_id: saleId } }]
-    : null;
+  const url = saleId ? [endpoints.salePayment.list, { params: { sale_id: saleId } }] : null;
   const { data, isLoading } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(() => {
@@ -101,9 +97,7 @@ export function useGetSalePayments(saleId) {
 // ----------------------------------------------------------------------
 
 export function useGetSaleBatchUsagesBySale(saleId) {
-  const url = saleId
-    ? [endpoints.saleBatchUsage.list, { params: { sale_id: saleId } }]
-    : null;
+  const url = saleId ? [endpoints.saleBatchUsage.list, { params: { sale_id: saleId } }] : null;
   const { data, isLoading } = useSWR(url, fetcher, swrOptions);
 
   return useMemo(
@@ -126,6 +120,9 @@ export const updateSale = (id, data) =>
 
 export const deleteSale = (id) =>
   axiosInstance.delete(endpoints.sale.delete(id)).then((r) => r.data);
+
+// Se arrepintieron después de cobrar: regresa el stock y sale del corte
+export const cancelSale = (id) => axiosInstance.post(endpoints.sale.cancel(id)).then((r) => r.data);
 
 export const completeSale = (id) =>
   axiosInstance.post(endpoints.sale.complete(id)).then((r) => r.data);

@@ -5,6 +5,7 @@ import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import TableRow from '@mui/material/TableRow';
+import TextField from '@mui/material/TextField';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -16,6 +17,7 @@ import { useRouter } from 'src/routes/hooks';
 import { fCurrency } from 'src/utils/format-number';
 import { handleApiError } from 'src/utils/handle-api-error';
 
+import { updateProduct } from 'src/actions/product';
 import { useGetSuppliers } from 'src/actions/supplier';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { keepProvisional, useGetProvisionals, discardProvisional } from 'src/actions/convention';
@@ -33,10 +35,21 @@ export function ProductProvisionalView() {
   const [busy, setBusy] = useState(null);
 
   const pending = provisionals.filter((p) => p.is_active);
-  const ownerOf = (p) =>
-    p.consignor_id === null
-      ? 'Propio'
-      : (suppliers.find((s) => s.id === p.consignor_id)?.name ?? 'En consigna');
+
+  // Se dio de alta como propio y era de un proveedor (o al revés): el corte
+  // por dueño lee el dueño actual del producto, así que se corrige solo
+  const changeOwner = async (product, value) => {
+    setBusy(product.id);
+    try {
+      await updateProduct(product.id, { consignor_id: value === '' ? null : Number(value) });
+      await provisionalsMutate();
+      toast.success('Dueño actualizado');
+    } catch (error) {
+      handleApiError(error, 'No se pudo cambiar el dueño');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const keep = async (product) => {
     setBusy(product.id);
@@ -104,7 +117,26 @@ export function ProductProvisionalView() {
                       </Typography>
                     )}
                   </TableCell>
-                  <TableCell>{ownerOf(product)}</TableCell>
+                  <TableCell>
+                    <TextField
+                      select
+                      size="small"
+                      value={product.consignor_id ?? ''}
+                      disabled={busy === product.id}
+                      onChange={(e) => changeOwner(product, e.target.value)}
+                      slotProps={{
+                        select: { native: true },
+                        htmlInput: { 'aria-label': `De quién es ${product.title}` },
+                      }}
+                    >
+                      <option value="">Propio</option>
+                      {suppliers.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </TextField>
+                  </TableCell>
                   <TableCell align="right">{fCurrency(product.price_retail)}</TableCell>
                   <TableCell align="right">{product.units_sold}</TableCell>
                   <TableCell align="right">{fCurrency(product.amount) || '$0'}</TableCell>

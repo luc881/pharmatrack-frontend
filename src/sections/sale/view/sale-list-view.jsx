@@ -20,7 +20,7 @@ import { fDate } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
 
 import { DashboardContent } from 'src/layouts/dashboard';
-import { deleteSale, useGetSales } from 'src/actions/sale';
+import { cancelSale, deleteSale, useGetSales } from 'src/actions/sale';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -96,9 +96,9 @@ export function SaleListView() {
   const { sales, salesTotal, salesLoading, salesMutate } = useGetSales({
     page: paginationModel.page + 1,
     pageSize: paginationModel.pageSize,
-    status:   filters.status   || undefined,
+    status: filters.status || undefined,
     dateFrom: filters.dateFrom || undefined,
-    dateTo:   filters.dateTo   || undefined,
+    dateTo: filters.dateTo || undefined,
   });
 
   const rowCountRef = useRef(salesTotal);
@@ -129,7 +129,25 @@ export function SaleListView() {
     }
   }, [rowToDelete, selectedRows.ids, salesMutate, confirmDialog]);
 
-  const deleteCount = rowToDelete ? 1 : selectedRows.ids?.size ?? 0;
+  // Una venta cobrada no se borra (su stock no regresaría): se cancela
+  const handleCancelRow = useCallback(
+    async (sale) => {
+      const sure = window.confirm(
+        `¿Cancelar la venta ${sale.id}? Lo vendido regresa al inventario y la venta sale del corte de caja. Queda en el historial como «Cancelada».`
+      );
+      if (!sure) return;
+      try {
+        await cancelSale(sale.id);
+        await salesMutate();
+        toast.success('Venta cancelada');
+      } catch (error) {
+        toast.error(error?.message || 'No se pudo cancelar la venta');
+      }
+    },
+    [salesMutate]
+  );
+
+  const deleteCount = rowToDelete ? 1 : (selectedRows.ids?.size ?? 0);
 
   const columns = useMemo(
     () => [
@@ -191,9 +209,7 @@ export function SaleListView() {
         sortable: false,
         filterable: false,
         disableColumnMenu: true,
-        renderCell: (params) => (
-          <SalePDFRowButton sale={params.row} productMap={productMap} />
-        ),
+        renderCell: (params) => <SalePDFRowButton sale={params.row} productMap={productMap} />,
       },
       {
         type: 'actions',
@@ -206,13 +222,55 @@ export function SaleListView() {
         filterable: false,
         disableColumnMenu: true,
         getActions: (params) => [
-          <CustomGridActionsCellItem showInMenu label="Ver detalle" icon={<Iconify icon="solar:eye-bold" />} href={paths.dashboard.sale.details(params.row.id)} />,
-          ...(canUpdate ? [<CustomGridActionsCellItem showInMenu label="Editar" icon={<Iconify icon="solar:pen-bold" />} href={paths.dashboard.sale.edit(params.row.id)} />] : []),
-          ...(canDelete ? [<CustomGridActionsCellItem showInMenu label="Eliminar" icon={<Iconify icon="solar:trash-bin-trash-bold" />} onClick={() => handleDeleteRow(params.row.id)} style={{ color: theme.vars.palette.error.main }} />] : []),
+          <CustomGridActionsCellItem
+            showInMenu
+            label="Ver detalle"
+            icon={<Iconify icon="solar:eye-bold" />}
+            href={paths.dashboard.sale.details(params.row.id)}
+          />,
+          ...(canUpdate
+            ? [
+                <CustomGridActionsCellItem
+                  showInMenu
+                  label="Editar"
+                  icon={<Iconify icon="solar:pen-bold" />}
+                  href={paths.dashboard.sale.edit(params.row.id)}
+                />,
+              ]
+            : []),
+          ...(canDelete && params.row.status === 'completed'
+            ? [
+                <CustomGridActionsCellItem
+                  showInMenu
+                  label="Cancelar venta"
+                  icon={<Iconify icon="solar:close-circle-bold" />}
+                  onClick={() => handleCancelRow(params.row)}
+                  style={{ color: theme.vars.palette.error.main }}
+                />,
+              ]
+            : []),
+          ...(canDelete && params.row.status !== 'completed'
+            ? [
+                <CustomGridActionsCellItem
+                  showInMenu
+                  label="Eliminar"
+                  icon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                  onClick={() => handleDeleteRow(params.row.id)}
+                  style={{ color: theme.vars.palette.error.main }}
+                />,
+              ]
+            : []),
         ],
       },
     ],
-    [canDelete, canUpdate, handleDeleteRow, productMap, theme.vars.palette.error.main]
+    [
+      canDelete,
+      canUpdate,
+      handleCancelRow,
+      handleDeleteRow,
+      productMap,
+      theme.vars.palette.error.main,
+    ]
   );
 
   return (
@@ -220,10 +278,7 @@ export function SaleListView() {
       <DashboardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CustomBreadcrumbs
           heading="Ventas"
-          links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Ventas' },
-          ]}
+          links={[{ name: 'Dashboard', href: paths.dashboard.root }, { name: 'Ventas' }]}
           action={
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Button
