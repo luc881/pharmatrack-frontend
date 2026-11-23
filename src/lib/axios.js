@@ -154,6 +154,7 @@ export const endpoints = {
     checkout: '/api/v1/sales/checkout',
     summary: '/api/v1/sales/summary',
     byOwner: '/api/v1/sales/report/by-owner',
+    export: '/api/v1/sales/export',
   },
   saleDetail: {
     list: '/api/v1/saledetails',

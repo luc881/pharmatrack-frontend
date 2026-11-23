@@ -199,8 +199,9 @@ export function SaleDetailView({ currentSale }) {
             <Box>
               <Typography variant="caption" sx={{ color: 'text.secondary' }}>Fecha</Typography>
               <Typography variant="body2">
-                {currentSale?.created_at
-                  ? new Date(currentSale.created_at).toLocaleString('es-MX')
+                {/* la hora del cobro; created_at es cuándo se subió */}
+                {currentSale?.date_sale
+                  ? new Date(currentSale.date_sale).toLocaleString('es-MX')
                   : '—'}
               </Typography>
             </Box>

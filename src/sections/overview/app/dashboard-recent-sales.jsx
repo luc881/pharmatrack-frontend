@@ -14,7 +14,7 @@ import CardHeader from '@mui/material/CardHeader';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { fDate } from 'src/utils/format-time';
+import { fDateTime } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
@@ -70,7 +70,7 @@ export function DashboardRecentSales({ sales, loading, sx, ...other }) {
                     </TableCell>
 
                     <TableCell sx={{ color: 'text.secondary' }}>
-                      {row.date_sale ? fDate(row.date_sale) : '—'}
+                      {row.date_sale ? fDateTime(row.date_sale) : '—'}
                     </TableCell>
 
                     <TableCell align="right" sx={{ fontWeight: 600 }}>

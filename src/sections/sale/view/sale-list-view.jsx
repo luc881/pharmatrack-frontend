@@ -16,7 +16,7 @@ import { Toolbar, DataGrid, gridClasses } from '@mui/x-data-grid';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { fDate } from 'src/utils/format-time';
+import { fDateTime } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
 
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -46,6 +46,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { SalePDFRowButton } from '../sale-pdf';
 import { SaleItemsButton } from '../sale-items-button';
+import { SalesExportButton } from '../sales-export-button';
 
 // ----------------------------------------------------------------------
 
@@ -164,8 +165,8 @@ export function SaleListView() {
       {
         field: 'date_sale',
         headerName: 'Fecha',
-        width: 140,
-        valueGetter: (value) => (value ? fDate(value) : '—'),
+        width: 190,
+        valueGetter: (value) => (value ? fDateTime(value) : '—'),
       },
       {
         field: 'total',
@@ -394,6 +395,7 @@ export function SaleListView() {
                           Eliminar ({selectedRows.ids.size})
                         </Button>
                       )}
+                      <SalesExportButton filters={filters} />
                       <CustomToolbarColumnsButton />
                       <CustomToolbarExportButton />
                       <CustomToolbarSettingsButton

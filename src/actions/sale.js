@@ -1,6 +1,8 @@
 import useSWR from 'swr';
 import { useMemo } from 'react';
 
+import { mxDayRangeUtc } from 'src/utils/mx-day';
+
 import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
 
 // ----------------------------------------------------------------------
@@ -29,9 +31,10 @@ export function useGetBranches() {
 
 export function useGetSales({ page = 1, pageSize = 10, status, dateFrom, dateTo } = {}) {
   const params = { page, page_size: pageSize };
-  if (status) params.status = status;
-  if (dateFrom) params.date_from = dateFrom;
-  if (dateTo) params.date_to = dateTo;
+  if (status) params.status_filter = status;
+  // días de México completos (el «hasta» incluye ese día)
+  if (dateFrom) params.date_from = mxDayRangeUtc(dateFrom, dateFrom).from;
+  if (dateTo) params.date_to = mxDayRangeUtc(dateTo, dateTo).to;
 
   const url = [endpoints.sale.list, { params }];
 
@@ -114,6 +117,19 @@ export function useGetSaleBatchUsagesBySale(saleId) {
 // Venta completa (líneas, pagos y stock) en una transacción
 export const checkoutSale = (data) =>
   axiosInstance.post(endpoints.sale.checkout, data).then((r) => r.data);
+
+// Excel de todas las ventas del periodo (días de México), con sus productos
+export const exportSales = ({ status, dateFrom, dateTo }) =>
+  axiosInstance
+    .get(endpoints.sale.export, {
+      responseType: 'blob',
+      params: {
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
+        status_filter: status || undefined,
+      },
+    })
+    .then((r) => r.data);
 
 export const updateSale = (id, data) =>
   axiosInstance.put(endpoints.sale.update(id), data).then((r) => r.data);

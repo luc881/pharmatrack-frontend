@@ -5,8 +5,8 @@ import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { fDate } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
+import { fDate, fDateTime } from 'src/utils/format-time';
 
 import axiosInstance, { endpoints } from 'src/lib/axios';
 
@@ -217,7 +217,7 @@ function SalePdfDocument({ sale, saleDetails, salePayments, productMap, business
         <Text style={[styles.h3, styles.mb4]}>Recibo de Venta</Text>
         <Text style={[styles.body2, styles.secondary]}>Venta #{sale?.id}</Text>
         <Text style={[styles.body2, styles.secondary, styles.mb4]}>
-          {fDate(sale?.created_at ?? sale?.date_sale)}
+          {fDateTime(sale?.date_sale ?? sale?.created_at)}
         </Text>
         <Text style={[styles.badge]}>
           {STATUS_LABELS[sale?.status] ?? sale?.status ?? '—'}

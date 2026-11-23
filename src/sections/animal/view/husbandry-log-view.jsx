@@ -921,7 +921,7 @@ function LogDialog({ open, form, setForm, editingId, species, saving, onClose, o
                 {commitments.sale && (
                   <li>
                     Vendido en la venta #{commitments.sale.id} (
-                    {fDate(commitments.sale.date_sale.slice(0, 10))}).
+                    {fDate(commitments.sale.date_sale)}).
                   </li>
                 )}
                 {commitments.deliveries.map((d) => (
